@@ -9,7 +9,7 @@ email:
   password: your-app-password
 
 queue:
-  data_dir: data/queue
+  data_dir: queue
 
 schedules:
   - type: check_email

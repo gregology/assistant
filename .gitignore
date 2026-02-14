@@ -194,7 +194,7 @@ cython_debug/
 *CLAUDE.md
 
 # Task queue data
-data/queue/**/*.yaml
+queue/
 
 # Cron job state
 cron_state.db

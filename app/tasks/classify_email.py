@@ -20,8 +20,9 @@ CLASSIFY_SCHEMA = {
         "requires_response": {"type": "number"},
         "requires_action": {"type": "number"},
         "urgency": {"type": "number"},
+        "user_agreement_update": {"type": "number"},
     },
-    "required": ["human", "robot", "requires_response", "requires_action", "urgency"],
+    "required": ["human", "robot", "requires_response", "requires_action", "urgency", "user_agreement_update"],
 }
 
 

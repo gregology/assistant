@@ -1,19 +1,16 @@
 from __future__ import annotations
 
 import logging
-import os
 from pathlib import Path
 
 import frontmatter
-from dotenv import load_dotenv
 
+from app.config import cfg
 from app.mail import Email
-
-load_dotenv()
 
 log = logging.getLogger(__name__)
 
-NOTES_DIR = os.environ.get("NOTES_DIR", "")
+NOTES_DIR = cfg("storage.notes_dir", "")
 EMAIL_DIR = Path(NOTES_DIR) / "emails"
 
 

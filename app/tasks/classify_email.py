@@ -51,4 +51,4 @@ def handle(task: dict):
     log.info("classify_email: uid=%s result=%s", uid, classification)
 
     store = EmailStore()
-    store.update(uid, **classification)
+    store.update(uid, classification=classification)

@@ -2,23 +2,21 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 from enum import StrEnum
 from typing import Any, Protocol, runtime_checkable
 
 import httpx
 import jsonschema
-from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 
-load_dotenv()
+from app.config import cfg
 
 log = logging.getLogger(__name__)
 
-LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "http://localhost:8000")
+LLM_BASE_URL = cfg("llm.base_url", "http://localhost:8000")
 
 MODEL_ALIASES: dict[str, str] = {
-    "fast": os.environ.get("FAST_LLM", ""),
+    "fast": cfg("llm.fast_model", ""),
 }
 
 

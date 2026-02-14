@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import os
 import re
 from datetime import datetime, timezone
 from email.message import EmailMessage
@@ -9,17 +8,16 @@ from email.policy import EmailPolicy
 
 import httpx
 from bs4 import BeautifulSoup
-from dotenv import load_dotenv
 from imap_tools import AND, MailBox as IMAPToolsMailBox, MailMessage
 
-load_dotenv()
+from app.config import cfg
 
 log = logging.getLogger(__name__)
 
-IMAP_SERVER = os.environ.get("IMAP_SERVER", "")
-IMAP_PORT = int(os.environ.get("IMAP_PORT", "993"))
-IMAP_USERNAME = os.environ.get("IMAP_USERNAME", "")
-IMAP_PASSWORD = os.environ.get("IMAP_PASSWORD", "")
+IMAP_SERVER = cfg("email.imap_server", "")
+IMAP_PORT = cfg("email.imap_port", 993)
+IMAP_USERNAME = cfg("email.username", "")
+IMAP_PASSWORD = cfg("email.password", "")
 
 
 class Email:

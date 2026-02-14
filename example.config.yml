@@ -1,0 +1,15 @@
+llm:
+  base_url: http://localhost:11434
+  fast_model: your-model-name:latest
+
+email:
+  imap_server: imap.example.com
+  imap_port: 993
+  username: you@example.com
+  password: your-app-password
+
+queue:
+  data_dir: data/queue
+
+storage:
+  notes_dir: /path/to/notes

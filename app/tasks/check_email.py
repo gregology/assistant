@@ -15,7 +15,7 @@ def handle(task: dict):
     log.info("check_email: found %d existing email files", len(known))
 
     with Mailbox() as mb:
-        mb.collect_emails(limit=10)
+        mb.collect_emails(limit=task["payload"].get("limit", 10))
 
         existing = []
         new = []

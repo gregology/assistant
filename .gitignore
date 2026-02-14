@@ -197,4 +197,4 @@ cython_debug/
 queue/
 
 # Cron job state
-cron_state.db
+cron_state.db*

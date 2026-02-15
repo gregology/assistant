@@ -13,8 +13,6 @@ from app.config import cfg
 
 log = logging.getLogger(__name__)
 
-LLM_BASE_URL = cfg("llm.base_url", "http://localhost:8000")
-
 MODEL_ALIASES: dict[str, str] = {
     "fast": cfg("llm.fast_model", ""),
 }
@@ -97,10 +95,10 @@ class LLMBackend(Protocol):
 class LlamaCppBackend:
     def __init__(
         self,
-        base_url: str = LLM_BASE_URL,
+        base_url: str | None = None,
         timeout: float = 2400.0,
     ):
-        self._base_url = base_url.rstrip("/")
+        self._base_url = (base_url or cfg("llm.base_url", "http://localhost:8000")).rstrip("/")
         self._client = httpx.Client(timeout=timeout)
 
     def chat(

@@ -1,7 +1,9 @@
+import argparse
 import logging
 import time
 
 from app import queue
+from app.config import set_override
 from app.tasks import check_email, classify_email, collect_email
 
 logging.basicConfig(
@@ -30,6 +32,13 @@ def handle(task: dict):
 
 
 def main():
+    parser = argparse.ArgumentParser(description="GaaS task worker")
+    parser.add_argument("--llm_base_url", help="Override the LLM base URL from config.yml")
+    args = parser.parse_args()
+
+    if args.llm_base_url:
+        set_override("llm.base_url", args.llm_base_url)
+
     queue.init()
     log.info("Worker started, polling every %ss", POLL_INTERVAL)
 

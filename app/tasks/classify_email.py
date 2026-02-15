@@ -43,7 +43,7 @@ def handle(task: dict):
         email = mb.get_email(uid)
 
     prompt = _render_prompt(email)
-    log.info(f"classify_email_prompt:\n{prompt}")
+    log.info("classify_email_prompt:\n%s", prompt)
     conversation = LLMConversation(
         model="fast",
         system="Disable internal monologue. Answer directly. Respond with JSON."

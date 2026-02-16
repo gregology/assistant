@@ -4,7 +4,9 @@ import time
 
 from app import queue
 from app.config import set_override
-from app.tasks import check_email, classify_email, collect_email
+from app.tasks import (
+    check_email, classify_email, classify_github_pr, collect_email, update_github_prs,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -19,6 +21,8 @@ HANDLERS = {
     "check_email": check_email.handle,
     "collect_email": collect_email.handle,
     "classify_email": classify_email.handle,
+    "classify_github_pr": classify_github_pr.handle,
+    "update_github_prs": update_github_prs.handle,
 }
 
 

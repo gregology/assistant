@@ -16,6 +16,8 @@ schedules:
     every: 30m
     options:
       limit: 50
+  - task: update_github_prs
+    every: 30m
   # Advanced: use raw cron expressions
   # - type: check_email
   #   cron: "0 3 * * *"

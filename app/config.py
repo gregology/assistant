@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any, Literal
 
 import yaml
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 _CONFIG_PATH = _PROJECT_ROOT / "config.yaml"
@@ -53,11 +53,34 @@ class LLMConfig(BaseModel):
     parameters: dict[str, Any] = {}
 
 
-class EmailConfig(BaseModel):
+class ScheduleConfig(BaseModel):
+    every: str | None = None
+    cron: str | None = None
+
+
+class EmailIntegration(BaseModel):
+    type: Literal["email"] = "email"
+    name: str
     imap_server: str
     imap_port: int = 993
     username: str
     password: str
+    schedule: ScheduleConfig | None = None
+    llm: str = "default"
+    limit: int = 50
+
+
+class GitHubIntegration(BaseModel):
+    type: Literal["github"] = "github"
+    name: str
+    schedule: ScheduleConfig | None = None
+    llm: str = "default"
+
+
+Integration = Annotated[
+    EmailIntegration | GitHubIntegration,
+    Field(discriminator="type"),
+]
 
 
 class DirectoriesConfig(BaseModel):
@@ -66,18 +89,22 @@ class DirectoriesConfig(BaseModel):
     logs: Path = Path("logs")
 
 
-class ScheduleEntry(BaseModel):
-    task: str
-    every: str | None = None
-    cron: str | None = None
-    options: dict[str, Any] = {}
-
-
 class AppConfig(BaseModel):
     llms: dict[str, LLMConfig]
-    email: EmailConfig | None = None
+    integrations: list[Integration] = []
     directories: DirectoriesConfig = DirectoriesConfig()
-    schedules: list[ScheduleEntry] = []
+
+    def get_integration(self, name: str) -> Integration:
+        for entry in self.integrations:
+            if entry.name == name:
+                return entry
+        available = [i.name for i in self.integrations]
+        raise ValueError(
+            f"Unknown integration '{name}'. Available: {available}"
+        )
+
+    def get_integrations_by_type(self, integration_type: str) -> list[Integration]:
+        return [i for i in self.integrations if i.type == integration_type]
 
 
 # ---------------------------------------------------------------------------

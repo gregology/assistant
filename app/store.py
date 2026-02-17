@@ -5,19 +5,9 @@ from pathlib import Path
 
 import frontmatter
 
-from app.config import config
 from app.mail import Email
 
 log = logging.getLogger(__name__)
-
-
-def _notes_dir() -> Path:
-    if config.directories.notes is None:
-        raise RuntimeError(
-            "Notes directory is not configured. "
-            "Set 'directories.notes' in config.yaml."
-        )
-    return config.directories.notes
 
 
 class NoteStore:
@@ -78,8 +68,8 @@ class NoteStore:
 
 
 class EmailStore:
-    def __init__(self, path: Path | None = None) -> None:
-        self._path = path or (_notes_dir() / "emails")
+    def __init__(self, path: Path) -> None:
+        self._path = path
         self._store = NoteStore(self._path)
 
     def known_uids(self) -> set[str]:

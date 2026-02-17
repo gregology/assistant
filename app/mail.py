@@ -11,8 +11,6 @@ import httpx
 from bs4 import BeautifulSoup
 from imap_tools import AND, MailBox as IMAPToolsMailBox, MailMessage
 
-from app.config import config
-
 log = logging.getLogger(__name__)
 
 
@@ -108,21 +106,27 @@ class Email:
 
 
 class Mailbox:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        imap_server: str,
+        imap_port: int,
+        username: str,
+        password: str,
+    ) -> None:
+        self._imap_server = imap_server
+        self._imap_port = imap_port
+        self._username = username
+        self._password = password
         self.emails: list[Email] = []
         self._conn: IMAPToolsMailBox | None = None
         self._folders: dict[str, str] = {}
 
     def _ensure_connected(self) -> None:
         if self._conn is None:
-            if config.email is None:
-                raise RuntimeError(
-                    "Email is not configured. Add an 'email' section to config.yaml."
-                )
-            self._conn = IMAPToolsMailBox(config.email.imap_server, config.email.imap_port)
-            self._conn.login(config.email.username, config.email.password)
+            self._conn = IMAPToolsMailBox(self._imap_server, self._imap_port)
+            self._conn.login(self._username, self._password)
             self._folders = _discover_folders(self._conn)
-            log.info("IMAP connected to %s as %s", config.email.imap_server, config.email.username)
+            log.info("IMAP connected to %s as %s", self._imap_server, self._username)
             log.info("Discovered folders: %s", self._folders)
 
     def collect_emails(self, limit: int = 50) -> None:

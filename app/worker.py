@@ -1,13 +1,9 @@
-import argparse
 import logging
 import time
 
 import app.human_log  # noqa: F401 — registers log.human()
 from app import queue
-from app.config import config
-from app.tasks import (
-    check_email, classify_email, classify_github_pr, collect_email, update_github_prs,
-)
+from app.integrations import HANDLERS
 
 logging.basicConfig(
     level=logging.INFO,
@@ -16,15 +12,6 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 POLL_INTERVAL = 1  # seconds
-
-
-HANDLERS = {
-    "check_email": check_email.handle,
-    "collect_email": collect_email.handle,
-    "classify_email": classify_email.handle,
-    "classify_github_pr": classify_github_pr.handle,
-    "update_github_prs": update_github_prs.handle,
-}
 
 
 def handle(task: dict):
@@ -37,13 +24,6 @@ def handle(task: dict):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="GaaS task worker")
-    parser.add_argument("--llm_base_url", help="Override the default LLM base URL from config.yaml")
-    args = parser.parse_args()
-
-    if args.llm_base_url and "default" in config.llms:
-        config.llms["default"].base_url = args.llm_base_url
-
     queue.init()
     log.info("Worker started, polling every %ss", POLL_INTERVAL)
 

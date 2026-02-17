@@ -4,6 +4,7 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
 
+from app.config import config
 from app.llm import LLMConversation
 from app.mail import Mailbox
 from app.store import EmailStore
@@ -26,7 +27,7 @@ CLASSIFY_SCHEMA = {
 }
 
 
-def _render_prompt(email: str) -> str:
+def _render_prompt(email) -> str:
     template = jinja_env.get_template("classify_email.jinja")
     return template.render(
         beginning_salt=secrets.token_hex(16),
@@ -36,20 +37,29 @@ def _render_prompt(email: str) -> str:
 
 
 def handle(task: dict):
+    integration_name = task["payload"]["integration"]
+    integration = config.get_integration(integration_name)
     uid = task["payload"]["uid"]
-    log.info("classify_email: uid=%s", uid)
+    log.info("email.classify: uid=%s (integration=%s)", uid, integration_name)
 
-    with Mailbox() as mb:
+    with Mailbox(
+        imap_server=integration.imap_server,
+        imap_port=integration.imap_port,
+        username=integration.username,
+        password=integration.password,
+    ) as mb:
         email = mb.get_email(uid)
 
     prompt = _render_prompt(email)
-    log.info("classify_email_prompt:\n%s", prompt)
+    log.info("email.classify prompt:\n%s", prompt)
     conversation = LLMConversation(
-        system="Disable internal monologue. Answer directly. Respond with JSON."
+        model=integration.llm,
+        system="Disable internal monologue. Answer directly. Respond with JSON.",
     )
     classification = conversation.message(prompt=prompt, schema=CLASSIFY_SCHEMA)
 
-    log.info("classify_email: uid=%s result=%s", uid, classification)
+    log.info("email.classify: uid=%s result=%s", uid, classification)
 
-    store = EmailStore()
+    notes_dir = config.directories.notes
+    store = EmailStore(path=notes_dir / "emails" / integration.username)
     store.update(uid, classification=classification)

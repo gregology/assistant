@@ -2,14 +2,20 @@ llms:
   default:
     base_url: http://localhost:11434          # Ollama server URL
     model: your-model-name:latest
+    parameters:                               # Passed directly to the API
+      temperature: 0.7
   fast:
     base_url: http://gaming_rig:11434
     model: your-model-name:latest
+    parameters:
+      temperature: 0.7
   # Example: external provider with API key
   # external:
   #   base_url: https://api.openai.com
   #   token: !secret openai_api_key
   #   model: gpt-5-mini-2025-08-07
+  #   parameters:
+  #     max_tokens: 4096
 
 # Optional: remove this section entirely if you don't use email features
 email:

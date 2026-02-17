@@ -7,7 +7,7 @@ from typing import Any, Protocol, runtime_checkable
 
 import httpx
 import jsonschema
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from app.config import config
 
@@ -63,26 +63,13 @@ class MessageList:
         return None
 
 
-class RetryConfig(BaseModel):
-    max_attempts: int = 3
-    temp_adjustments: list[float] = Field(
-        default_factory=lambda: [0.0, 0.2, 0.5]
-    )
-
-    def get_temp_adjustment(self, attempt: int) -> float:
-        if not self.temp_adjustments:
-            return 0.0
-        idx = min(attempt, len(self.temp_adjustments) - 1)
-        return self.temp_adjustments[idx]
-
-
 @runtime_checkable
 class LLMBackend(Protocol):
     def chat(
         self,
         messages: list[dict[str, str]],
         model: str,
-        temperature: float,
+        parameters: dict[str, Any] | None = None,
         response_format: dict | None = None,
     ) -> str: ...
 
@@ -104,22 +91,22 @@ class LlamaCppBackend:
         self,
         messages: list[dict[str, str]],
         model: str,
-        temperature: float,
+        parameters: dict[str, Any] | None = None,
         response_format: dict | None = None,
     ) -> str:
         payload: dict[str, Any] = {
             "model": model,
             "messages": messages,
-            "temperature": temperature,
+            **(parameters or {}),
         }
         if response_format is not None:
             payload["response_format"] = response_format
 
         log.info(
-            "LLM request model=%s messages=%d temperature=%.2f schema=%s",
+            "LLM request model=%s messages=%d params=%s schema=%s",
             model,
             len(messages),
-            temperature,
+            parameters or {},
             response_format is not None,
         )
 
@@ -144,13 +131,13 @@ class SchemaValidationError(Exception):
 
 
 class LLMConversation:
+    MAX_RETRIES = 3
+
     def __init__(
         self,
         model: str = "default",
-        temperature: float = 0.7,
         system: str | None = None,
         backend: LLMBackend | None = None,
-        retry: RetryConfig | None = None,
     ):
         llm_config = config.llms.get(model)
         if llm_config is None:
@@ -159,13 +146,12 @@ class LLMConversation:
                 f"Available: {list(config.llms.keys())}"
             )
         self.model = llm_config.model
-        self.temperature = temperature
+        self._parameters = llm_config.parameters
         self.messages = MessageList()
         self._backend = backend or LlamaCppBackend(
             base_url=llm_config.base_url,
             token=llm_config.token,
         )
-        self._retry = retry or RetryConfig()
 
         if system is not None:
             self.messages.append(Message(role=Role.SYSTEM, content=system))
@@ -181,7 +167,7 @@ class LLMConversation:
         content = self._backend.chat(
             messages=self.messages.to_api_format(),
             model=self.model,
-            temperature=self.temperature,
+            parameters=self._parameters,
         )
         self.messages.append(Message(role=Role.ASSISTANT, content=content))
         return content
@@ -191,14 +177,11 @@ class LLMConversation:
         raw_content = ""
         errors: list[str] = []
 
-        for attempt in range(self._retry.max_attempts):
-            temp_adj = self._retry.get_temp_adjustment(attempt)
-            effective_temp = self.temperature + temp_adj
-
+        for attempt in range(self.MAX_RETRIES):
             raw_content = self._backend.chat(
                 messages=self.messages.to_api_format(),
                 model=self.model,
-                temperature=effective_temp,
+                parameters=self._parameters,
                 response_format=response_format,
             )
 
@@ -208,7 +191,7 @@ class LLMConversation:
                 log.warning(
                     "LLM returned invalid JSON attempt %d/%d: %s",
                     attempt + 1,
-                    self._retry.max_attempts,
+                    self.MAX_RETRIES,
                     exc,
                 )
                 continue
@@ -223,7 +206,7 @@ class LLMConversation:
             log.warning(
                 "Schema validation failed attempt %d/%d: %s",
                 attempt + 1,
-                self._retry.max_attempts,
+                self.MAX_RETRIES,
                 errors,
             )
 
@@ -231,7 +214,7 @@ class LLMConversation:
         self.messages._messages.pop()
         raise SchemaValidationError(
             f"Failed to get valid structured output after "
-            f"{self._retry.max_attempts} attempts",
+            f"{self.MAX_RETRIES} attempts",
             raw_content=raw_content,
             errors=errors,
         )

@@ -50,6 +50,7 @@ class LLMConfig(BaseModel):
     base_url: str = "http://localhost:11434"
     model: str
     token: str | None = None
+    parameters: dict[str, Any] = {}
 
 
 class EmailConfig(BaseModel):

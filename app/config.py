@@ -10,10 +10,6 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 _CONFIG_PATH = _PROJECT_ROOT / "config.yaml"
 _SECRETS_PATH = _PROJECT_ROOT / "secrets.yaml"
 
-# ---------------------------------------------------------------------------
-# Custom YAML loader with !secret tag support
-# ---------------------------------------------------------------------------
-
 _secrets_cache: dict[str, Any] | None = None
 
 
@@ -40,10 +36,6 @@ def _secret_constructor(loader: yaml.SafeLoader, node: yaml.ScalarNode) -> str:
 
 _Loader = type("_Loader", (yaml.SafeLoader,), {})
 _Loader.add_constructor("!secret", _secret_constructor)
-
-# ---------------------------------------------------------------------------
-# Pydantic configuration models
-# ---------------------------------------------------------------------------
 
 
 class LLMConfig(BaseModel):
@@ -106,10 +98,6 @@ class AppConfig(BaseModel):
     def get_integrations_by_type(self, integration_type: str) -> list[Integration]:
         return [i for i in self.integrations if i.type == integration_type]
 
-
-# ---------------------------------------------------------------------------
-# Load configuration at import time
-# ---------------------------------------------------------------------------
 
 with _CONFIG_PATH.open() as _f:
     _raw: dict = yaml.load(_f, Loader=_Loader)

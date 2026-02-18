@@ -64,6 +64,21 @@ class ClassificationConfig(BaseModel):
         return self
 
 
+class AutomationConfig(BaseModel):
+    when: dict[str, Any]
+    then: list[str | dict[str, str]]
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_then(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        then = data.get("then")
+        if isinstance(then, str):
+            data["then"] = [then]
+        return data
+
+
 class EmailIntegration(BaseModel):
     type: Literal["email"] = "email"
     name: str
@@ -75,6 +90,7 @@ class EmailIntegration(BaseModel):
     llm: str = "default"
     limit: int = 50
     classifications: dict[str, ClassificationConfig] = {}
+    automations: list[AutomationConfig] = []
 
     @model_validator(mode="before")
     @classmethod

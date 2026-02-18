@@ -3,17 +3,13 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from app.config import cfg
 from app.store import NoteStore
 
 log = logging.getLogger(__name__)
 
-NOTES_DIR = cfg("storage.notes_dir", "")
-PR_DIR = Path(NOTES_DIR) / "github" / "pull_requests"
-
 
 class PullRequestStore:
-    def __init__(self, path: Path = PR_DIR) -> None:
+    def __init__(self, path: Path) -> None:
         self._store = NoteStore(path)
 
     @staticmethod

@@ -11,14 +11,7 @@ import httpx
 from bs4 import BeautifulSoup
 from imap_tools import AND, MailBox as IMAPToolsMailBox, MailMessage
 
-from app.config import cfg
-
 log = logging.getLogger(__name__)
-
-IMAP_SERVER = cfg("email.imap_server", "")
-IMAP_PORT = cfg("email.imap_port", 993)
-IMAP_USERNAME = cfg("email.username", "")
-IMAP_PASSWORD = cfg("email.password", "")
 
 
 class Email:
@@ -72,7 +65,8 @@ class Email:
     def archive(self) -> None:
         folder = self._mailbox._folder("\\Archive")
         self._mailbox._move(self._uid, folder)
-        log.info("Archived email uid=%s subject=%s", self._uid, self.subject)
+        subject = self.subject[:25] + "…" if len(self.subject) > 25 else self.subject
+        log.human("Archived email from **%s** — `%s` (uid %s)", self.from_address, subject, self._uid)
 
     def spam(self) -> None:
         folder = self._mailbox._folder("\\Junk")
@@ -112,17 +106,27 @@ class Email:
 
 
 class Mailbox:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        imap_server: str,
+        imap_port: int,
+        username: str,
+        password: str,
+    ) -> None:
+        self._imap_server = imap_server
+        self._imap_port = imap_port
+        self._username = username
+        self._password = password
         self.emails: list[Email] = []
         self._conn: IMAPToolsMailBox | None = None
         self._folders: dict[str, str] = {}
 
     def _ensure_connected(self) -> None:
         if self._conn is None:
-            self._conn = IMAPToolsMailBox(IMAP_SERVER, IMAP_PORT)
-            self._conn.login(IMAP_USERNAME, IMAP_PASSWORD)
+            self._conn = IMAPToolsMailBox(self._imap_server, self._imap_port)
+            self._conn.login(self._username, self._password)
             self._folders = _discover_folders(self._conn)
-            log.info("IMAP connected to %s as %s", IMAP_SERVER, IMAP_USERNAME)
+            log.info("IMAP connected to %s as %s", self._imap_server, self._username)
             log.info("Discovered folders: %s", self._folders)
 
     def collect_emails(self, limit: int = 50) -> None:

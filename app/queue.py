@@ -5,9 +5,9 @@ from pathlib import Path
 
 import yaml
 
-from app.config import cfg
+from app.config import config
 
-BASE_DIR = Path(cfg("queue.data_dir", "data/queue"))
+BASE_DIR = Path(config.directories.task_queue)
 DIRS = ("pending", "active", "done", "failed")
 
 

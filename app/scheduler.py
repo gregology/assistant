@@ -7,7 +7,8 @@ from fastapi import FastAPI
 from fastapi_crons import Crons
 
 from app import queue
-from app.config import cfg
+from app.config import config
+from app.integrations import ENTRY_TASKS
 
 log = logging.getLogger(__name__)
 
@@ -36,32 +37,35 @@ def interval_to_cron(interval: str) -> str:
     raise ValueError(f"Unknown unit: {unit}")
 
 
-def _resolve_expr(schedule: dict) -> str:
-    if "cron" in schedule:
-        return schedule["cron"]
-    if "every" in schedule:
-        return interval_to_cron(schedule["every"])
-    raise ValueError(f"Schedule must have 'cron' or 'every' key: {schedule}")
-
-
 def init_schedules(app: FastAPI) -> Crons:
-    schedules = cfg("schedules", [])
-    if not schedules:
-        log.info("No schedules configured")
-        return Crons(app)
-
     crons = Crons(app)
 
-    for i, schedule in enumerate(schedules):
-        task_type = schedule["task"]
-        expr = _resolve_expr(schedule)
-        options = schedule.get("options", {})
-        name = f"{task_type}_{i}"
+    for integration in config.integrations:
+        if integration.schedule is None:
+            continue
 
-        def make_job(t=task_type, o=options):
+        entry_task = ENTRY_TASKS.get(integration.type)
+        if entry_task is None:
+            log.warning("No entry task for integration type: %s", integration.type)
+            continue
+
+        schedule = integration.schedule
+        if schedule.cron:
+            expr = schedule.cron
+        elif schedule.every:
+            expr = interval_to_cron(schedule.every)
+        else:
+            continue
+
+        name = f"{integration.type}_{integration.name}"
+
+        def make_job(task_type=entry_task, int_entry=integration):
             def job():
-                log.info("Scheduled job: enqueueing %s with %s", t, o)
-                queue.enqueue({"type": t, **o})
+                payload = {"type": task_type, "integration": int_entry.name}
+                if hasattr(int_entry, "limit"):
+                    payload["limit"] = int_entry.limit
+                log.info("Scheduled job: enqueueing %s", payload)
+                queue.enqueue(payload)
             return job
 
         crons.cron(expr, name=name)(make_job())

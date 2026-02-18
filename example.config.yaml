@@ -1,0 +1,64 @@
+llms:
+  default:
+    base_url: http://localhost:11434          # Ollama server URL
+    model: your-model-name:latest
+    parameters:                               # Passed directly to the API
+      temperature: 0.7
+  fast:
+    base_url: http://gaming_rig:11434
+    model: your-model-name:latest
+    parameters:
+      temperature: 0.7
+  # Example: external provider with API key
+  # external:
+  #   base_url: https://api.openai.com
+  #   token: !secret openai_api_key
+  #   model: gpt-5-mini-2025-08-07
+  #   parameters:
+  #     max_tokens: 4096
+
+integrations:
+  - type: email
+    name: personal
+    imap_server: imap.example.com
+    imap_port: 993
+    username: you@example.com
+    password: !secret personal_email_password
+    schedule:
+      every: 30m
+    limit: 50
+    llm: fast
+
+  - type: email
+    name: work
+    imap_server: imap.company.com
+    imap_port: 993
+    username: you@company.com
+    password: !secret work_email_password
+    schedule:
+      cron: "0 8-18 * * 1-5"             # Business hours, weekdays
+    limit: 100
+    llm: default
+
+  - type: github
+    name: my_repos
+    schedule:
+      every: 30m
+    llm: default
+
+  # Advanced: nightly deep scan with a thorough model
+  # - type: email
+  #   name: personal_nightly
+  #   imap_server: imap.example.com
+  #   imap_port: 993
+  #   username: you@example.com
+  #   password: !secret personal_email_password
+  #   schedule:
+  #     cron: "0 3 * * *"
+  #   limit: 500
+  #   llm: default
+
+directories:
+  notes: /path/to/notes
+  task_queue: /path/to/task_queue
+  logs: /path/to/logs

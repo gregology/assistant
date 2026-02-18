@@ -7,16 +7,11 @@ from typing import Any, Protocol, runtime_checkable
 
 import httpx
 import jsonschema
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
-from app.config import cfg
+from app.config import config
 
 log = logging.getLogger(__name__)
-
-MODEL_ALIASES: dict[str, str] = {
-    "fast": cfg("llm.fast_model", ""),
-}
-
 
 
 class Role(StrEnum):
@@ -68,26 +63,13 @@ class MessageList:
         return None
 
 
-class RetryConfig(BaseModel):
-    max_attempts: int = 3
-    temp_adjustments: list[float] = Field(
-        default_factory=lambda: [0.0, 0.2, 0.5]
-    )
-
-    def get_temp_adjustment(self, attempt: int) -> float:
-        if not self.temp_adjustments:
-            return 0.0
-        idx = min(attempt, len(self.temp_adjustments) - 1)
-        return self.temp_adjustments[idx]
-
-
 @runtime_checkable
 class LLMBackend(Protocol):
     def chat(
         self,
         messages: list[dict[str, str]],
         model: str,
-        temperature: float,
+        parameters: dict[str, Any] | None = None,
         response_format: dict | None = None,
     ) -> str: ...
 
@@ -96,33 +78,35 @@ class LlamaCppBackend:
     def __init__(
         self,
         base_url: str | None = None,
+        token: str | None = None,
         timeout: float = 2400.0,
     ):
-        self._base_url = (base_url or cfg("llm.base_url", "http://localhost:8000")).rstrip("/")
-        self._client = httpx.Client(timeout=timeout)
+        self._base_url = (base_url or "http://localhost:11434").rstrip("/")
+        headers: dict[str, str] = {}
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        self._client = httpx.Client(timeout=timeout, headers=headers)
 
     def chat(
         self,
         messages: list[dict[str, str]],
         model: str,
-        temperature: float,
+        parameters: dict[str, Any] | None = None,
         response_format: dict | None = None,
     ) -> str:
-        resolved = MODEL_ALIASES.get(model, model)
-
         payload: dict[str, Any] = {
-            "model": resolved,
+            "model": model,
             "messages": messages,
-            "temperature": temperature,
+            **(parameters or {}),
         }
         if response_format is not None:
             payload["response_format"] = response_format
 
         log.info(
-            "LLM request model=%s messages=%d temperature=%.2f schema=%s",
-            resolved,
+            "LLM request model=%s messages=%d params=%s schema=%s",
+            model,
             len(messages),
-            temperature,
+            parameters or {},
             response_format is not None,
         )
 
@@ -147,19 +131,27 @@ class SchemaValidationError(Exception):
 
 
 class LLMConversation:
+    MAX_RETRIES = 3
+
     def __init__(
         self,
-        model: str = "fast",
-        temperature: float = 0.7,
+        model: str = "default",
         system: str | None = None,
         backend: LLMBackend | None = None,
-        retry: RetryConfig | None = None,
     ):
-        self.model = model
-        self.temperature = temperature
+        llm_config = config.llms.get(model)
+        if llm_config is None:
+            raise ValueError(
+                f"Unknown LLM profile '{model}'. "
+                f"Available: {list(config.llms.keys())}"
+            )
+        self.model = llm_config.model
+        self._parameters = llm_config.parameters
         self.messages = MessageList()
-        self._backend = backend or LlamaCppBackend()
-        self._retry = retry or RetryConfig()
+        self._backend = backend or LlamaCppBackend(
+            base_url=llm_config.base_url,
+            token=llm_config.token,
+        )
 
         if system is not None:
             self.messages.append(Message(role=Role.SYSTEM, content=system))
@@ -175,7 +167,7 @@ class LLMConversation:
         content = self._backend.chat(
             messages=self.messages.to_api_format(),
             model=self.model,
-            temperature=self.temperature,
+            parameters=self._parameters,
         )
         self.messages.append(Message(role=Role.ASSISTANT, content=content))
         return content
@@ -185,14 +177,11 @@ class LLMConversation:
         raw_content = ""
         errors: list[str] = []
 
-        for attempt in range(self._retry.max_attempts):
-            temp_adj = self._retry.get_temp_adjustment(attempt)
-            effective_temp = self.temperature + temp_adj
-
+        for attempt in range(self.MAX_RETRIES):
             raw_content = self._backend.chat(
                 messages=self.messages.to_api_format(),
                 model=self.model,
-                temperature=effective_temp,
+                parameters=self._parameters,
                 response_format=response_format,
             )
 
@@ -202,7 +191,7 @@ class LLMConversation:
                 log.warning(
                     "LLM returned invalid JSON attempt %d/%d: %s",
                     attempt + 1,
-                    self._retry.max_attempts,
+                    self.MAX_RETRIES,
                     exc,
                 )
                 continue
@@ -217,7 +206,7 @@ class LLMConversation:
             log.warning(
                 "Schema validation failed attempt %d/%d: %s",
                 attempt + 1,
-                self._retry.max_attempts,
+                self.MAX_RETRIES,
                 errors,
             )
 
@@ -225,7 +214,7 @@ class LLMConversation:
         self.messages._messages.pop()
         raise SchemaValidationError(
             f"Failed to get valid structured output after "
-            f"{self._retry.max_attempts} attempts",
+            f"{self.MAX_RETRIES} attempts",
             raw_content=raw_content,
             errors=errors,
         )

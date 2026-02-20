@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 from app.config import config
@@ -28,11 +28,11 @@ class HumanMarkdownHandler(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:
         try:
             message = record.getMessage()
-            now = datetime.now(timezone.utc)
+            now = datetime.now().astimezone()
             timestamp = now.strftime("%H:%M")
             line = f" - {timestamp} {message}\n"
 
-            path = _log_dir / now.strftime("%Y-%m-%d_%A.md")
+            path = _log_dir / now.strftime("%Y-%m-%d %A.md")
             _log_dir.mkdir(parents=True, exist_ok=True)
             with open(path, "a") as f:
                 f.write(line)

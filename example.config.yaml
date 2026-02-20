@@ -99,28 +99,6 @@ integrations:
     schedule:
       every: 30m
     llm: default
-    classifications:                        # Optional — defaults are used if omitted
-      complexity: how complex is this pull request to review?
-      risk: how risky is this change to production systems?
-      documentation_only:
-        prompt: is this primarily a documentation or configuration change?
-        type: confidence
-    automations:                            # Optional — act on classification results
-      # Non-deterministic: fire when LLM scores risk highly and PR is not a draft
-      - when:
-          classification.risk: "> 0.8"
-          draft: false
-        then: []                            # act handler deferred to Phase 4
-      # Deterministic: skip draft PRs entirely
-      - when:
-          draft: true
-        then: []                            # act handler deferred to Phase 4
-      # Mixed: high complexity doc-only PRs from a specific author
-      # - when:
-      #     classification.complexity: "> 0.7"
-      #     classification.documentation_only: "> 0.9"
-      #     author: dependabot[bot]
-      #   then: []                          # act handler deferred to Phase 4
 
   # Advanced: nightly deep scan with a thorough model
   # - type: email

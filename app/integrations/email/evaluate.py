@@ -1,5 +1,8 @@
 import logging
+import operator
+import re
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 import frontmatter
 
@@ -11,18 +14,21 @@ from app.config import (
     config,
     resolve_provenance,
 )
-from app.integrations.conditions import (
-    check_condition as _check_condition,
-    check_deterministic_condition as _check_deterministic_condition,
-    eval_operator as _eval_operator,
-    eval_now_operator as _eval_now_operator,
-)
 from app.integrations.email.const import DEFAULT_CLASSIFICATIONS, DETERMINISTIC_SOURCES
 from .store import EmailStore
 
 log = logging.getLogger(__name__)
 
-_MISSING = object()
+_OPS = {
+    ">": operator.gt,
+    "<": operator.lt,
+    ">=": operator.ge,
+    "<=": operator.le,
+    "==": operator.eq,
+}
+
+_OP_RE = re.compile(r"^\s*(>=|<=|>|<|==)\s*(\d+\.?\d*)\s*$")
+_NOW_RE = re.compile(r"^\s*(>=|<=|>|<|==)\s*now\(\)\s*$")
 
 
 @dataclass
@@ -66,6 +72,68 @@ def _snapshot_from_frontmatter(meta: dict) -> EmailSnapshot:
         authentication=meta.get("authentication", {}),
         calendar=meta.get("calendar"),
     )
+
+
+_MISSING = object()
+
+
+def _eval_operator(value: float, expr: str) -> bool:
+    match = _OP_RE.match(expr)
+    if not match:
+        log.warning("Invalid confidence condition: %r", expr)
+        return False
+    op_fn = _OPS[match.group(1)]
+    threshold = float(match.group(2))
+    return op_fn(value, threshold)
+
+
+def _eval_now_operator(value: str, expr: str) -> bool:
+    """Evaluate a now() comparison against an ISO 8601 datetime string.
+
+    Supports date-only strings (e.g. "2026-01-15") which are treated as
+    midnight UTC. Useful for calendar.end and calendar.start conditions.
+    """
+    match = _NOW_RE.match(expr)
+    if not match:
+        return False
+    op_fn = _OPS[match.group(1)]
+    try:
+        dt = datetime.fromisoformat(str(value))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+    except (ValueError, TypeError):
+        log.warning("Cannot parse datetime for now() comparison: %r", value)
+        return False
+    return op_fn(dt, datetime.now(timezone.utc))
+
+
+def _check_condition(value, condition, cls_config: ClassificationConfig) -> bool:
+    if cls_config.type == "boolean":
+        return value is condition
+
+    if cls_config.type == "confidence":
+        if isinstance(condition, (int, float)):
+            return value >= condition
+        if isinstance(condition, str):
+            return _eval_operator(value, condition)
+        return False
+
+    if cls_config.type == "enum":
+        if isinstance(condition, list):
+            return value in condition
+        return value == condition
+
+    return False
+
+
+def _check_deterministic_condition(value, condition) -> bool:
+    if isinstance(condition, str) and _NOW_RE.match(condition):
+        return _eval_now_operator(value, condition)
+    if isinstance(condition, bool):
+        return value is condition
+    if isinstance(condition, list):
+        return value in condition
+    return value == condition
 
 
 def _resolve_value(key: str, snapshot: EmailSnapshot, classification: dict):

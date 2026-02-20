@@ -35,7 +35,6 @@ class PullRequestStore:
             author=pr["author"],
             title=pr["title"],
             status="open",
-            draft=pr.get("draft", False),
         )
 
     def update(self, org: str, repo: str, number: int, **fields) -> Path | None:

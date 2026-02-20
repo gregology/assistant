@@ -4,6 +4,7 @@ import pytest
 
 from app.llm import (
     LLMConversation,
+    LLMResponse,
     Message,
     MessageList,
     Role,
@@ -123,8 +124,14 @@ class FakeLLMBackend:
     def __init__(self, responses: list[str]):
         self._responses = iter(responses)
 
-    def chat(self, messages, model, parameters=None, response_format=None) -> str:
-        return next(self._responses)
+    def chat(self, messages, model, parameters=None, response_format=None) -> LLMResponse:
+        return LLMResponse(
+            content=next(self._responses),
+            model=model or "test",
+            prompt_tokens=0,
+            completion_tokens=0,
+            duration_s=0.0,
+        )
 
 
 class TestLLMConversation:

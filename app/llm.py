@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import logging
+import time
+from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, Protocol, runtime_checkable
 
@@ -12,6 +14,19 @@ from pydantic import BaseModel
 from app.config import config
 
 log = logging.getLogger(__name__)
+
+
+@dataclass
+class LLMResponse:
+    content: str
+    model: str
+    prompt_tokens: int
+    completion_tokens: int
+    duration_s: float
+
+    @property
+    def tokens_per_sec(self) -> float:
+        return self.completion_tokens / self.duration_s if self.duration_s > 0 else 0.0
 
 
 class Role(StrEnum):
@@ -71,7 +86,7 @@ class LLMBackend(Protocol):
         model: str,
         parameters: dict[str, Any] | None = None,
         response_format: dict | None = None,
-    ) -> str: ...
+    ) -> LLMResponse: ...
 
 
 class LlamaCppBackend:
@@ -93,7 +108,7 @@ class LlamaCppBackend:
         model: str,
         parameters: dict[str, Any] | None = None,
         response_format: dict | None = None,
-    ) -> str:
+    ) -> LLMResponse:
         payload: dict[str, Any] = {
             "model": model,
             "messages": messages,
@@ -110,17 +125,33 @@ class LlamaCppBackend:
             response_format is not None,
         )
 
+        t0 = time.perf_counter()
         resp = self._client.post(
             f"{self._base_url}/v1/chat/completions",
             json=payload,
         )
+        duration = time.perf_counter() - t0
+
         if not resp.is_success:
-            log.error("LLM error status=%d body=%s", resp.status_code, resp.text)
+            log.error(
+                "LLM error status=%d duration=%.2fs body=%s",
+                resp.status_code,
+                duration,
+                resp.text,
+            )
         resp.raise_for_status()
 
-        content = resp.json()["choices"][0]["message"]["content"]
-        log.info("LLM response length=%d", len(content))
-        return content
+        data = resp.json()
+        content = data["choices"][0]["message"]["content"]
+        usage = data.get("usage", {})
+
+        return LLMResponse(
+            content=content,
+            model=model,
+            prompt_tokens=usage.get("prompt_tokens", 0),
+            completion_tokens=usage.get("completion_tokens", 0),
+            duration_s=duration,
+        )
 
 
 class SchemaValidationError(Exception):
@@ -163,14 +194,28 @@ class LLMConversation:
             return self._send_plain()
         return self._send_structured(schema)
 
+    def _log_stats(self, response: LLMResponse, attempt: int | None = None) -> None:
+        attempt_str = f" attempt={attempt}/{self.MAX_RETRIES}" if attempt is not None else ""
+        log.info(
+            "LLM stats model=%s duration=%.2fs prompt_tokens=%d"
+            " completion_tokens=%d tokens_per_sec=%.1f%s",
+            response.model,
+            response.duration_s,
+            response.prompt_tokens,
+            response.completion_tokens,
+            response.tokens_per_sec,
+            attempt_str,
+        )
+
     def _send_plain(self) -> str:
-        content = self._backend.chat(
+        response = self._backend.chat(
             messages=self.messages.to_api_format(),
             model=self.model,
             parameters=self._parameters,
         )
-        self.messages.append(Message(role=Role.ASSISTANT, content=content))
-        return content
+        self._log_stats(response)
+        self.messages.append(Message(role=Role.ASSISTANT, content=response.content))
+        return response.content
 
     def _send_structured(self, schema: dict) -> dict:
         response_format = _wrap_schema(schema)
@@ -178,12 +223,14 @@ class LLMConversation:
         errors: list[str] = []
 
         for attempt in range(self.MAX_RETRIES):
-            raw_content = self._backend.chat(
+            response = self._backend.chat(
                 messages=self.messages.to_api_format(),
                 model=self.model,
                 parameters=self._parameters,
                 response_format=response_format,
             )
+            self._log_stats(response, attempt=attempt + 1)
+            raw_content = response.content
 
             try:
                 parsed = json.loads(raw_content)

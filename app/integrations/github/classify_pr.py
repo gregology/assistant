@@ -49,7 +49,7 @@ def _render_prompt(
         diff = diff[:MAX_DIFF_CHARS] + "\n... (diff truncated)"
     template = jinja_env.get_template("classify_github_pr.jinja")
     return template.render(
-        salt=secrets.token_hex(16),
+        salt=secrets.token_hex(4).upper(),
         title=detail["title"],
         author=detail["author"],
         body=detail["body"],

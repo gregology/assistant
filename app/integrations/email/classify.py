@@ -44,7 +44,7 @@ def _render_prompt(email, classifications: dict[str, ClassificationConfig]) -> s
         body = body[:MAX_BODY_CHARS] + "\n... (body truncated)"
     template = jinja_env.get_template("classify_email.jinja")
     return template.render(
-        salt=secrets.token_hex(16),
+        salt=secrets.token_hex(4).upper(),
         email=email,
         contents_clean=body,
         classifications=classifications,

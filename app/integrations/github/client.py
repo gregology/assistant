@@ -25,6 +25,7 @@ class GitHubClient:
             "title": result.get("title", ""),
             "author": result.get("user", {}).get("login", ""),
             "status": status,
+            "draft": result.get("draft", False),
         }
 
     def get_pr_detail(self, org: str, repo: str, number: int) -> dict:

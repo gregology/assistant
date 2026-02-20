@@ -196,7 +196,7 @@ def _evaluate_automations(
 
 def handle(task: dict):
     integration_name = task["payload"]["integration"]
-    integration = config.get_integration(integration_name)
+    integration = config.get_integration(integration_name, "email")
     message_id = task["payload"]["message_id"]
     log.info("email.evaluate: message_id=%s (integration=%s)", message_id, integration_name)
 

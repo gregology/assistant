@@ -92,11 +92,6 @@ Instead, snapshot the entire directory tree and assert on it as a single compara
 Chaos testing should inject faults at the classification level: flip boolean values, max out all confidence scores to 1.0, swap enum values to their most dangerous option. Then assert that safety boundaries still hold. For any possible classification output, the system should enforce bounded blast radius. No single automation run should trigger more than a configurable number of irreversible actions. These invariants should be expressed as properties that hold for all inputs using property based testing, not as example assertions against specific test fixtures. A property test that says "for all possible classifications, the blast radius is bounded" is a fundamentally stronger guarantee than an example test that says "for this one test email, archive was produced."
 
 
-## TODO
-
-- [ ] Add startup config validation that rejects automations which trigger irreversible actions (e.g. `unsubscribe`) without high confidence gating. The config is gitignored so this belongs at startup, not in the test suite. Include an explicit override flag for yolo users.
-
-
 ## Setup
 
 ```bash
@@ -124,3 +119,28 @@ The task queue worker polls for pending tasks and processes them. Run it in a se
 ```bash
 uv run python -m app.worker
 ```
+
+### Run tests
+
+```bash
+uv run pytest -v
+```
+
+## API
+
+```bash
+# List configured integrations
+GET /integrations
+
+# Manually trigger an integration
+POST /integrations/{type}/{name}/run
+```
+
+Examples:
+
+```bash
+curl -X POST http://localhost:8000/integrations/email/personal/run
+curl -X POST http://localhost:8000/integrations/github/personal/run
+```
+
+Integrations also run automatically on their configured schedule when the server is running. Scheduled and manual triggers produce identical task queue entries.

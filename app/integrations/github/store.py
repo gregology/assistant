@@ -56,12 +56,14 @@ class PullRequestStore:
         return keys
 
     def save(self, pr: dict) -> Path:
-        filename = self._filename(pr["org"], pr["repo"], pr["number"])
+        org, repo, number = pr["org"], pr["repo"], pr["number"]
+        filename = self._filename(org, repo, number)
         return self._store.save(
             filename,
-            org=pr["org"],
-            repo=pr["repo"],
-            number=pr["number"],
+            org=org,
+            repo=repo,
+            number=number,
+            url=f"https://github.com/{org}/{repo}/pull/{number}",
             author=pr.get("author", ""),
             title=pr["title"],
             status="open",

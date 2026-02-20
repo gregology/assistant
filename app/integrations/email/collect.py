@@ -10,7 +10,7 @@ log = logging.getLogger(__name__)
 
 def handle(task: dict):
     integration_name = task["payload"]["integration"]
-    integration = config.get_integration(integration_name)
+    integration = config.get_integration(integration_name, "email")
     uid = task["payload"]["uid"]
     log.info("email.collect: uid=%s (integration=%s)", uid, integration_name)
 

@@ -47,7 +47,7 @@ def _render_prompt(email, classifications: dict[str, ClassificationConfig]) -> s
 
 def handle(task: dict):
     integration_name = task["payload"]["integration"]
-    integration = config.get_integration(integration_name)
+    integration = config.get_integration(integration_name, "email")
     uid = task["payload"]["uid"]
     log.info("email.classify: uid=%s (integration=%s)", uid, integration_name)
 

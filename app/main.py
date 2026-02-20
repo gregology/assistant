@@ -31,12 +31,12 @@ async def list_integrations():
     ]
 
 
-@app.post("/integrations/{name}/run")
-async def run_integration(name: str):
+@app.post("/integrations/{integration_type}/{name}/run")
+async def run_integration(integration_type: str, name: str):
     try:
-        integration = config.get_integration(name)
+        integration = config.get_integration(name, integration_type)
     except ValueError:
-        raise HTTPException(status_code=404, detail=f"Integration '{name}' not found")
+        raise HTTPException(status_code=404, detail=f"Integration '{integration_type}/{name}' not found")
 
     entry_task = ENTRY_TASKS.get(integration.type)
     if entry_task is None:

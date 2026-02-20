@@ -12,7 +12,7 @@ log = logging.getLogger(__name__)
 
 def handle(task: dict):
     integration_name = task["payload"]["integration"]
-    integration = config.get_integration(integration_name)
+    integration = config.get_integration(integration_name, "github")
     org = task["payload"]["org"]
     repo = task["payload"]["repo"]
     number = task["payload"]["number"]

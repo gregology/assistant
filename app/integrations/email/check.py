@@ -10,7 +10,7 @@ log = logging.getLogger(__name__)
 
 def handle(task: dict):
     integration_name = task["payload"]["integration"]
-    integration = config.get_integration(integration_name)
+    integration = config.get_integration(integration_name, "email")
     log.info("email.check: starting (integration=%s)", integration_name)
 
     notes_dir = config.directories.notes

@@ -28,7 +28,7 @@ def _execute_action(email, action) -> None:
 
 def handle(task: dict):
     integration_name = task["payload"]["integration"]
-    integration = config.get_integration(integration_name)
+    integration = config.get_integration(integration_name, "email")
     uid = task["payload"]["uid"]
     actions = task["payload"]["actions"]
     provenance = task.get("provenance", "unknown")

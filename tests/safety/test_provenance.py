@@ -13,7 +13,7 @@ from app.config import (
     _validate_automation_safety,
     resolve_provenance,
 )
-from app.integrations.email.const import DETERMINISTIC_SOURCES, IRREVERSIBLE_ACTIONS
+from app.integrations.email.platforms.inbox.const import DETERMINISTIC_SOURCES, IRREVERSIBLE_ACTIONS
 
 
 # ---------------------------------------------------------------------------
@@ -69,12 +69,36 @@ class TestResolveProvenance:
 # ---------------------------------------------------------------------------
 
 
+class _MockPlatform:
+    def __init__(self, automations):
+        self.automations = list(automations)
+        self.classifications = {}
+
+
+class _MockPlatforms:
+    model_fields = {"inbox": None}
+
+    def __init__(self, platform):
+        self.inbox = platform
+
+
+class _MockIntegration:
+    def __init__(self, name, platforms):
+        self.name = name
+        self.type = "email"
+        self.platforms = platforms
+
+
 def _make_integration(name, automations):
-    integration = MagicMock()
-    integration.name = name
-    integration.type = "email"
-    integration.automations = list(automations)
-    return integration
+    """Create a mock integration with platform-level automations.
+
+    _validate_automation_safety iterates integrations → platforms → automations.
+    Returns (integration, platform) so tests can assert on platform.automations.
+    """
+    platform = _MockPlatform(automations)
+    platforms = _MockPlatforms(platform)
+    integration = _MockIntegration(name, platforms)
+    return integration, platform
 
 
 class TestSafetyValidation:
@@ -86,10 +110,10 @@ class TestSafetyValidation:
                 then=["unsubscribe"],
             ),
         ]
-        integration = _make_integration("test", automations)
+        integration, platform = _make_integration("test", automations)
         warnings = _validate_automation_safety([integration])
         assert warnings == []
-        assert len(integration.automations) == 1
+        assert len(platform.automations) == 1
 
     def test_nondeterministic_irreversible_blocked(self):
         """Irreversible action from LLM provenance is blocked."""
@@ -99,12 +123,12 @@ class TestSafetyValidation:
                 then=["unsubscribe"],
             ),
         ]
-        integration = _make_integration("test", automations)
+        integration, platform = _make_integration("test", automations)
         warnings = _validate_automation_safety([integration])
         assert len(warnings) == 1
         assert "unsubscribe" in warnings[0]
         assert "disabled" in warnings[0]
-        assert len(integration.automations) == 0
+        assert len(platform.automations) == 0
 
     def test_hybrid_irreversible_blocked(self):
         """Hybrid provenance treated as non-deterministic for safety."""
@@ -114,10 +138,10 @@ class TestSafetyValidation:
                 then=["unsubscribe"],
             ),
         ]
-        integration = _make_integration("test", automations)
+        integration, platform = _make_integration("test", automations)
         warnings = _validate_automation_safety([integration])
         assert len(warnings) == 1
-        assert len(integration.automations) == 0
+        assert len(platform.automations) == 0
 
     def test_yolo_overrides_safety_block(self):
         """!yolo tag allows irreversible action from non-deterministic provenance."""
@@ -127,10 +151,10 @@ class TestSafetyValidation:
                 then=[YoloAction("unsubscribe")],
             ),
         ]
-        integration = _make_integration("test", automations)
+        integration, platform = _make_integration("test", automations)
         warnings = _validate_automation_safety([integration])
         assert warnings == []
-        assert len(integration.automations) == 1
+        assert len(platform.automations) == 1
 
     def test_reversible_action_always_allowed(self):
         """Reversible actions are never blocked regardless of provenance."""
@@ -140,10 +164,10 @@ class TestSafetyValidation:
                 then=["archive"],
             ),
         ]
-        integration = _make_integration("test", automations)
+        integration, platform = _make_integration("test", automations)
         warnings = _validate_automation_safety([integration])
         assert warnings == []
-        assert len(integration.automations) == 1
+        assert len(platform.automations) == 1
 
     def test_only_unsafe_automations_blocked(self):
         """Only automations with irreversible non-deterministic actions are blocked."""
@@ -157,11 +181,11 @@ class TestSafetyValidation:
                 then=["unsubscribe"],
             ),
         ]
-        integration = _make_integration("test", automations)
+        integration, platform = _make_integration("test", automations)
         warnings = _validate_automation_safety([integration])
         assert len(warnings) == 1
-        assert len(integration.automations) == 1
-        assert integration.automations[0].then == ["archive"]
+        assert len(platform.automations) == 1
+        assert platform.automations[0].then == ["archive"]
 
     def test_mixed_actions_with_one_irreversible(self):
         """An automation with both reversible and irreversible actions is blocked
@@ -172,26 +196,26 @@ class TestSafetyValidation:
                 then=["archive", "unsubscribe"],
             ),
         ]
-        integration = _make_integration("test", automations)
+        integration, platform = _make_integration("test", automations)
         warnings = _validate_automation_safety([integration])
         assert len(warnings) == 1
-        assert len(integration.automations) == 0
+        assert len(platform.automations) == 0
 
-    def test_integration_without_automations_ignored(self):
-        """Integrations without automations attribute are skipped."""
+    def test_integration_without_platforms_ignored(self):
+        """Integrations without platforms attribute are skipped."""
         integration = MagicMock(spec=[])  # no attributes
         warnings = _validate_automation_safety([integration])
         assert warnings == []
 
     def test_warning_message_includes_details(self):
-        """Warning message contains integration name, action, and provenance."""
+        """Warning message contains integration name, platform, action, and provenance."""
         automations = [
             AutomationConfig(
                 when={"classification.robot": "> 0.9"},
                 then=["unsubscribe"],
             ),
         ]
-        integration = _make_integration("personal", automations)
+        integration, platform = _make_integration("personal", automations)
         warnings = _validate_automation_safety([integration])
         assert "personal" in warnings[0]
         assert "unsubscribe" in warnings[0]

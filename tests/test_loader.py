@@ -14,6 +14,7 @@ from app.loader import (
     check_dependencies,
     discover_integrations,
     load_const_module,
+    load_platform_const_module,
 )
 from app.config import (
     BaseIntegrationConfig,
@@ -222,23 +223,6 @@ class TestBuildIntegrationModel:
         )
         assert instance.type == "mock_thing"
 
-    def test_inherits_normalize_classifications(self, custom_dir):
-        manifest = _load_manifest(custom_dir / "mock_thing", builtin=False)
-        Model = build_integration_model(manifest)
-
-        # Shorthand classification should be normalized
-        instance = Model(
-            type="mock_thing",
-            name="test",
-            api_url="https://example.com",
-            api_key="secret",
-            classifications={"urgency": "how urgent is this?"},
-        )
-        assert isinstance(
-            instance.classifications["urgency"], ClassificationConfig
-        )
-        assert instance.classifications["urgency"].prompt == "how urgent is this?"
-
     def test_common_fields_present(self, custom_dir):
         manifest = _load_manifest(custom_dir / "mock_thing", builtin=False)
         Model = build_integration_model(manifest)
@@ -252,8 +236,6 @@ class TestBuildIntegrationModel:
         )
         assert instance.llm == "fast"
         assert instance.schedule is None
-        assert instance.classifications == {}
-        assert instance.automations == []
 
 
 class TestBuildIntegrationUnion:
@@ -281,7 +263,21 @@ class TestBuildIntegrationUnion:
         )
         assert instance.imap_server == "imap.example.com"
         assert instance.imap_port == 993  # default
-        assert instance.limit == 50  # default
+
+    def test_union_validates_email_platform_config(self, builtin_dir):
+        """The inbox platform config should accept limit."""
+        manifests = discover_integrations(builtin_dir)
+        Model = build_integration_model(manifests["email"])
+
+        instance = Model(
+            type="email",
+            name="personal",
+            imap_server="imap.example.com",
+            username="user@example.com",
+            password="secret",
+            platforms={"inbox": {"limit": 100}},
+        )
+        assert instance.platforms.inbox.limit == 100
 
     def test_union_validates_github_config(self, builtin_dir):
         manifests = discover_integrations(builtin_dir)
@@ -292,8 +288,19 @@ class TestBuildIntegrationUnion:
             name="my_repos",
             orgs=["myorg"],
         )
-        assert instance.include_mentions is False  # default
         assert instance.orgs == ["myorg"]
+
+    def test_union_validates_github_platform_config(self, builtin_dir):
+        """The pull_requests platform config should accept include_mentions."""
+        manifests = discover_integrations(builtin_dir)
+        Model = build_integration_model(manifests["github"])
+
+        instance = Model(
+            type="github",
+            name="my_repos",
+            platforms={"pull_requests": {"include_mentions": True}},
+        )
+        assert instance.platforms.pull_requests.include_mentions is True
 
 
 # ---------------------------------------------------------------------------
@@ -332,13 +339,19 @@ class TestCheckDependencies:
 
 
 class TestLoadConstModule:
-    def test_loads_builtin_email_const(self, builtin_dir):
+    def test_loads_builtin_email_inbox_const(self, builtin_dir):
         manifest = _load_manifest(builtin_dir / "email", builtin=True)
-        const = load_const_module(manifest)
+        const = load_platform_const_module(manifest, "inbox")
         assert const is not None
         assert hasattr(const, "DETERMINISTIC_SOURCES")
         assert hasattr(const, "IRREVERSIBLE_ACTIONS")
         assert hasattr(const, "SIMPLE_ACTIONS")
+
+    def test_loads_builtin_github_pr_const(self, builtin_dir):
+        manifest = _load_manifest(builtin_dir / "github", builtin=True)
+        const = load_platform_const_module(manifest, "pull_requests")
+        assert const is not None
+        assert hasattr(const, "DETERMINISTIC_SOURCES")
 
     def test_returns_none_without_const(self, tmp_path):
         d = tmp_path / "no_const"
@@ -347,6 +360,10 @@ class TestLoadConstModule:
         (d / "__init__.py").write_text("HANDLERS = {}\n")
         manifest = _load_manifest(d, builtin=False)
         assert load_const_module(manifest) is None
+
+    def test_returns_none_for_nonexistent_platform(self, builtin_dir):
+        manifest = _load_manifest(builtin_dir / "email", builtin=True)
+        assert load_platform_const_module(manifest, "nonexistent") is None
 
 
 # ---------------------------------------------------------------------------
@@ -460,11 +477,13 @@ class TestLoadConfig:
             "    imap_server: imap.test.com\n"
             "    username: user@test.com\n"
             "    password: secret\n"
-            "    classifications:\n"
-            "      human: is this from a human?\n"
+            "    platforms:\n"
+            "      inbox:\n"
+            "        classifications:\n"
+            "          human: is this from a human?\n"
         )
         cfg, _ = load_config(config_path)
-        cls = cfg.integrations[0].classifications["human"]
+        cls = cfg.integrations[0].platforms.inbox.classifications["human"]
         assert isinstance(cls, ClassificationConfig)
         assert cls.prompt == "is this from a human?"
 

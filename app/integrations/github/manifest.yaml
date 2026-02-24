@@ -1,13 +1,10 @@
 domain: github
-name: "GitHub Pull Requests"
+name: "GitHub"
 version: "1.0.0"
 entry_task: check
 dependencies: []
 config_schema:
   properties:
-    include_mentions:
-      type: boolean
-      default: false
     orgs:
       type: array
       items:
@@ -17,3 +14,22 @@ config_schema:
       items:
         type: string
   required: []
+platforms:
+  pull_requests:
+    name: "Pull Requests"
+    entry_task: check
+    config_schema:
+      properties:
+        include_mentions:
+          type: boolean
+          default: false
+      required: []
+  issues:
+    name: "Issues"
+    entry_task: check
+    config_schema:
+      properties:
+        include_mentions:
+          type: boolean
+          default: false
+      required: []

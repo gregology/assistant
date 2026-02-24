@@ -4,7 +4,7 @@ import logging
 
 from app import queue
 from app.config import config
-from .client import GitHubClient
+from ...client import GitHubClient
 from .store import PullRequestStore
 
 log = logging.getLogger(__name__)
@@ -13,7 +13,8 @@ log = logging.getLogger(__name__)
 def handle(task: dict):
     integration_name = task["payload"]["integration"]
     integration = config.get_integration(integration_name, "github")
-    log.info("github.check: starting (integration=%s)", integration_name)
+    platform = config.get_platform(integration_name, "github", "pull_requests")
+    log.info("github.pull_requests.check: starting (integration=%s)", integration_name)
 
     client = GitHubClient()
     store = PullRequestStore(
@@ -21,7 +22,7 @@ def handle(task: dict):
     )
 
     # Fetch all PRs currently requiring attention from GitHub.
-    remote_prs = client.active_prs(integration)
+    remote_prs = client.active_prs(integration, platform)
     active_remote: set[tuple[str, str, int]] = {
         (pr["org"], pr["repo"], pr["number"]) for pr in remote_prs
     }
@@ -38,7 +39,7 @@ def handle(task: dict):
     # Enqueue collect for every active PR (upsert: creates new or refreshes metadata).
     for pr in remote_prs:
         queue.enqueue({
-            "type": "github.collect",
+            "type": "github.pull_requests.collect",
             "integration": integration_name,
             "org": pr["org"],
             "repo": pr["repo"],
@@ -46,6 +47,6 @@ def handle(task: dict):
         }, priority=3)
 
     log.info(
-        "github.check: %d active remotely, %d tracked locally, %d moved to synced/, %d collect tasks queued",
+        "github.pull_requests.check: %d active remotely, %d tracked locally, %d moved to synced/, %d collect tasks queued",
         len(active_remote), len(active_local), len(stale), len(remote_prs),
     )

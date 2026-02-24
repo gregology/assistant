@@ -2,9 +2,11 @@
 
 Most of the messages that reach you every day were not written for you.
 
-That sounds odd, but think about it. A company updates its terms of service and sends you an email about it. That email exists because a legal team needs a paper trail showing they notified you. It was not written to inform you of anything useful. If it were actually meant for you, it would tell you what changed. Instead you get a 12-page document written in legalese with a subject line like "We've updated our Terms of Service" and zero indication of what's different.
+A company updates its terms of service and sends you an email about it. That email exists because a legal team needs a paper trail showing they notified you. It was not written for you. If it were actually written for you, it would tell you what _changed_. Instead you get a 12-page document written in legalese with a subject line like "We've updated our Terms of Service" and zero indication of how the changes impacts you.
 
 This is the default state of digital communication. The cost for a sender to reach you is basically zero. The cost for you to process what they sent is not zero. Your attention is the thing being spent, and you're not the one choosing to spend it.
+
+Remember, spam laws were crafted by lawyers, not humans.
 
 ## Sender-benefit vs receiver-benefit
 

@@ -8,7 +8,7 @@ import frontmatter
 
 from app.store import NoteStore
 
-from .mail import Email
+from ...mail import Email
 
 log = logging.getLogger(__name__)
 
@@ -61,7 +61,7 @@ class EmailStore:
 
         For notes saved without a Message-ID (malformed emails), returns the
         synthetic ``imap_{uid}`` key so they are still recognised during the
-        reconciliation loop in email.check.
+        reconciliation loop in email.inbox.check.
         """
         if not self._path.is_dir():
             return set()

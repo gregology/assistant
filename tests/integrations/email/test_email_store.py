@@ -1,6 +1,6 @@
 import pytest
 
-from app.integrations.email.store import EmailStore, _sanitize_message_id
+from app.integrations.email.platforms.inbox.store import EmailStore, _sanitize_message_id
 
 
 def _make_store(tmp_path) -> EmailStore:

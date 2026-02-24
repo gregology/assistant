@@ -44,9 +44,8 @@ def init_schedules(app: FastAPI) -> Crons:
         if integration.schedule is None:
             continue
 
-        entry_task = ENTRY_TASKS.get(integration.type)
-        if entry_task is None:
-            log.warning("No entry task for integration type: %s", integration.type)
+        platforms = getattr(integration, "platforms", None)
+        if platforms is None:
             continue
 
         schedule = integration.schedule
@@ -57,18 +56,32 @@ def init_schedules(app: FastAPI) -> Crons:
         else:
             continue
 
-        name = f"{integration.type}_{integration.name}"
+        for platform_name in type(platforms).model_fields:
+            platform = getattr(platforms, platform_name)
+            if platform is None:
+                continue
 
-        def make_job(task_type=entry_task, int_entry=integration):
-            def job():
-                payload = {"type": task_type, "integration": int_entry.name}
-                if hasattr(int_entry, "limit"):
-                    payload["limit"] = int_entry.limit
-                log.info("Scheduled job: enqueueing %s", payload)
-                queue.enqueue(payload)
-            return job
+            entry_task = ENTRY_TASKS.get(f"{integration.type}.{platform_name}")
+            if entry_task is None:
+                log.warning(
+                    "No entry task for %s.%s", integration.type, platform_name
+                )
+                continue
 
-        crons.cron(expr, name=name)(make_job())
-        log.info("Registered schedule: %s [%s]", name, expr)
+            name = f"{integration.type}_{integration.name}_{platform_name}"
+
+            def make_job(task_type=entry_task, int_entry=integration, plat_name=platform_name):
+                def job():
+                    payload = {
+                        "type": task_type,
+                        "integration": int_entry.name,
+                        "platform": plat_name,
+                    }
+                    log.info("Scheduled job: enqueueing %s", payload)
+                    queue.enqueue(payload)
+                return job
+
+            crons.cron(expr, name=name)(make_job())
+            log.info("Registered schedule: %s [%s]", name, expr)
 
     return crons

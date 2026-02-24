@@ -1,13 +1,5 @@
-from app.integrations.email.check import handle as check_handle
-from app.integrations.email.collect import handle as collect_handle
-from app.integrations.email.classify import handle as classify_handle
-from app.integrations.email.evaluate import handle as evaluate_handle
-from app.integrations.email.act import handle as act_handle
+from app.integrations.email.platforms.inbox import HANDLERS as inbox_handlers
 
-HANDLERS = {
-    "check": check_handle,
-    "collect": collect_handle,
-    "classify": classify_handle,
-    "evaluate": evaluate_handle,
-    "act": act_handle,
-}
+HANDLERS = {}
+for suffix, handler in inbox_handlers.items():
+    HANDLERS[f"inbox.{suffix}"] = handler

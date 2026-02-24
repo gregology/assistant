@@ -18,32 +18,35 @@ Returns a basic health check response.
 GET /integrations
 ```
 
-Returns all configured integrations with their type, name, and schedule.
+Returns all configured integrations with their type, name, and enabled platforms.
 
 ### Trigger an integration
 
 ```
-POST /integrations/{name}/run
+POST /integrations/{type}/{name}/run
+POST /integrations/{type}/{name}/run?platform=pull_requests
 ```
 
-Manually triggers an integration's entry task. This enqueues the same task that the scheduler would enqueue on the configured schedule. The worker picks it up and processes it like any other task.
+Manually triggers an integration's entry tasks. Without the `platform` query parameter, this enqueues entry tasks for all enabled platforms. With `platform`, only the specified platform is triggered.
+
+The `{type}` parameter matches the integration's `type` field (e.g. `email`, `github`). The `{name}` parameter matches the `name` field from your `config.yaml` integration entry.
 
 Examples:
 
 ```bash
-curl -X POST http://localhost:8000/integrations/personal/run
-```
+# Trigger all platforms for the personal email integration
+curl -X POST http://localhost:8000/integrations/email/personal/run
 
-The `{name}` parameter matches the `name` field from your `config.yaml` integration entry. If you have an email integration named `personal` and a GitHub integration named `my_repos`, both are triggered by their name:
+# Trigger all platforms for the GitHub integration
+curl -X POST http://localhost:8000/integrations/github/my_repos/run
 
-```bash
-curl -X POST http://localhost:8000/integrations/personal/run
-curl -X POST http://localhost:8000/integrations/my_repos/run
+# Trigger only the issues platform
+curl -X POST http://localhost:8000/integrations/github/my_repos/run?platform=issues
 ```
 
 ## Scheduled vs manual triggers
 
-There is no difference in behavior. A manual `POST /integrations/{name}/run` enqueues the same entry task that the cron scheduler enqueues automatically. The worker processes both identically. Downstream task chains (collect, classify, act) are the same regardless of how the entry task was created.
+There is no difference in behavior. A manual POST enqueues the same entry tasks that the cron scheduler enqueues automatically. The worker processes both identically. Downstream task chains (collect, classify, evaluate, act) are the same regardless of how the entry task was created.
 
 Manual triggers are useful for testing your config, debugging an integration, or running a one-off check outside the normal schedule.
 

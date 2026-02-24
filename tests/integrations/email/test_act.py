@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock, call
 
-from app.integrations.email.act import _execute_action, SIMPLE_ACTIONS
+from app.integrations.email.platforms.inbox.act import _execute_action
+from app.integrations.email.platforms.inbox.const import SIMPLE_ACTIONS
 
 
 class TestExecuteAction:

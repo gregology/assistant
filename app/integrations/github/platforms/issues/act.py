@@ -1,8 +1,8 @@
-"""Stub for github.act — Phase 4 will implement PR actions.
+"""Stub for github.issues.act — actions not yet implemented.
 
 This handler logs what actions would be taken without executing them.
 The SIMPLE_ACTIONS allowlist and reversibility tiers will be defined
-here in Phase 4 alongside the actual action implementations.
+here alongside the actual action implementations.
 """
 from __future__ import annotations
 
@@ -19,6 +19,6 @@ def handle(task: dict):
     provenance = task.get("provenance", "unknown")
 
     log.info(
-        "github.act: %s/%s#%d — actions=%s provenance=%s (not yet implemented)",
+        "github.issues.act: %s/%s#%d — actions=%s provenance=%s (not yet implemented)",
         org, repo, number, actions, provenance,
     )

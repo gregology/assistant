@@ -1,3 +1,8 @@
+"""Stub for github.issues.evaluate — automation evaluation not yet implemented.
+
+This handler logs evaluation results without triggering actions.
+Full automation dispatch will be implemented when issue actions are added.
+"""
 from __future__ import annotations
 
 import logging
@@ -15,8 +20,8 @@ from app.config import (
     config,
     resolve_provenance,
 )
-from app.integrations.github.const import DEFAULT_CLASSIFICATIONS, DETERMINISTIC_SOURCES
-from .store import PullRequestStore
+from .const import DEFAULT_CLASSIFICATIONS, DETERMINISTIC_SOURCES
+from .store import IssueStore
 
 log = logging.getLogger(__name__)
 
@@ -32,12 +37,10 @@ _OP_RE = re.compile(r"^\s*(>=|<=|>|<|==)\s*(\d+\.?\d*)\s*$")
 
 
 @dataclass
-class PRSnapshot:
-    """Lightweight reconstruction of PR state from note frontmatter.
+class IssueSnapshot:
+    """Lightweight reconstruction of issue state from note frontmatter.
 
-    Used by github.evaluate to run automation rules without a GitHub API call.
-    All fields reflect the state at the time the note was last written by
-    github.collect.
+    Used by github.issues.evaluate to run automation rules without a GitHub API call.
     """
 
     org: str
@@ -45,23 +48,21 @@ class PRSnapshot:
     number: int
     author: str
     title: str
-    status: str
-    additions: int
-    deletions: int
-    changed_files: int
+    state: str
+    labels: list[str]
+    comment_count: int
 
 
-def _snapshot_from_frontmatter(meta: dict) -> PRSnapshot:
-    return PRSnapshot(
+def _snapshot_from_frontmatter(meta: dict) -> IssueSnapshot:
+    return IssueSnapshot(
         org=meta.get("org", ""),
         repo=meta.get("repo", ""),
         number=int(meta.get("number", 0)),
         author=meta.get("author", ""),
         title=meta.get("title", ""),
-        status=meta.get("status", "open"),
-        additions=int(meta.get("additions", 0)),
-        deletions=int(meta.get("deletions", 0)),
-        changed_files=int(meta.get("changed_files", 0)),
+        state=meta.get("state", "open"),
+        labels=meta.get("labels", []),
+        comment_count=int(meta.get("comment_count", 0)),
     )
 
 
@@ -105,11 +106,8 @@ def _check_deterministic_condition(value, condition) -> bool:
     return value == condition
 
 
-def _resolve_value(key: str, snapshot: PRSnapshot, classification: dict):
-    """Resolve a namespaced condition key to a value from the PR snapshot.
-
-    Returns _MISSING if the key cannot be resolved.
-    """
+def _resolve_value(key: str, snapshot: IssueSnapshot, classification: dict):
+    """Resolve a namespaced condition key to a value from the issue snapshot."""
     if key.startswith("classification."):
         cls_key = key[len("classification."):]
         return classification.get(cls_key, _MISSING)
@@ -118,7 +116,7 @@ def _resolve_value(key: str, snapshot: PRSnapshot, classification: dict):
 
 def _conditions_match(
     when: dict,
-    snapshot: PRSnapshot,
+    snapshot: IssueSnapshot,
     classification: dict,
     classifications: dict[str, ClassificationConfig],
 ) -> bool:
@@ -140,7 +138,7 @@ def _conditions_match(
 
 def _evaluate_automations(
     automations: list[AutomationConfig],
-    snapshot: PRSnapshot,
+    snapshot: IssueSnapshot,
     classification: dict,
     classifications: dict[str, ClassificationConfig],
 ) -> list:
@@ -154,18 +152,19 @@ def _evaluate_automations(
 def handle(task: dict):
     integration_name = task["payload"]["integration"]
     integration = config.get_integration(integration_name, "github")
+    platform = config.get_platform(integration_name, "github", "issues")
     org = task["payload"]["org"]
     repo = task["payload"]["repo"]
     number = task["payload"]["number"]
-    log.info("github.evaluate: %s/%s#%d (integration=%s)", org, repo, number, integration_name)
+    log.info("github.issues.evaluate: %s/%s#%d (integration=%s)", org, repo, number, integration_name)
 
-    store = PullRequestStore(
-        path=config.directories.notes / "github" / "pull_requests" / integration.name
+    store = IssueStore(
+        path=config.directories.notes / "github" / "issues" / integration.name
     )
 
     note_path = store.find(org, repo, number)
     if note_path is None:
-        log.error("github.evaluate: no note found for %s/%s#%d", org, repo, number)
+        log.error("github.issues.evaluate: no note found for %s/%s#%d", org, repo, number)
         return
 
     post = frontmatter.load(note_path)
@@ -174,15 +173,15 @@ def handle(task: dict):
     snapshot = _snapshot_from_frontmatter(meta)
     classification = meta.get("classification", {})
 
-    classifications = integration.classifications or DEFAULT_CLASSIFICATIONS
-    actions = _evaluate_automations(integration.automations, snapshot, classification, classifications)
+    classifications = platform.classifications or DEFAULT_CLASSIFICATIONS
+    actions = _evaluate_automations(platform.automations, snapshot, classification, classifications)
 
     if not actions:
-        log.info("github.evaluate: no automations matched for %s/%s#%d", org, repo, number)
+        log.info("github.issues.evaluate: no automations matched for %s/%s#%d", org, repo, number)
         return
 
     provenances = set()
-    for automation in integration.automations:
+    for automation in platform.automations:
         if _conditions_match(automation.when, snapshot, classification, classifications):
             provenances.add(resolve_provenance(automation.when, DETERMINISTIC_SOURCES))
     if "llm" in provenances or "hybrid" in provenances:
@@ -193,7 +192,7 @@ def handle(task: dict):
     unwrapped = [a.value if isinstance(a, YoloAction) else a for a in actions]
 
     queue.enqueue({
-        "type": "github.act",
+        "type": "github.issues.act",
         "integration": integration_name,
         "org": org,
         "repo": repo,
@@ -201,6 +200,6 @@ def handle(task: dict):
         "actions": unwrapped,
     }, priority=7, provenance=provenance)
     log.info(
-        "github.evaluate: queued github.act for %s/%s#%d actions=%s provenance=%s",
+        "github.issues.evaluate: queued act for %s/%s#%d actions=%s provenance=%s",
         org, repo, number, unwrapped, provenance,
     )

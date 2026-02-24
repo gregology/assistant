@@ -33,7 +33,9 @@ Every automation rule gets a provenance label based on what kind of conditions i
 | `llm` | All conditions use LLM classification results | No |
 | `hybrid` | Mix of deterministic and LLM conditions | No |
 
-The logic here is straightforward. If a condition was evaluated by deterministic code (e.g., "this email is from noreply@example.com"), you can trust it. If a condition was evaluated by a non-deterministic LLM (e.g., "this email is probably automated"), you cannot trust it enough to take an action you can't undo.
+The logic is straightforward. If a condition was evaluated by deterministic code (e.g., "this email is from noreply@example.com"), you can trust it. If a condition was evaluated by a non-deterministic LLM (e.g., "this email is probably automated"), you cannot trust it enough to take an action you can't undo.
+
+Each platform defines its own `DETERMINISTIC_SOURCES` and `IRREVERSIBLE_ACTIONS` sets in `const.py`. The provenance check at startup iterates all integrations, then all platforms within each integration, loading the relevant constants and validating each automation rule.
 
 ### The `!yolo` override
 
@@ -55,7 +57,7 @@ The system has two trust boundaries that work independently.
 
 ### Boundary 1: Prompt-level defense
 
-Untrusted content (email bodies, PR descriptions, anything from the outside world) goes through LLM prompts rendered with Jinja2 templates. Each template uses random salt markers (`secrets.token_hex(4)`) to wrap untrusted content. The markers change every invocation, making it harder for injected instructions to predict the prompt structure.
+Untrusted content (email bodies, PR descriptions, issue bodies, anything from the outside world) goes through LLM prompts rendered with Jinja2 templates. Each template uses random salt markers (`secrets.token_hex(4)`) to wrap untrusted content. The markers change every invocation, making it harder for injected instructions to predict the prompt structure.
 
 This is a probabilistic defense. It makes prompt injection harder, but it cannot prevent it.
 

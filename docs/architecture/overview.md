@@ -46,28 +46,36 @@ classification:
 (optional body content)
 ```
 
-The generic `NoteStore` class (`app/store.py`) handles reading, writing, and moving these files. Integration-specific stores like `EmailStore` and `PullRequestStore` wrap it with domain methods, but the underlying storage is always markdown with frontmatter.
+The generic `NoteStore` class (`app/store.py`) handles reading, writing, and moving these files. Platform-specific stores like `EmailStore`, `PullRequestStore`, and `IssueStore` wrap it with domain methods, but the underlying storage is always markdown with frontmatter.
 
-This means every piece of state in the system is human-readable. You can open any file in a text editor and see exactly what GaaS knows about an email or a pull request, including the raw classification results.
+This means every piece of state in the system is human-readable. You can open any file in a text editor and see exactly what GaaS knows about an email or an issue, including the raw classification results.
 
-## Integrations
+## Integrations and platforms
 
-Integrations live under `app/integrations/` as Python packages. Each one exports a `HANDLERS` dict mapping task type suffixes to handler functions:
+Integrations live under `app/integrations/` as Python packages. Following the Home Assistant pattern, each integration contains **platforms** that handle specific resource types. The GitHub integration has `pull_requests` and `issues` platforms. The email integration has an `inbox` platform.
+
+Each platform exports a `HANDLERS` dict mapping task type suffixes to handler functions. The integration's `__init__.py` aggregates them with platform prefixes:
 
 ```python
+# github/platforms/pull_requests/__init__.py
 HANDLERS = {
     "check": check_handle,
     "collect": collect_handle,
     "classify": classify_handle,
-    "act": act_handle,
 }
+
+# github/__init__.py
+from .platforms.pull_requests import HANDLERS as pr_handlers
+HANDLERS = {}
+for suffix, handler in pr_handlers.items():
+    HANDLERS[f"pull_requests.{suffix}"] = handler
 ```
 
-The top-level `app/integrations/__init__.py` registers these with a namespace prefix, producing task types like `email.check` or `github.classify_pr`. The worker routes tasks to handlers using these strings.
+The top-level `app/integrations/__init__.py` registers these with the domain prefix, producing task types like `email.inbox.check` or `github.pull_requests.classify`. The worker routes tasks to handlers using these strings.
 
-Each integration type also has an entry task. This is the starting point when a schedule fires or someone hits the API. Entry tasks discover work (new emails, new PRs) and enqueue downstream tasks to process it.
+Each platform also has an entry task. This is the starting point when a schedule fires or someone hits the API. The scheduler enqueues entry tasks for each enabled platform within an integration. Entry tasks discover work (new emails, new PRs, new issues) and enqueue downstream tasks to process it.
 
-There is no mandatory pipeline shape. Email uses a four-stage pipeline: `check -> collect -> classify -> evaluate -> act`. GitHub uses `check -> collect -> classify_pr`. New integrations define whatever flow makes sense for their domain.
+There is no mandatory pipeline shape. Email uses a five-stage pipeline: `check -> collect -> classify -> evaluate -> act`. GitHub uses the same pattern. New integrations define whatever flow makes sense for their domain.
 
 ### Task priorities
 
@@ -106,10 +114,12 @@ integrations:
     password: !secret email_password
     schedule:
       every: 30m
-    automations:
-      - when:
-          is_noreply: true
-        then: archive
+    platforms:
+      inbox:
+        automations:
+          - when:
+              is_noreply: true
+            then: archive
 ```
 
-Pydantic models validate everything at startup. Classification shorthand (`human: "is this a personal email?"`) gets normalized to full config objects. Schedule formats accept both `every: 30m` and `cron: "0 8-18 * * 1-5"`.
+Pydantic models validate everything at startup. Classification shorthand (`human: "is this a personal email?"`) gets normalized to full config objects. Schedule formats accept both `every: 30m` and `cron: "0 8-18 * * 1-5"`. Classifications and automations are configured per-platform rather than per-integration.

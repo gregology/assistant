@@ -9,19 +9,19 @@ Like OpenClaw but with elastic bands around the pinchers.
 
 Every action that GaaS takes autonomously is reversible.
 
-❌ Sending an email  
+**❌ Sending an email**  
 An email can be sent, it can not be unsent, this is a non-reversible action.
 
-✅ Drafting an email  
+**✅ Drafting an email**  
 A draft email can be created, it can be deleted, this is a reversible action.
 
-❌ Googling an acronym found in an email  
+**❌ Googling an acronym found in an email**  
 A search query is sent to Google, private information has been sent to an untrusted system, this is a non-reversible action.
 
-✅ Searching the user's notes for an acronym found in an email  
+**✅ Searching the user's notes for an acronym found in an email**  
 A grep command can scan a directory, no private information has left the system, this is a reversible action.
 
-✅ Searching a local Wikipedia instance for an acronym found in an email
+**✅ Searching a local Wikipedia instance for an acronym found in an email**  
 `kiwix-search` is used to query a ZIM file, no private information has left the system, this is a reversible action.
 
 Not all reversibility is equal. Unarchiving an email is trivial. Resubscribing to a mailing list you unsubscribed from is technically possible but painful. Deleting an email is reversible within a 30 day retention window and then it is not. Turning off a heat pump is reversible unless the pipes freeze overnight. The four reversibility tiers used in the testing philosophy are a starting point. As GaaS expands into new integrations the model will need to account for difficulty, time windows, and context.
@@ -50,7 +50,7 @@ Note: I put "decision" in quotation marks because LLMs do not make decisions, th
 
 ### Default to code
 
-Asking an LLM to do a programmable task is the robot equivalent of _this meeting could have been an email_. Don’t burn tokens trying to convince a non deterministic machine to do a programmable task.
+Asking an LLM to do a programmable task is the robot equivalent of _this meeting could have been an email_. Don't burn tokens trying to convince a non deterministic machine to do a programmable task.
 
 ### Zero trust
 
@@ -62,7 +62,7 @@ Memory is most valuable for inference. The disk based queueing system was added 
 
 ### Know your sources
 
-Not all classification is equal. An email classified by an LLM is a probabilistic guess. An email classified by its domain name is deterministic. Actions downstream should know whether their input came from a non deterministic system or a deterministic one. This distinction may inform safety thresholds, gating requirements, or whether human approval is needed. This is an open design problem and the implementation is not yet settled, but the principle should inform how new classification and automation logic is written.
+Not all classification is equal. An email classified by an LLM is a probabilistic guess. An email classified by its domain name is deterministic. The system tracks this distinction as **provenance** (`rule`, `llm`, or `hybrid`) and uses it to gate irreversible actions. Automations with LLM provenance cannot trigger irreversible actions unless explicitly overridden with `!yolo`.
 
 ## Setup
 
@@ -111,4 +111,4 @@ uv run pytest -v
   - [Guide](docs/testing/guide.md) - Practical testing reference
 - Integration user guides
   - [Email](app/integrations/email/README.md) - Configuration, automations, condition keys
-  - [GitHub](app/integrations/github/README.md) - PR tracking and classification
+  - [GitHub](app/integrations/github/README.md) - PR and issue tracking, classification

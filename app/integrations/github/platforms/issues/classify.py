@@ -10,10 +10,10 @@ from jinja2 import Environment, FileSystemLoader
 
 from app import queue
 from app.config import ClassificationConfig, config
-from app.integrations.github.const import DEFAULT_CLASSIFICATIONS
 from app.llm import LLMConversation
-from .client import GitHubClient
-from .store import PullRequestStore
+from .const import DEFAULT_CLASSIFICATIONS
+from ...client import GitHubClient
+from .store import IssueStore
 
 log = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ TEMPLATES_DIR = Path(__file__).parent / "templates"
 jinja_env = Environment(loader=FileSystemLoader(TEMPLATES_DIR))
 jinja_env.filters["scrub"] = lambda s: str(s).replace("END UNTRUSTED", "")
 
-MAX_DIFF_CHARS = 10_000
+MAX_BODY_CHARS = 10_000
 
 _TYPE_TO_SCHEMA = {
     "confidence": lambda _cls: {"type": "number"},
@@ -42,21 +42,19 @@ def _build_schema(classifications: dict[str, ClassificationConfig]) -> dict:
 
 def _render_prompt(
     detail: dict,
-    diff: str,
     classifications: dict[str, ClassificationConfig],
 ) -> str:
-    if len(diff) > MAX_DIFF_CHARS:
-        diff = diff[:MAX_DIFF_CHARS] + "\n... (diff truncated)"
-    template = jinja_env.get_template("classify_github_pr.jinja")
+    body = detail["body"]
+    if len(body) > MAX_BODY_CHARS:
+        body = body[:MAX_BODY_CHARS] + "\n... (body truncated)"
+    template = jinja_env.get_template("classify.jinja")
     return template.render(
         salt=secrets.token_hex(4).upper(),
         title=detail["title"],
         author=detail["author"],
-        body=detail["body"],
-        additions=detail["additions"],
-        deletions=detail["deletions"],
-        changed_files=detail["changed_files"],
-        diff=diff,
+        body=body,
+        labels=detail["labels"],
+        comment_count=detail["comment_count"],
         classifications=classifications,
     )
 
@@ -64,16 +62,17 @@ def _render_prompt(
 def handle(task: dict):
     integration_name = task["payload"]["integration"]
     integration = config.get_integration(integration_name, "github")
+    platform = config.get_platform(integration_name, "github", "issues")
     org = task["payload"]["org"]
     repo = task["payload"]["repo"]
     number = task["payload"]["number"]
-    log.info("github.classify_pr: %s/%s#%d (integration=%s)", org, repo, number, integration_name)
+    log.info("github.issues.classify: %s/%s#%d (integration=%s)", org, repo, number, integration_name)
 
-    classifications = integration.classifications or DEFAULT_CLASSIFICATIONS
+    classifications = platform.classifications or DEFAULT_CLASSIFICATIONS
     llm_config = config.llms[integration.llm]
 
-    store = PullRequestStore(
-        path=config.directories.notes / "github" / "pull_requests" / integration.name
+    store = IssueStore(
+        path=config.directories.notes / "github" / "issues" / integration.name
     )
 
     # Check if all classifications are already present — skip LLM if so.
@@ -85,16 +84,15 @@ def handle(task: dict):
 
     if all(k in existing_cls for k in classifications):
         log.info(
-            "github.classify_pr: %s/%s#%d all classifications present, skipping LLM",
+            "github.issues.classify: %s/%s#%d all classifications present, skipping LLM",
             org, repo, number,
         )
     else:
         client = GitHubClient()
-        detail = client.get_pr_detail(org, repo, number)
-        diff = client.get_pr_diff(org, repo, number)
+        detail = client.get_issue_detail(org, repo, number)
 
-        prompt = _render_prompt(detail, diff, classifications)
-        log.info("github.classify_pr prompt:\n%s", prompt)
+        prompt = _render_prompt(detail, classifications)
+        log.info("github.issues.classify prompt:\n%s", prompt)
 
         conversation = LLMConversation(
             model=integration.llm,
@@ -103,7 +101,7 @@ def handle(task: dict):
         schema = _build_schema(classifications)
         classification = conversation.message(prompt=prompt, schema=schema)
 
-        log.info("github.classify_pr: %s/%s#%d result=%s", org, repo, number, classification)
+        log.info("github.issues.classify: %s/%s#%d result=%s", org, repo, number, classification)
 
         classified_by = {
             "model": llm_config.model,
@@ -111,13 +109,13 @@ def handle(task: dict):
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         store.update(org, repo, number, classification=classification, classified_by=classified_by)
-        log.human("Classified PR **%s/%s#%d**", org, repo, number)
+        log.human("Classified issue **%s/%s#%d**", org, repo, number)
 
     queue.enqueue({
-        "type": "github.evaluate",
+        "type": "github.issues.evaluate",
         "integration": integration_name,
         "org": org,
         "repo": repo,
         "number": number,
     }, priority=7)
-    log.info("github.classify_pr: queued github.evaluate for %s/%s#%d", org, repo, number)
+    log.info("github.issues.classify: queued evaluate for %s/%s#%d", org, repo, number)

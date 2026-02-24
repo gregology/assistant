@@ -101,19 +101,19 @@ def resolve_provenance(when: dict[str, Any], deterministic_sources: frozenset[st
     return "rule"
 
 
-def _load_integration_const(integration_type: str):
-    """Dynamically load an integration's const module, or None if absent.
+def _load_platform_const(integration_type: str, platform_name: str):
+    """Dynamically load a platform's const module, or None if absent.
 
-    Uses the loader's manifest registry to find the integration, supporting
-    both built-in and custom integrations.
+    Uses the loader's manifest registry to find the integration, then loads
+    the platform-specific const.py from platforms/{platform_name}/const.py.
     """
-    from app.loader import get_manifests, load_const_module
+    from app.loader import get_manifests, load_platform_const_module
 
     manifests = get_manifests()
     manifest = manifests.get(integration_type)
     if manifest is None:
         return None
-    return load_const_module(manifest)
+    return load_platform_const_module(manifest, platform_name)
 
 
 # ---------------------------------------------------------------------------
@@ -164,17 +164,13 @@ class AutomationConfig(BaseModel):
         return data
 
 
-class BaseIntegrationConfig(BaseModel):
-    """Common fields shared by all integration configs.
+class BasePlatformConfig(BaseModel):
+    """Common fields shared by all platform configs.
 
-    Dynamically created integration models inherit from this class.
-    The _normalize_classifications validator is inherited automatically.
+    Classifications and automations are per-platform, not per-integration.
+    Dynamically created platform models inherit from this class.
     """
 
-    type: str
-    name: str
-    schedule: ScheduleConfig | None = None
-    llm: str = "default"
     classifications: dict[str, ClassificationConfig] = {}
     automations: list[AutomationConfig] = []
 
@@ -194,6 +190,19 @@ class BaseIntegrationConfig(BaseModel):
                 normalized[key] = value
         data["classifications"] = normalized
         return data
+
+
+class BaseIntegrationConfig(BaseModel):
+    """Common fields shared by all integration configs.
+
+    After the platforms refactor, classifications and automations
+    live in BasePlatformConfig, not here.
+    """
+
+    type: str
+    name: str
+    schedule: ScheduleConfig | None = None
+    llm: str = "default"
 
 
 class DirectoriesConfig(BaseModel):
@@ -241,12 +250,36 @@ def _json_schema_to_field(
         return (python_type | None, None)
 
 
+def _build_platform_model(
+    domain: str,
+    platform_name: str,
+    platform_manifest,
+) -> type[BaseModel]:
+    """Create a Pydantic model for a single platform's config."""
+    schema = platform_manifest.config_schema
+    properties = schema.get("properties", {})
+    required_fields = set(schema.get("required", []))
+
+    fields = {}
+    for prop_name, prop_def in properties.items():
+        fields[prop_name] = _json_schema_to_field(prop_name, prop_def, required_fields)
+
+    model_name = f"{domain.title().replace('_', '')}{platform_name.title().replace('_', '')}PlatformConfig"
+
+    return create_model(
+        model_name,
+        __base__=BasePlatformConfig,
+        **fields,
+    )
+
+
 def build_integration_model(manifest) -> type[BaseModel]:
-    """Create a Pydantic model from a manifest's config_schema.
+    """Create a Pydantic model from a manifest's config_schema and platforms.
 
     The model inherits from BaseIntegrationConfig and adds
     integration-specific fields. The ``type`` field is constrained
-    to a Literal matching the manifest's domain.
+    to a Literal matching the manifest's domain. Platform models
+    are built from each platform's config_schema.
     """
     schema = manifest.config_schema
     properties = schema.get("properties", {})
@@ -258,6 +291,17 @@ def build_integration_model(manifest) -> type[BaseModel]:
 
     # Override 'type' with a Literal for discriminated union support
     fields["type"] = (Literal[manifest.domain], manifest.domain)
+
+    # Build platform models and container
+    if manifest.platforms:
+        platform_fields = {}
+        for plat_name, plat_manifest in manifest.platforms.items():
+            plat_model = _build_platform_model(manifest.domain, plat_name, plat_manifest)
+            platform_fields[plat_name] = (plat_model | None, None)
+
+        container_name = f"{manifest.domain.title().replace('_', '')}PlatformsContainer"
+        PlatformsContainer = create_model(container_name, **platform_fields)
+        fields["platforms"] = (PlatformsContainer | None, None)
 
     model_name = f"{manifest.domain.title().replace('_', '')}Integration"
 
@@ -291,44 +335,51 @@ def _validate_automation_safety(integrations: list) -> list[str]:
     """Validate that no automation triggers irreversible actions from
     non-deterministic provenance without a !yolo override.
 
-    Unsafe automations are removed from the integration's list.
+    Unsafe automations are removed from the platform's list.
     Returns warning messages for each automation that was disabled.
 
-    Integration-specific constants (DETERMINISTIC_SOURCES, IRREVERSIBLE_ACTIONS)
-    are loaded dynamically from each integration's const.py by integration type.
-    Integrations without a const.py skip safety validation for those constants.
+    Platform-specific constants (DETERMINISTIC_SOURCES, IRREVERSIBLE_ACTIONS)
+    are loaded dynamically from each platform's const.py.
     """
     warnings = []
     for integration in integrations:
-        if not hasattr(integration, "automations"):
+        platforms = getattr(integration, "platforms", None)
+        if platforms is None:
             continue
-        const = _load_integration_const(integration.type)
-        deterministic_sources: frozenset[str] = getattr(const, "DETERMINISTIC_SOURCES", frozenset())
-        irreversible_actions: frozenset[str] = getattr(const, "IRREVERSIBLE_ACTIONS", frozenset())
-        safe = []
-        for automation in integration.automations:
-            provenance = resolve_provenance(automation.when, deterministic_sources)
-            if provenance in ("llm", "hybrid"):
-                unsafe_actions = []
-                for action in automation.then:
-                    if isinstance(action, YoloAction):
+        for platform_name in type(platforms).model_fields:
+            platform = getattr(platforms, platform_name)
+            if platform is None:
+                continue
+            if not hasattr(platform, "automations"):
+                continue
+
+            const = _load_platform_const(integration.type, platform_name)
+            deterministic_sources: frozenset[str] = getattr(const, "DETERMINISTIC_SOURCES", frozenset())
+            irreversible_actions: frozenset[str] = getattr(const, "IRREVERSIBLE_ACTIONS", frozenset())
+            safe = []
+            for automation in platform.automations:
+                provenance = resolve_provenance(automation.when, deterministic_sources)
+                if provenance in ("llm", "hybrid"):
+                    unsafe_actions = []
+                    for action in automation.then:
+                        if isinstance(action, YoloAction):
+                            continue
+                        name = action if isinstance(action, str) else next(iter(action), "")
+                        if name in irreversible_actions:
+                            unsafe_actions.append(name)
+                    if unsafe_actions:
+                        when_keys = ", ".join(automation.when.keys())
+                        msg = (
+                            f"Automation disabled in '{integration.name}.{platform_name}': "
+                            f"irreversible actions [{', '.join(unsafe_actions)}] "
+                            f"with {provenance} provenance "
+                            f"(conditions: {when_keys}). "
+                            f"Use !yolo tag on the action to override."
+                        )
+                        warnings.append(msg)
                         continue
-                    name = action if isinstance(action, str) else next(iter(action), "")
-                    if name in irreversible_actions:
-                        unsafe_actions.append(name)
-                if unsafe_actions:
-                    when_keys = ", ".join(automation.when.keys())
-                    msg = (
-                        f"Automation disabled in '{integration.name}': "
-                        f"irreversible actions [{', '.join(unsafe_actions)}] "
-                        f"with {provenance} provenance "
-                        f"(conditions: {when_keys}). "
-                        f"Use !yolo tag on the action to override."
-                    )
-                    warnings.append(msg)
-                    continue
-            safe.append(automation)
-        integration.automations = safe
+                safe.append(automation)
+            platform.automations = safe
     return warnings
 
 
@@ -392,6 +443,18 @@ def load_config(config_path: Path = _CONFIG_PATH) -> tuple:
 
         def get_integrations_by_type(self, integration_type: str) -> list:
             return [i for i in self.integrations if i.type == integration_type]
+
+        def get_platform(self, name: str, integration_type: str, platform_name: str):
+            integration = self.get_integration(name, integration_type)
+            platforms = getattr(integration, "platforms", None)
+            if platforms is None:
+                raise ValueError(f"Integration {integration_type}/{name} has no platforms")
+            platform = getattr(platforms, platform_name, None)
+            if platform is None:
+                raise ValueError(
+                    f"Platform '{platform_name}' not configured in {integration_type}/{name}"
+                )
+            return platform
 
     cfg = AppConfig(**raw)
     warnings = _validate_automation_safety(cfg.integrations)

@@ -2,7 +2,7 @@ import logging
 
 from app import queue
 from app.config import config
-from .mail import Mailbox
+from ...mail import Mailbox
 from .store import EmailStore
 
 log = logging.getLogger(__name__)
@@ -11,7 +11,8 @@ log = logging.getLogger(__name__)
 def handle(task: dict):
     integration_name = task["payload"]["integration"]
     integration = config.get_integration(integration_name, "email")
-    log.info("email.check: starting (integration=%s)", integration_name)
+    platform = config.get_platform(integration_name, "email", "inbox")
+    log.info("email.inbox.check: starting (integration=%s)", integration_name)
 
     notes_dir = config.directories.notes
     store = EmailStore(path=notes_dir / "emails" / integration.name)
@@ -22,7 +23,7 @@ def handle(task: dict):
         username=integration.username,
         password=integration.password,
     ) as mb:
-        limit = task["payload"].get("limit", integration.limit)
+        limit = task["payload"].get("limit", platform.limit)
         inbox_pairs = mb.inbox_message_ids(limit=limit)
 
     # Build message_id -> uid mapping. For emails without a Message-ID, use
@@ -44,12 +45,12 @@ def handle(task: dict):
     # Enqueue collect for every inbox email (upsert: creates new or refreshes mutable fields).
     for mid, uid in inbox_by_mid.items():
         queue.enqueue({
-            "type": "email.collect",
+            "type": "email.inbox.collect",
             "integration": integration_name,
             "uid": uid,
         }, priority=3)
 
     log.info(
-        "email.check: %d in inbox, %d in notes, %d moved to synced/, %d collect tasks queued",
+        "email.inbox.check: %d in inbox, %d in notes, %d moved to synced/, %d collect tasks queued",
         len(inbox_mids), len(note_mids), len(synced), len(inbox_by_mid),
     )

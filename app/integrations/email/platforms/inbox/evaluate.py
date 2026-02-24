@@ -14,7 +14,7 @@ from app.config import (
     config,
     resolve_provenance,
 )
-from app.integrations.email.const import DEFAULT_CLASSIFICATIONS, DETERMINISTIC_SOURCES
+from .const import DEFAULT_CLASSIFICATIONS, DETERMINISTIC_SOURCES
 from .store import EmailStore
 
 log = logging.getLogger(__name__)
@@ -35,9 +35,9 @@ _NOW_RE = re.compile(r"^\s*(>=|<=|>|<|==)\s*now\(\)\s*$")
 class EmailSnapshot:
     """Lightweight reconstruction of email state from note frontmatter.
 
-    Used by email.evaluate to run automation rules without an IMAP connection.
+    Used by email.inbox.evaluate to run automation rules without an IMAP connection.
     All fields reflect the state at the time the note was last written by
-    email.collect. IMAP flag fields (is_read, is_starred, is_answered) are
+    email.inbox.collect. IMAP flag fields (is_read, is_starred, is_answered) are
     updated on every collect cycle and are therefore current within one cycle.
     """
 
@@ -197,15 +197,16 @@ def _evaluate_automations(
 def handle(task: dict):
     integration_name = task["payload"]["integration"]
     integration = config.get_integration(integration_name, "email")
+    platform = config.get_platform(integration_name, "email", "inbox")
     message_id = task["payload"]["message_id"]
-    log.info("email.evaluate: message_id=%s (integration=%s)", message_id, integration_name)
+    log.info("email.inbox.evaluate: message_id=%s (integration=%s)", message_id, integration_name)
 
     notes_dir = config.directories.notes
     store = EmailStore(path=notes_dir / "emails" / integration.name)
 
     filepath = store.find_by_message_id(message_id)
     if filepath is None:
-        log.error("email.evaluate: no note found for message_id=%s", message_id)
+        log.error("email.inbox.evaluate: no note found for message_id=%s", message_id)
         return
 
     post = frontmatter.load(filepath)
@@ -215,12 +216,12 @@ def handle(task: dict):
     classification = meta.get("classification", {})
     uid = str(meta.get("uid", ""))
 
-    classifications = integration.classifications or DEFAULT_CLASSIFICATIONS
-    actions = _evaluate_automations(integration.automations, snapshot, classification, classifications)
+    classifications = platform.classifications or DEFAULT_CLASSIFICATIONS
+    actions = _evaluate_automations(platform.automations, snapshot, classification, classifications)
 
     if actions:
         provenances = set()
-        for automation in integration.automations:
+        for automation in platform.automations:
             if _conditions_match(automation.when, snapshot, classification, classifications):
                 provenances.add(resolve_provenance(automation.when, DETERMINISTIC_SOURCES))
         if "llm" in provenances or "hybrid" in provenances:
@@ -231,12 +232,12 @@ def handle(task: dict):
         unwrapped = [a.value if isinstance(a, YoloAction) else a for a in actions]
 
         queue.enqueue({
-            "type": "email.act",
+            "type": "email.inbox.act",
             "integration": integration_name,
             "uid": uid,
             "actions": unwrapped,
         }, priority=7, provenance=provenance)
         log.info(
-            "email.evaluate: queued email.act for message_id=%s actions=%s provenance=%s",
+            "email.inbox.evaluate: queued act for message_id=%s actions=%s provenance=%s",
             message_id, unwrapped, provenance,
         )

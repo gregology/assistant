@@ -21,4 +21,7 @@ def register_all() -> None:
             HANDLERS[f"{domain}.{suffix}"] = handler
 
         manifest = manifests[domain]
-        ENTRY_TASKS[domain] = f"{domain}.{manifest.entry_task}"
+        for platform_name, platform_manifest in manifest.platforms.items():
+            entry_key = f"{domain}.{platform_name}"
+            entry_task = f"{domain}.{platform_name}.{platform_manifest.entry_task}"
+            ENTRY_TASKS[entry_key] = entry_task

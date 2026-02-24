@@ -1,6 +1,6 @@
-"""GitHub integration constants.
+"""GitHub pull requests platform constants.
 
-Integration-specific metadata for provenance tracking and safety validation.
+Platform-specific metadata for provenance tracking and safety validation.
 """
 
 from app.config import ClassificationConfig
@@ -30,11 +30,11 @@ DETERMINISTIC_SOURCES: frozenset[str] = frozenset({
     "changed_files",
 })
 
-# Actions that cannot be undone. Empty until Phase 4 adds write actions.
+# Actions that cannot be undone. Empty until write actions are added.
 # Automations that would trigger these from non-deterministic (LLM) provenance
 # are blocked at config load time unless the user tags them with !yolo.
 IRREVERSIBLE_ACTIONS: frozenset[str] = frozenset()
 
-# Allowlist of string actions accepted by github.act. Empty until Phase 4.
+# Allowlist of string actions accepted by act handler. Empty until write actions added.
 # Must not grow without a reversibility tier review.
 SIMPLE_ACTIONS: frozenset[str] = frozenset()

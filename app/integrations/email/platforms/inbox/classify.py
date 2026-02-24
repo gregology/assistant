@@ -8,9 +8,9 @@ from jinja2 import Environment, FileSystemLoader
 
 from app import queue
 from app.config import ClassificationConfig, config
-from app.integrations.email.const import DEFAULT_CLASSIFICATIONS
 from app.llm import LLMConversation
-from .mail import Mailbox
+from .const import DEFAULT_CLASSIFICATIONS
+from ...mail import Mailbox
 from .store import EmailStore
 
 log = logging.getLogger(__name__)
@@ -42,7 +42,7 @@ def _render_prompt(email, classifications: dict[str, ClassificationConfig]) -> s
     body = email.contents_clean
     if len(body) > MAX_BODY_CHARS:
         body = body[:MAX_BODY_CHARS] + "\n... (body truncated)"
-    template = jinja_env.get_template("classify_email.jinja")
+    template = jinja_env.get_template("classify.jinja")
     return template.render(
         salt=secrets.token_hex(4).upper(),
         email=email,
@@ -54,10 +54,11 @@ def _render_prompt(email, classifications: dict[str, ClassificationConfig]) -> s
 def handle(task: dict):
     integration_name = task["payload"]["integration"]
     integration = config.get_integration(integration_name, "email")
+    platform = config.get_platform(integration_name, "email", "inbox")
     uid = task["payload"]["uid"]
-    log.info("email.classify: uid=%s (integration=%s)", uid, integration_name)
+    log.info("email.inbox.classify: uid=%s (integration=%s)", uid, integration_name)
 
-    classifications = integration.classifications or DEFAULT_CLASSIFICATIONS
+    classifications = platform.classifications or DEFAULT_CLASSIFICATIONS
     llm_config = config.llms[integration.llm]
 
     notes_dir = config.directories.notes
@@ -80,17 +81,17 @@ def handle(task: dict):
         existing_cls = post.metadata.get("classification", {})
 
     if all(k in existing_cls for k in classifications):
-        log.info("email.classify: uid=%s all classifications present, skipping LLM", uid)
+        log.info("email.inbox.classify: uid=%s all classifications present, skipping LLM", uid)
     else:
         prompt = _render_prompt(email, classifications)
-        log.info("email.classify prompt:\n%s", prompt)
+        log.info("email.inbox.classify prompt:\n%s", prompt)
         conversation = LLMConversation(
             model=integration.llm,
             system="Disable internal monologue. Answer directly. Respond with JSON.",
         )
         schema = _build_schema(classifications)
         classification = conversation.message(prompt=prompt, schema=schema)
-        log.info("email.classify: uid=%s result=%s", uid, classification)
+        log.info("email.inbox.classify: uid=%s result=%s", uid, classification)
 
         classified_by = {
             "model": llm_config.model,
@@ -100,8 +101,8 @@ def handle(task: dict):
         store.update(message_id, classification=classification, classified_by=classified_by)
 
     queue.enqueue({
-        "type": "email.evaluate",
+        "type": "email.inbox.evaluate",
         "integration": integration_name,
         "message_id": message_id,
     }, priority=7)
-    log.info("email.classify: queued email.evaluate for uid=%s", uid)
+    log.info("email.inbox.classify: queued evaluate for uid=%s", uid)

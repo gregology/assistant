@@ -14,10 +14,17 @@ config_schema:
       type: string
     password:
       type: string
-    limit:
-      type: integer
-      default: 50
   required:
     - imap_server
     - username
     - password
+platforms:
+  inbox:
+    name: "Inbox"
+    entry_task: check
+    config_schema:
+      properties:
+        limit:
+          type: integer
+          default: 50
+      required: []

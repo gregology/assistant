@@ -16,18 +16,22 @@ CI runs on GitHub Actions (`.github/workflows/test.yml`): checkout, setup uv, sy
 ```
 tests/
   conftest.py                           # Shared fixtures
+  test_config.py                        # YoloAction tag handling
   test_queue.py                         # Queue lifecycle + stateful property tests
   test_llm.py                           # LLM conversation, schema validation
+  test_loader.py                        # Manifest parsing, discovery, dynamic models
   test_scheduler.py                     # interval_to_cron conversion
   test_store.py                         # NoteStore CRUD + archive
   safety/
     test_automation_invariants.py        # Property tests: all possible classifications
     test_chaos.py                        # Chaos tests: garbage LLM output
+    test_provenance.py                   # Provenance derivation + safety validation
   integrations/
     email/
       test_classify.py                   # Condition matching, operators, schema building
       test_act.py                        # Action execution, allowlist enforcement
-      test_mail_parsing.py               # Header parsing (auth, unsubscribe, dates)
+      test_email_store.py                # EmailStore CRUD, move, dedup
+      test_mail_parsing.py               # Header parsing (auth, unsubscribe, dates, calendar)
 ```
 
 ## Fixtures
@@ -51,6 +55,10 @@ Uses Hypothesis to generate 500 random classification outputs per test and asser
 ### Chaos tests (`test_chaos.py`)
 
 Injects specific fault patterns at the classification level and asserts that safety boundaries still hold. Each chaos scenario produces only allowed actions with no crashes. See the [testing philosophy](philosophy.md) for the full list of fault patterns.
+
+### Provenance tests (`test_provenance.py`)
+
+Tests the provenance derivation system (`resolve_provenance`) and the startup safety validation (`_validate_automation_safety`). Verifies that irreversible actions from non-deterministic provenance are blocked unless `!yolo` is set. Operates at the platform level, matching how automations are configured per-platform in the config.
 
 ## Stateful queue testing (`test_queue.py`)
 

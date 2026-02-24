@@ -8,7 +8,7 @@ radius is bounded.
 from hypothesis import given, settings, strategies as st
 
 from app.config import AutomationConfig, ClassificationConfig
-from app.integrations.email.evaluate import _evaluate_automations
+from app.integrations.email.platforms.inbox.evaluate import _evaluate_automations
 
 # ---------------------------------------------------------------------------
 # Classification configs matching the default set

@@ -1,6 +1,6 @@
 from app.config import AutomationConfig, ClassificationConfig
-from app.integrations.email.classify import _build_schema
-from app.integrations.email.evaluate import (
+from app.integrations.email.platforms.inbox.classify import _build_schema
+from app.integrations.email.platforms.inbox.evaluate import (
     _check_condition,
     _check_deterministic_condition,
     _conditions_match,

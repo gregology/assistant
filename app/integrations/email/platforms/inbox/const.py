@@ -1,6 +1,6 @@
-"""Email integration constants.
+"""Email inbox platform constants.
 
-Integration-specific metadata for provenance tracking and safety validation.
+Platform-specific metadata for provenance tracking and safety validation.
 """
 
 from app.config import ClassificationConfig
@@ -43,7 +43,7 @@ DETERMINISTIC_SOURCES: frozenset[str] = frozenset({
 # the user explicitly tags them with !yolo.
 IRREVERSIBLE_ACTIONS: frozenset[str] = frozenset({"unsubscribe"})
 
-# Allowlist of string actions accepted by email.act. Any string action not
+# Allowlist of string actions accepted by email.inbox.act. Any string action not
 # in this set is skipped with a warning and never executed.
-# Must not grow without a reversibility tier review (see email/CLAUDE.md).
+# Must not grow without a reversibility tier review.
 SIMPLE_ACTIONS: frozenset[str] = frozenset({"archive", "spam", "trash", "unsubscribe"})

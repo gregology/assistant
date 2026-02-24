@@ -30,11 +30,13 @@ integrations:
     password: !secret personal_email_password
     schedule:
       every: 30m
-    automations:
-      - when:
-          is_noreply: true
-        then:
-          - archive
+    platforms:
+      inbox:
+        automations:
+          - when:
+              is_noreply: true
+            then:
+              - archive
 ```
 
 ---
@@ -51,20 +53,25 @@ integrations:
     password: !secret email_pass    # Reference a key from secrets.yaml
     schedule:
       every: 30m                    # or: cron: "0 8-18 * * 1-5"
-    limit: 50                       # Max emails fetched per run. Default: 50
     llm: default                    # LLM profile name from the llms: section
-    classifications: ...            # See below
-    automations: ...                # See below
+    platforms:
+      inbox:
+        limit: 50                   # Max emails fetched per run. Default: 50
+        classifications: ...        # See below
+        automations: ...            # See below
 ```
+
+IMAP credentials and schedule are set at the integration level. Classifications, automations, and limit are set per-platform under `platforms.inbox`.
+
 ---
 
 ## Condition Keys
 
-Automation `when` conditions reference these keys. All conditions in a `when` block use **AND semantics** — every condition must match for the automation to fire.
+Automation `when` conditions reference these keys. All conditions in a `when` block use **AND semantics**. Every condition must match for the automation to fire.
 
 ### Deterministic (rule-based)
 
-These are resolved from the email itself — no LLM involved. Using only these keys gives your automation `rule` provenance, which allows irreversible actions without a `!yolo` override.
+These are resolved from the email itself, no LLM involved. Using only these keys gives your automation `rule` provenance, which allows irreversible actions without a `!yolo` override.
 
 #### Email identity
 
@@ -73,7 +80,7 @@ These are resolved from the email itself — no LLM involved. Using only these k
 | `domain` | string | Sender domain extracted from `From:` header (e.g. `stripe.com`) |
 | `from_address` | string | Full sender address (e.g. `alerts@github.com`) |
 | `is_noreply` | boolean | Sender matches `no-reply`, `do-not-reply`, `mailer-daemon`, or `postmaster` |
-| `is_reply` | boolean | `In-Reply-To` header is present — this email is a reply to another |
+| `is_reply` | boolean | `In-Reply-To` header is present, this email is a reply to another |
 | `is_forward` | boolean | Subject starts with `Fwd:`, `FW:`, `Fw:`, or `[Fwd:` |
 | `is_unsubscribable` | boolean | Email has RFC 8058 one-click unsubscribe (both `List-Unsubscribe` URL and `List-Unsubscribe-Post` headers) |
 
@@ -101,9 +108,9 @@ Available when the email contains an `.ics` attachment (`is_calendar_event: true
 
 ### LLM Classifications
 
-These are resolved by asking the LLM and are only available after `email.classify` runs. Using these keys gives your automation `llm` provenance, which blocks irreversible actions unless `!yolo` is set.
+These are resolved by asking the LLM and are only available after `email.inbox.classify` runs. Using these keys gives your automation `llm` provenance, which blocks irreversible actions unless `!yolo` is set.
 
-Classifications are defined per-integration under `classifications:`. If omitted, the defaults below apply.
+Classifications are defined per-platform under `platforms.inbox.classifications`. If omitted, the defaults below apply.
 
 #### Default classifications
 
@@ -117,28 +124,30 @@ Classifications are defined per-integration under `classifications:`. If omitted
 #### Defining custom classifications
 
 ```yaml
-classifications:
-  # Shorthand: string value becomes a confidence classification
-  human: is this a personal email written by a human?
-  robot: is this email from an automated system or mailing list?
+platforms:
+  inbox:
+    classifications:
+      # Shorthand: string value becomes a confidence classification
+      human: is this a personal email written by a human?
+      robot: is this email from an automated system or mailing list?
 
-  # Boolean
-  requires_response:
-    prompt: does this email require a response from me?
-    type: boolean
+      # Boolean
+      requires_response:
+        prompt: does this email require a response from me?
+        type: boolean
 
-  # Enum
-  urgency:
-    prompt: how urgent is this email?
-    type: enum
-    values: [none, low, medium, high, critical]
+      # Enum
+      urgency:
+        prompt: how urgent is this email?
+        type: enum
+        values: [none, low, medium, high, critical]
 ```
 
 ---
 
 ## Actions
 
-Actions are listed under `then:`. A single action can be written as a bare string; multiple actions require a list.
+Actions are listed under `then:`. A single action can be written as a bare string. Multiple actions require a list.
 
 ### Folder actions (move email between IMAP folders)
 
@@ -146,9 +155,9 @@ When a folder action fires, the associated note in `notes/emails/{name}/` is mov
 
 | Action | IMAP folder | Note location | Reversibility |
 |--------|-------------|---------------|---------------|
-| `archive` | `\Archive` | `notes/emails/{name}/archive/` | Soft — easily moved back |
-| `trash` | `\Trash` | `notes/emails/{name}/trash/` | Soft — recoverable until folder is emptied |
-| `spam` | `\Junk` | `notes/emails/{name}/spam/` | Hard — may train server spam filters |
+| `archive` | `\Archive` | `notes/emails/{name}/archive/` | Soft, easily moved back |
+| `trash` | `\Trash` | `notes/emails/{name}/trash/` | Soft, recoverable until folder is emptied |
+| `spam` | `\Junk` | `notes/emails/{name}/spam/` | Hard, may train server spam filters |
 
 ### Other actions
 
@@ -174,7 +183,7 @@ then:
 
 ### Condition syntax
 
-#### Confidence (float 0–1)
+#### Confidence (float 0-1)
 
 ```yaml
 # Numeric: fires when value >= threshold
@@ -225,7 +234,7 @@ The only irreversible action is `unsubscribe`. `archive`, `trash`, `spam`, and `
 
 ### The `!yolo` override
 
-Tag an action with `!yolo` to explicitly acknowledge the risk of running it from non-deterministic provenance. This is a deliberate, auditable escape hatch — not a workaround.
+Tag an action with `!yolo` to explicitly acknowledge the risk of running it from non-deterministic provenance. This is a deliberate, auditable escape hatch, not a workaround.
 
 ```yaml
 - when:
@@ -234,7 +243,7 @@ Tag an action with `!yolo` to explicitly acknowledge the risk of running it from
     - !yolo unsubscribe
 ```
 
-A warning is logged at startup for every `!yolo`-tagged automation. The action will still execute, but it is flagged in the audit log.
+A warning is logged at startup for every `!yolo`-tagged automation. The action will still execute, but you've made a deliberate choice and that choice is visible in the config and the logs.
 
 ---
 
@@ -243,82 +252,92 @@ A warning is logged at startup for every `!yolo`-tagged automation. The action w
 ### Archive no-reply and automated emails
 
 ```yaml
-automations:
-  - when:
-      is_noreply: true
-    then:
-      - archive
+platforms:
+  inbox:
+    automations:
+      - when:
+          is_noreply: true
+        then:
+          - archive
 
-  - when:
-      classification.robot: "> 0.85"
-    then:
-      - archive
+      - when:
+          classification.robot: "> 0.85"
+        then:
+          - archive
 ```
 
 ### Handle calendar invitations
 
 ```yaml
-automations:
-  # Archive accepted/declined replies — no action needed
-  - when:
-      is_calendar_event: true
-      calendar.method: reply
-      calendar.partstat: [accepted, declined]
-    then:
-      - archive
+platforms:
+  inbox:
+    automations:
+      # Archive accepted/declined replies, no action needed
+      - when:
+          is_calendar_event: true
+          calendar.method: reply
+          calendar.partstat: [accepted, declined]
+        then:
+          - archive
 
-  # Trash cancelled events
-  - when:
-      is_calendar_event: true
-      calendar.method: cancel
-    then:
-      - trash
+      # Trash cancelled events
+      - when:
+          is_calendar_event: true
+          calendar.method: cancel
+        then:
+          - trash
 
-  # Archive event updates (rescheduled/edited)
-  - when:
-      is_calendar_event: true
-      calendar.is_update: true
-    then:
-      - archive
+      # Archive event updates (rescheduled/edited)
+      - when:
+          is_calendar_event: true
+          calendar.is_update: true
+        then:
+          - archive
 ```
 
 ### Unsubscribe from mailing lists (deterministic)
 
-Deterministic provenance — no `!yolo` needed because the condition is rule-based, not LLM-based.
+Deterministic provenance, no `!yolo` needed because the condition is rule-based, not LLM-based.
 
 ```yaml
-automations:
-  - when:
-      is_noreply: true
-      is_unsubscribable: true
-      authentication.dkim_pass: true
-    then:
-      - unsubscribe
+platforms:
+  inbox:
+    automations:
+      - when:
+          is_noreply: true
+          is_unsubscribable: true
+          authentication.dkim_pass: true
+        then:
+          - unsubscribe
 ```
 
 ### Unsubscribe from mailing lists (LLM-assisted)
 
-LLM provenance — requires `!yolo` because `unsubscribe` is irreversible.
+LLM provenance, requires `!yolo` because `unsubscribe` is irreversible.
 
 ```yaml
-automations:
-  - when:
-      classification.robot: "> 0.95"
-      is_unsubscribable: true
-    then:
-      - !yolo unsubscribe
+platforms:
+  inbox:
+    automations:
+      - when:
+          classification.robot: "> 0.95"
+          is_unsubscribable: true
+        then:
+          - !yolo unsubscribe
 ```
 
 ### Draft reply to urgent human emails
 
 ```yaml
-automations:
-  - when:
-      classification.human: "> 0.8"
-      classification.requires_response: true
-      classification.urgency: [high, critical]
-    then:
-      - draft_reply: "Thanks for reaching out — I'll review this shortly."
+platforms:
+  inbox:
+    automations:
+      - when:
+          classification.human: "> 0.8"
+          classification.requires_response: true
+          classification.urgency: [high, critical]
+        then:
+          - draft_reply: "Thanks for reaching out, I'll review this shortly."
 ```
 
 ### Trusted sender shortcut (fully deterministic)
@@ -326,94 +345,102 @@ automations:
 All conditions are rule-based, so this has `rule` provenance and could safely gate irreversible actions.
 
 ```yaml
-automations:
-  - when:
-      authentication.dkim_pass: true
-      authentication.spf_pass: true
-      authentication.dmarc_pass: true
-      domain: work.com
-    then:
-      - draft_reply: "On it."
+platforms:
+  inbox:
+    automations:
+      - when:
+          authentication.dkim_pass: true
+          authentication.spf_pass: true
+          authentication.dmarc_pass: true
+          domain: work.com
+        then:
+          - draft_reply: "On it."
 ```
 
 ### File emails into named folders
 
 ```yaml
-automations:
-  - when:
-      domain: github.com
-    then:
-      - move_to: GitHub
+platforms:
+  inbox:
+    automations:
+      - when:
+          domain: github.com
+        then:
+          - move_to: GitHub
 
-  - when:
-      domain: [notion.so, linear.app, figma.com]
-    then:
-      - move_to: Work/SaaS
+      - when:
+          domain: [notion.so, linear.app, figma.com]
+        then:
+          - move_to: Work/SaaS
 
-  - when:
-      classification.user_agreement_update: true
-    then:
-      - move_to: Legal
+      - when:
+          classification.user_agreement_update: true
+        then:
+          - move_to: Legal
 ```
 
 ### Spam a known bad domain
 
 ```yaml
-automations:
-  - when:
-      domain: [spam-domain.com, phishing-co.net]
-    then:
-      - spam
+platforms:
+  inbox:
+    automations:
+      - when:
+          domain: [spam-domain.com, phishing-co.net]
+        then:
+          - spam
 ```
 
-### Layered rules (order matters — all matching automations fire)
+### Layered rules (order matters, all matching automations fire)
 
 ```yaml
-automations:
-  # First: unsubscribe from anything unsubscribable and robotic
-  - when:
-      classification.robot: "> 0.9"
-      is_unsubscribable: true
-    then:
-      - !yolo unsubscribe
+platforms:
+  inbox:
+    automations:
+      # First: unsubscribe from anything unsubscribable and robotic
+      - when:
+          classification.robot: "> 0.9"
+          is_unsubscribable: true
+        then:
+          - !yolo unsubscribe
 
-  # Second: archive anything else that looks automated
-  - when:
-      classification.robot: "> 0.75"
-    then:
-      - archive
+      # Second: archive anything else that looks automated
+      - when:
+          classification.robot: "> 0.75"
+        then:
+          - archive
 
-  # Third: draft reply to anything human that needs a response
-  - when:
-      classification.human: "> 0.8"
-      classification.requires_response: true
-    then:
-      - draft_reply: "I'll get back to you soon."
+      # Third: draft reply to anything human that needs a response
+      - when:
+          classification.human: "> 0.8"
+          classification.requires_response: true
+        then:
+          - draft_reply: "I'll get back to you soon."
 ```
 
-All matching automations fire — not just the first match. Design rules so their action sets don't conflict (e.g. avoid `archive` and `trash` firing on the same email).
+All matching automations fire, not just the first match. Design rules so their action sets don't conflict (e.g. avoid `archive` and `trash` firing on the same email).
 
 ---
 
 ## Pipeline
 
 ```
-email.check (priority 3)
+email.inbox.check (priority 3)
   Fetches all UIDs from the IMAP server. Compares against known UIDs in the
   note store (including archive/, trash/, spam/ subdirectories). Enqueues
-  email.collect for each new email.
+  email.inbox.collect for each new email.
 
-email.collect (priority 3)
+email.inbox.collect (priority 3)
   Downloads the email by UID. Saves it as a markdown note with frontmatter.
   Checks authentication results:
-    - All pass → enqueue email.classify at priority 6
-    - Any fail → enqueue email.classify at priority 9 (processed last)
+    - All pass -> enqueue email.inbox.classify at priority 6
+    - Any fail -> enqueue email.inbox.classify at priority 9 (processed last)
 
-email.classify (priority 6 or 9)
+email.inbox.classify (priority 6 or 9)
   Runs LLM classification. Updates the note with results.
-  Evaluates automation rules. If any match, enqueues email.act.
+  Evaluates automation rules. If any match, enqueues email.inbox.act.
 
-email.act (priority 7)
+email.inbox.act (priority 7)
   Executes IMAP actions (archive, trash, spam, unsubscribe, draft_reply).
   For folder actions, mirrors the move to the note store subdirectory.
 ```

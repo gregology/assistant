@@ -28,6 +28,15 @@ log = logging.getLogger(__name__)
 
 
 @dataclass
+class PlatformManifest:
+    """Parsed platform definition from a manifest.yaml."""
+
+    name: str
+    entry_task: str
+    config_schema: dict
+
+
+@dataclass
 class IntegrationManifest:
     """Parsed manifest.yaml for an integration package."""
 
@@ -37,6 +46,7 @@ class IntegrationManifest:
     entry_task: str
     dependencies: list[str]
     config_schema: dict
+    platforms: dict[str, PlatformManifest]
     path: Path
     builtin: bool
 
@@ -132,6 +142,15 @@ def _load_manifest(
         )
         return None
 
+    raw_platforms = raw.get("platforms", {})
+    platforms: dict[str, PlatformManifest] = {}
+    for plat_name, plat_def in raw_platforms.items():
+        platforms[plat_name] = PlatformManifest(
+            name=plat_def.get("name", plat_name),
+            entry_task=plat_def.get("entry_task", "check"),
+            config_schema=plat_def.get("config_schema", {}),
+        )
+
     return IntegrationManifest(
         domain=domain,
         name=raw.get("name", domain),
@@ -139,6 +158,7 @@ def _load_manifest(
         entry_task=raw.get("entry_task", "check"),
         dependencies=raw.get("dependencies", []),
         config_schema=raw.get("config_schema", {}),
+        platforms=platforms,
         path=integration_dir,
         builtin=builtin,
     )
@@ -275,6 +295,39 @@ def load_const_module(manifest: IntegrationManifest):
             spec.loader.exec_module(module)
         except Exception:
             log.exception("Failed to load const module: %s", const_path)
+            del sys.modules[module_name]
+            return None
+        return module
+
+
+def load_platform_const_module(manifest: IntegrationManifest, platform_name: str):
+    """Load a platform's const.py for safety validation.
+
+    Looks in {manifest.path}/platforms/{platform_name}/const.py.
+    Returns None if const.py does not exist.
+    """
+    const_path = manifest.path / "platforms" / platform_name / "const.py"
+    if not const_path.exists():
+        return None
+
+    if manifest.builtin:
+        try:
+            return importlib.import_module(
+                f"app.integrations.{manifest.domain}.platforms.{platform_name}.const"
+            )
+        except ImportError:
+            return None
+    else:
+        module_name = f"gaas_ext.{manifest.domain}.platforms.{platform_name}.const"
+        spec = importlib.util.spec_from_file_location(module_name, const_path)
+        if spec is None:
+            return None
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        try:
+            spec.loader.exec_module(module)
+        except Exception:
+            log.exception("Failed to load platform const module: %s", const_path)
             del sys.modules[module_name]
             return None
         return module

@@ -9,7 +9,7 @@ import pytest
 from hypothesis import given, settings, strategies as st
 
 from app.config import AutomationConfig, ClassificationConfig
-from app.integrations.email.evaluate import (
+from app.integrations.email.platforms.inbox.evaluate import (
     _evaluate_automations,
     _check_condition,
     _conditions_match,

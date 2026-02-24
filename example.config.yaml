@@ -26,53 +26,55 @@ integrations:
     password: !secret personal_email_password
     schedule:
       every: 30m
-    limit: 50
     llm: fast
-    classifications:                        # Optional — defaults are used if omitted
-      human: is this a personal email written by a human?
-      robot: is this email from an automated system?
-      requires_response:
-        prompt: does this email require a response?
-        type: boolean
-      urgency:
-        prompt: how urgent is this email?
-        type: enum
-        values: [none, low, medium, high, critical]
-      user_agreement_update:
-        prompt: is this email only to tell me that a user agreement has been updated?
-        type: boolean
-    automations:                            # Optional — act on classification results
-      # Non-deterministic: conditions reference classification.*
-      - when:
-          classification.user_agreement_update: true
-        then:
-          - archive
-      - when:
-          classification.robot: 0.8         # Confidence >= 0.8
-        then: archive                       # Shorthand for single action
-      - when:
-          classification.human: "> 0.8"
-          classification.urgency: [high, critical]  # Any-of match
-        then:
-          - draft_reply: "I'll review this shortly."
-      # Deterministic: calendar events
-      - when:
-          is_calendar_event: true
-        then:
-          - archive
-      # Deterministic: conditions reference email properties (no LLM needed)
-      - when:
-          authentication.dkim_pass: true
-          authentication.spf_pass: true
-          domain: work.com
-        then:
-          - draft_reply: "I'll review this shortly."
-      # Override safety: allow irreversible action from LLM classification
-      # (the !yolo tag acknowledges the risk of misclassification)
-      - when:
-          classification.robot: "> 0.95"
-        then:
-          - !yolo unsubscribe
+    platforms:
+      inbox:
+        limit: 50
+        classifications:                        # Optional — defaults are used if omitted
+          human: is this a personal email written by a human?
+          robot: is this email from an automated system?
+          requires_response:
+            prompt: does this email require a response?
+            type: boolean
+          urgency:
+            prompt: how urgent is this email?
+            type: enum
+            values: [none, low, medium, high, critical]
+          user_agreement_update:
+            prompt: is this email only to tell me that a user agreement has been updated?
+            type: boolean
+        automations:                            # Optional — act on classification results
+          # Non-deterministic: conditions reference classification.*
+          - when:
+              classification.user_agreement_update: true
+            then:
+              - archive
+          - when:
+              classification.robot: 0.8         # Confidence >= 0.8
+            then: archive                       # Shorthand for single action
+          - when:
+              classification.human: "> 0.8"
+              classification.urgency: [high, critical]  # Any-of match
+            then:
+              - draft_reply: "I'll review this shortly."
+          # Deterministic: calendar events
+          - when:
+              is_calendar_event: true
+            then:
+              - archive
+          # Deterministic: conditions reference email properties (no LLM needed)
+          - when:
+              authentication.dkim_pass: true
+              authentication.spf_pass: true
+              domain: work.com
+            then:
+              - draft_reply: "I'll review this shortly."
+          # Override safety: allow irreversible action from LLM classification
+          # (the !yolo tag acknowledges the risk of misclassification)
+          - when:
+              classification.robot: "> 0.95"
+            then:
+              - !yolo unsubscribe
 
   - type: email
     name: work
@@ -82,17 +84,19 @@ integrations:
     password: !secret work_email_password
     schedule:
       cron: "0 8-18 * * 1-5"             # Business hours, weekdays
-    limit: 100
     llm: default
-    classifications:
-      human: is this a personal email written by a human?
-      priority:                             # Extended form for enum types
-        prompt: what is the priority of this email?
-        type: enum
-        values: [low, medium, high, critical]
-      requires_response:
-        prompt: does this email require a response?
-        type: boolean
+    platforms:
+      inbox:
+        limit: 100
+        classifications:
+          human: is this a personal email written by a human?
+          priority:                             # Extended form for enum types
+            prompt: what is the priority of this email?
+            type: enum
+            values: [low, medium, high, critical]
+          requires_response:
+            prompt: does this email require a response?
+            type: boolean
 
   - type: github
     name: my_repos
@@ -101,17 +105,26 @@ integrations:
     llm: default
     # orgs: [myorg, anotherorg]       # Restrict to specific GitHub organizations
     # repos: [myorg/myrepo]           # Restrict to specific repositories (org/repo)
-    # include_mentions: true          # Also track PRs that mention you (noisy, off by default)
-    classifications:                  # Optional — defaults are used if omitted
-      complexity: how complex is this PR to review? 0 = trivial typo fix, 1 = major architectural change
-      risk: how risky is this change? 0 = no risk, 1 = high risk of breaking things
-      documentation_only:
-        prompt: is this primarily a documentation or configuration change?
-        type: boolean
-    # automations:                    # Phase 4 — actions will be defined here
-    #   - when:
-    #       classification.risk: "> 0.8"
-    #     then: []
+    platforms:
+      pull_requests:
+        # include_mentions: true      # Also track PRs that mention you (noisy, off by default)
+        classifications:              # Optional — defaults are used if omitted
+          complexity: how complex is this PR to review? 0 = trivial typo fix, 1 = major architectural change
+          risk: how risky is this change? 0 = no risk, 1 = high risk of breaking things
+          documentation_only:
+            prompt: is this primarily a documentation or configuration change?
+            type: boolean
+        # automations:                # Actions will be defined here when available
+        #   - when:
+        #       classification.risk: "> 0.8"
+        #     then: []
+      issues:
+        include_mentions: true        # Track issues that mention you
+        classifications:
+          urgency: how urgently does this issue need attention?
+          actionable:
+            prompt: can you take a concrete next step on this issue?
+            type: boolean
 
   # Advanced: nightly deep scan with a thorough model
   # - type: email
@@ -122,8 +135,10 @@ integrations:
   #   password: !secret personal_email_password
   #   schedule:
   #     cron: "0 3 * * *"
-  #   limit: 500
   #   llm: default
+  #   platforms:
+  #     inbox:
+  #       limit: 500
 
 directories:
   notes: /path/to/notes

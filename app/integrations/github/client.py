@@ -3,8 +3,12 @@ from __future__ import annotations
 import json
 import logging
 import subprocess
+import time
 
 log = logging.getLogger(__name__)
+
+MAX_RETRIES = 3
+BACKOFF_BASE = 1  # seconds; sleeps 1, 2, 4 on retries
 
 
 class GitHubClient:
@@ -44,12 +48,7 @@ class GitHubClient:
             "--method", "GET",
             "-H", "Accept: application/vnd.github.v3.diff",
         ]
-        log.info("gh api: %s", " ".join(cmd))
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-        if proc.returncode != 0:
-            log.error("gh api failed: %s", proc.stderr)
-            raise RuntimeError(f"gh api failed (exit {proc.returncode}): {proc.stderr.strip()}")
-        return proc.stdout
+        return self._run_gh(cmd, timeout=60)
 
     def active_prs(self, integration) -> list[dict]:
         """Fetch all open PRs currently requiring the user's attention.
@@ -124,9 +123,26 @@ class GitHubClient:
         cmd = ["gh", "api", endpoint, "--method", method]
         for key, value in (params or {}).items():
             cmd.extend(["-f", f"{key}={value}"])
-        log.info("gh api: %s", " ".join(cmd))
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-        if proc.returncode != 0:
-            log.error("gh api failed: %s", proc.stderr)
-            raise RuntimeError(f"gh api failed (exit {proc.returncode}): {proc.stderr.strip()}")
-        return json.loads(proc.stdout)
+        return json.loads(self._run_gh(cmd, timeout=30))
+
+    def _run_gh(self, cmd: list[str], *, timeout: int = 30) -> str:
+        """Run a gh CLI command with retry and exponential backoff."""
+        last_err: RuntimeError | None = None
+        for attempt in range(MAX_RETRIES + 1):
+            log.info("gh api: %s", " ".join(cmd))
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+            if proc.returncode == 0:
+                return proc.stdout
+            last_err = RuntimeError(
+                f"gh api failed (exit {proc.returncode}): {proc.stderr.strip()}"
+            )
+            if attempt < MAX_RETRIES:
+                delay = BACKOFF_BASE * (2 ** attempt)
+                log.warning(
+                    "gh api failed (attempt %d/%d), retrying in %ds: %s",
+                    attempt + 1, MAX_RETRIES + 1, delay, proc.stderr.strip(),
+                )
+                time.sleep(delay)
+            else:
+                log.error("gh api failed: %s", proc.stderr.strip())
+        raise last_err

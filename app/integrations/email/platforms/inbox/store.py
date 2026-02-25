@@ -126,7 +126,7 @@ class EmailStore:
             from_address=email.from_address,
             to_address=email.to_address,
             subject=email.subject,
-            recieved_at=email.date.isoformat(),
+            received_at=email.date.isoformat(),
             authentication=email.authentication,
             domain=email.domain,
             is_noreply=email.is_noreply,

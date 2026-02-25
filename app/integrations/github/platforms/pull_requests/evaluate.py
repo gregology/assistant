@@ -1,34 +1,22 @@
 from __future__ import annotations
 
 import logging
-import operator
-import re
 from dataclasses import dataclass
 
 import frontmatter
 
 from app import queue
-from app.config import (
-    AutomationConfig,
-    ClassificationConfig,
-    YoloAction,
-    config,
-    resolve_provenance,
+from app.config import config
+from app.evaluate import (
+    MISSING,
+    evaluate_automations,
+    resolve_action_provenance,
+    unwrap_actions,
 )
 from .const import DEFAULT_CLASSIFICATIONS, DETERMINISTIC_SOURCES
 from .store import PullRequestStore
 
 log = logging.getLogger(__name__)
-
-_OPS = {
-    ">": operator.gt,
-    "<": operator.lt,
-    ">=": operator.ge,
-    "<=": operator.le,
-    "==": operator.eq,
-}
-
-_OP_RE = re.compile(r"^\s*(>=|<=|>|<|==)\s*(\d+\.?\d*)\s*$")
 
 
 @dataclass
@@ -65,90 +53,15 @@ def _snapshot_from_frontmatter(meta: dict) -> PRSnapshot:
     )
 
 
-_MISSING = object()
-
-
-def _eval_operator(value: float, expr: str) -> bool:
-    match = _OP_RE.match(expr)
-    if not match:
-        log.warning("Invalid confidence condition: %r", expr)
-        return False
-    op_fn = _OPS[match.group(1)]
-    threshold = float(match.group(2))
-    return op_fn(value, threshold)
-
-
-def _check_condition(value, condition, cls_config: ClassificationConfig) -> bool:
-    if cls_config.type == "boolean":
-        return value is condition
-
-    if cls_config.type == "confidence":
-        if isinstance(condition, (int, float)):
-            return value >= condition
-        if isinstance(condition, str):
-            return _eval_operator(value, condition)
-        return False
-
-    if cls_config.type == "enum":
-        if isinstance(condition, list):
-            return value in condition
-        return value == condition
-
-    return False
-
-
-def _check_deterministic_condition(value, condition) -> bool:
-    if isinstance(condition, bool):
-        return value is condition
-    if isinstance(condition, list):
-        return value in condition
-    return value == condition
-
-
-def _resolve_value(key: str, snapshot: PRSnapshot, classification: dict):
-    """Resolve a namespaced condition key to a value from the PR snapshot.
-
-    Returns _MISSING if the key cannot be resolved.
-    """
-    if key.startswith("classification."):
-        cls_key = key[len("classification."):]
-        return classification.get(cls_key, _MISSING)
-    return getattr(snapshot, key, _MISSING)
-
-
-def _conditions_match(
-    when: dict,
-    snapshot: PRSnapshot,
-    classification: dict,
-    classifications: dict[str, ClassificationConfig],
-) -> bool:
-    for key, condition in when.items():
-        value = _resolve_value(key, snapshot, classification)
-        if value is _MISSING:
-            return False
+def _make_resolver(snapshot: PRSnapshot):
+    """Return a resolve_value callable for the shared evaluation engine."""
+    def resolve_value(key: str, classification: dict):
         if key.startswith("classification."):
             cls_key = key[len("classification."):]
-            if cls_key not in classifications:
-                return False
-            if not _check_condition(value, condition, classifications[cls_key]):
-                return False
-        else:
-            if not _check_deterministic_condition(value, condition):
-                return False
-    return True
+            return classification.get(cls_key, MISSING)
+        return getattr(snapshot, key, MISSING)
 
-
-def _evaluate_automations(
-    automations: list[AutomationConfig],
-    snapshot: PRSnapshot,
-    classification: dict,
-    classifications: dict[str, ClassificationConfig],
-) -> list:
-    actions = []
-    for automation in automations:
-        if _conditions_match(automation.when, snapshot, classification, classifications):
-            actions.extend(automation.then)
-    return actions
+    return resolve_value
 
 
 def handle(task: dict):
@@ -176,22 +89,17 @@ def handle(task: dict):
     classification = meta.get("classification", {})
 
     classifications = platform.classifications or DEFAULT_CLASSIFICATIONS
-    actions = _evaluate_automations(platform.automations, snapshot, classification, classifications)
+    resolve_value = _make_resolver(snapshot)
+    actions = evaluate_automations(platform.automations, resolve_value, classification, classifications)
 
     if not actions:
         log.info("github.pull_requests.evaluate: no automations matched for %s/%s#%d", org, repo, number)
         return
 
-    provenances = set()
-    for automation in platform.automations:
-        if _conditions_match(automation.when, snapshot, classification, classifications):
-            provenances.add(resolve_provenance(automation.when, DETERMINISTIC_SOURCES))
-    if "llm" in provenances or "hybrid" in provenances:
-        provenance = "hybrid" if "rule" in provenances else "llm"
-    else:
-        provenance = "rule"
-
-    unwrapped = [a.value if isinstance(a, YoloAction) else a for a in actions]
+    provenance = resolve_action_provenance(
+        platform.automations, resolve_value, classification,
+        classifications, DETERMINISTIC_SOURCES,
+    )
 
     queue.enqueue({
         "type": "github.pull_requests.act",
@@ -199,9 +107,9 @@ def handle(task: dict):
         "org": org,
         "repo": repo,
         "number": number,
-        "actions": unwrapped,
+        "actions": unwrap_actions(actions),
     }, priority=7, provenance=provenance)
     log.info(
         "github.pull_requests.evaluate: queued act for %s/%s#%d actions=%s provenance=%s",
-        org, repo, number, unwrapped, provenance,
+        org, repo, number, unwrap_actions(actions), provenance,
     )

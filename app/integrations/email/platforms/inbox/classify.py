@@ -4,9 +4,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import frontmatter
-from jinja2 import Environment, FileSystemLoader
 
 from app import queue
+from app.classify import build_schema, make_jinja_env
 from app.config import ClassificationConfig, config
 from app.llm import LLMConversation
 from .const import DEFAULT_CLASSIFICATIONS
@@ -15,26 +15,9 @@ from .store import EmailStore
 log = logging.getLogger(__name__)
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
-jinja_env = Environment(loader=FileSystemLoader(TEMPLATES_DIR))
-jinja_env.filters["scrub"] = lambda s: str(s).replace("END UNTRUSTED", "")
+jinja_env = make_jinja_env(TEMPLATES_DIR)
 
 MAX_BODY_CHARS = 5_000
-
-_TYPE_TO_SCHEMA = {
-    "confidence": lambda _cls: {"type": "number"},
-    "boolean": lambda _cls: {"type": "boolean"},
-    "enum": lambda cls: {"type": "string", "enum": cls.values},
-}
-
-
-def _build_schema(classifications: dict[str, ClassificationConfig]) -> dict:
-    properties = {}
-    for name, cls in classifications.items():
-        properties[name] = _TYPE_TO_SCHEMA[cls.type](cls)
-    return {
-        "properties": properties,
-        "required": list(classifications.keys()),
-    }
 
 
 def _render_prompt(email, classifications: dict[str, ClassificationConfig]) -> str:
@@ -90,7 +73,7 @@ def handle(task: dict):
             model=integration.llm,
             system="Disable internal monologue. Answer directly. Respond with JSON.",
         )
-        schema = _build_schema(classifications)
+        schema = build_schema(classifications)
         classification = conversation.message(prompt=prompt, schema=schema)
         log.info("email.inbox.classify: uid=%s result=%s", uid, classification)
 

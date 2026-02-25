@@ -4,11 +4,27 @@ import json
 import logging
 import subprocess
 import time
+from typing import Callable
 
 log = logging.getLogger(__name__)
 
 MAX_RETRIES = 3
 BACKOFF_BASE = 1  # seconds; sleeps 1, 2, 4 on retries
+
+
+def _parse_search_item(item: dict) -> dict:
+    """Parse an item from the GitHub search/issues endpoint into a standard dict."""
+    repo_url = item.get("repository_url", "")
+    segments = repo_url.rstrip("/").split("/")
+    if len(segments) < 2:
+        return {}
+    return {
+        "org": segments[-2],
+        "repo": segments[-1],
+        "number": item["number"],
+        "title": item["title"],
+        "author": item.get("user", {}).get("login", ""),
+    }
 
 
 class GitHubClient:
@@ -51,16 +67,7 @@ class GitHubClient:
         return self._run_gh(cmd, timeout=60)
 
     def active_prs(self, integration, platform) -> list[dict]:
-        """Fetch all open PRs currently requiring the user's attention.
-
-        Queries GitHub for PRs where the user is an assignee, requested reviewer,
-        or author (non-draft). Optionally includes PRs that mention the user.
-        Results are filtered to the configured orgs/repos and deduplicated
-        across query types.
-        """
-        seen: set[tuple[str, str, int]] = set()
-        results: list[dict] = []
-
+        """Fetch all open PRs currently requiring the user's attention."""
         base_queries = [
             "is:pr is:open assignee:@me",
             "is:pr is:open review-requested:@me",
@@ -69,32 +76,12 @@ class GitHubClient:
         if getattr(platform, "include_mentions", False):
             base_queries.append("is:pr is:open mentions:@me")
 
-        scopes = self._scope_qualifiers(integration)
-        for base_query in base_queries:
-            for scope in scopes:
-                query = f"{base_query} {scope}".strip()
-                for item in self._search_prs(query):
-                    key = (item["org"], item["repo"], item["number"])
-                    if key not in seen:
-                        seen.add(key)
-                        results.append(item)
-
+        results = self._search_entities(
+            base_queries, integration,
+            item_filter=None,
+        )
         log.info("active_prs: found %d unique PRs across all queries", len(results))
         return results
-
-    def _scope_qualifiers(self, integration) -> list[str]:
-        """Build scope qualifiers from the integration's org/repo config.
-
-        Returns a list of qualifier strings to append to each search query
-        (e.g. ["org:myorg", "repo:other/repo"]). Returns [""] — one empty
-        qualifier — when no orgs or repos are configured, meaning no filter.
-        """
-        qualifiers = []
-        for org in (integration.orgs or []):
-            qualifiers.append(f"org:{org}")
-        for repo in (integration.repos or []):
-            qualifiers.append(f"repo:{repo}")
-        return qualifiers or [""]
 
     def get_issue(self, org: str, repo: str, number: int) -> dict:
         result = self._gh_api(f"repos/{org}/{repo}/issues/{number}")
@@ -120,15 +107,7 @@ class GitHubClient:
         }
 
     def active_issues(self, integration, platform) -> list[dict]:
-        """Fetch all open issues currently requiring the user's attention.
-
-        Queries GitHub for issues where the user is an assignee or author.
-        Optionally includes issues that mention the user. Results are filtered
-        to the configured orgs/repos and deduplicated across query types.
-        """
-        seen: set[tuple[str, str, int]] = set()
-        results: list[dict] = []
-
+        """Fetch all open issues currently requiring the user's attention."""
         base_queries = [
             "is:issue is:open assignee:@me",
             "is:issue is:open author:@me",
@@ -136,70 +115,68 @@ class GitHubClient:
         if getattr(platform, "include_mentions", False):
             base_queries.append("is:issue is:open mentions:@me")
 
+        results = self._search_entities(
+            base_queries, integration,
+            item_filter=lambda item: "pull_request" not in item,
+        )
+        log.info("active_issues: found %d unique issues across all queries", len(results))
+        return results
+
+    def _search_entities(
+        self,
+        base_queries: list[str],
+        integration,
+        item_filter: Callable[[dict], bool] | None = None,
+    ) -> list[dict]:
+        """Execute search queries and return deduplicated entity dicts.
+
+        item_filter, when provided, is applied to each raw search result item
+        before parsing (e.g., to exclude PRs from issue searches).
+        """
+        seen: set[tuple[str, str, int]] = set()
+        results: list[dict] = []
+
         scopes = self._scope_qualifiers(integration)
         for base_query in base_queries:
             for scope in scopes:
                 query = f"{base_query} {scope}".strip()
-                for item in self._search_issues(query):
+                for item in self._search_raw(query, item_filter):
                     key = (item["org"], item["repo"], item["number"])
                     if key not in seen:
                         seen.add(key)
                         results.append(item)
-
-        log.info("active_issues: found %d unique issues across all queries", len(results))
         return results
 
-    def _search_issues(self, query: str) -> list[dict]:
-        """Execute a GitHub search/issues query and return parsed issue dicts.
-
-        Filters out pull requests (GitHub search/issues returns both).
-        """
+    def _search_raw(
+        self,
+        query: str,
+        item_filter: Callable[[dict], bool] | None = None,
+    ) -> list[dict]:
+        """Execute a GitHub search/issues query and return parsed entity dicts."""
         result = self._gh_api(
             "search/issues",
             params={"q": query, "per_page": "100"},
         )
-        issues = []
+        entities = []
         for item in result.get("items", []):
-            # GitHub search/issues endpoint returns PRs too — filter them out
-            if "pull_request" in item:
+            if item_filter is not None and not item_filter(item):
                 continue
-            repo_url = item.get("repository_url", "")
-            segments = repo_url.rstrip("/").split("/")
-            if len(segments) < 2:
-                log.warning("Cannot parse org/repo from repository_url: %s", repo_url)
+            parsed = _parse_search_item(item)
+            if not parsed:
+                log.warning("Cannot parse org/repo from repository_url: %s", item.get("repository_url", ""))
                 continue
-            issues.append({
-                "org": segments[-2],
-                "repo": segments[-1],
-                "number": item["number"],
-                "title": item["title"],
-                "author": item.get("user", {}).get("login", ""),
-            })
-        log.info("_search_issues(%r): found %d issues", query, len(issues))
-        return issues
+            entities.append(parsed)
+        log.info("_search_raw(%r): found %d results", query, len(entities))
+        return entities
 
-    def _search_prs(self, query: str) -> list[dict]:
-        """Execute a GitHub search/issues query and return parsed PR dicts."""
-        result = self._gh_api(
-            "search/issues",
-            params={"q": query, "per_page": "100"},
-        )
-        prs = []
-        for item in result.get("items", []):
-            repo_url = item.get("repository_url", "")
-            segments = repo_url.rstrip("/").split("/")
-            if len(segments) < 2:
-                log.warning("Cannot parse org/repo from repository_url: %s", repo_url)
-                continue
-            prs.append({
-                "org": segments[-2],
-                "repo": segments[-1],
-                "number": item["number"],
-                "title": item["title"],
-                "author": item.get("user", {}).get("login", ""),
-            })
-        log.info("_search_prs(%r): found %d PRs", query, len(prs))
-        return prs
+    def _scope_qualifiers(self, integration) -> list[str]:
+        """Build scope qualifiers from the integration's org/repo config."""
+        qualifiers = []
+        for org in (integration.orgs or []):
+            qualifiers.append(f"org:{org}")
+        for repo in (integration.repos or []):
+            qualifiers.append(f"repo:{repo}")
+        return qualifiers or [""]
 
     def _gh_api(self, endpoint: str, method: str = "GET", params: dict | None = None) -> dict:
         cmd = ["gh", "api", endpoint, "--method", method]

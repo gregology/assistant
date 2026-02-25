@@ -200,3 +200,6 @@ queue/
 
 # Cron job state
 cron_state.db*
+
+# Complexipy
+.complexipy_cache

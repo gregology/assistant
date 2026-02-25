@@ -8,7 +8,7 @@ radius is bounded.
 from hypothesis import given, settings, strategies as st
 
 from app.config import AutomationConfig, ClassificationConfig
-from app.integrations.email.platforms.inbox.evaluate import _evaluate_automations
+from app.evaluate import MISSING, evaluate_automations
 
 # ---------------------------------------------------------------------------
 # Classification configs matching the default set
@@ -66,6 +66,26 @@ class _MockEmail:
 
 _DEFAULT_EMAIL = _MockEmail()
 
+
+def _make_email_resolver(email):
+    def resolve_value(key, classification):
+        if key.startswith("classification."):
+            cls_key = key[len("classification."):]
+            return classification.get(cls_key, MISSING)
+        if key.startswith("authentication."):
+            auth_key = key[len("authentication."):]
+            return email.authentication.get(auth_key, MISSING)
+        if key.startswith("calendar."):
+            if email.calendar is None:
+                return MISSING
+            cal_key = key[len("calendar."):]
+            return email.calendar.get(cal_key, MISSING)
+        return getattr(email, key, MISSING)
+    return resolve_value
+
+
+_DEFAULT_RESOLVER = _make_email_resolver(_DEFAULT_EMAIL)
+
 # ---------------------------------------------------------------------------
 # Hypothesis strategy: generate any possible classification result
 # ---------------------------------------------------------------------------
@@ -101,7 +121,7 @@ def _extract_action_names(actions: list) -> set[str]:
 def test_only_known_actions_produced(result):
     """For ALL possible classification outputs, every action produced
     must be in the allowed set. No unknown action can ever appear."""
-    actions = _evaluate_automations(AUTOMATIONS, _DEFAULT_EMAIL, result, CLASSIFICATIONS)
+    actions = evaluate_automations(AUTOMATIONS, _DEFAULT_RESOLVER, result, CLASSIFICATIONS)
     produced = _extract_action_names(actions)
     unknown = produced - ALLOWED_ACTIONS
     assert not unknown, f"Unknown actions produced: {unknown} from result={result}"
@@ -113,7 +133,7 @@ def test_action_count_bounded(result):
     """The total number of actions from a single evaluation should never
     exceed the sum of all possible automation outputs."""
     max_possible = sum(len(a.then) for a in AUTOMATIONS)
-    actions = _evaluate_automations(AUTOMATIONS, _DEFAULT_EMAIL, result, CLASSIFICATIONS)
+    actions = evaluate_automations(AUTOMATIONS, _DEFAULT_RESOLVER, result, CLASSIFICATIONS)
     assert len(actions) <= max_possible, (
         f"Produced {len(actions)} actions, max possible is {max_possible}"
     )
@@ -128,8 +148,8 @@ def test_missing_key_never_matches(result):
         when={"classification.nonexistent_classification": True},
         then=["archive"],
     )
-    actions = _evaluate_automations(
-        [automation_with_missing], _DEFAULT_EMAIL, result, CLASSIFICATIONS
+    actions = evaluate_automations(
+        [automation_with_missing], _DEFAULT_RESOLVER, result, CLASSIFICATIONS
     )
     assert actions == [], (
         f"Automation with nonexistent key fired: actions={actions}"

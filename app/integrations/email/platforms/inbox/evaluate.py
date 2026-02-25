@@ -1,34 +1,21 @@
 import logging
-import operator
-import re
 from dataclasses import dataclass
-from datetime import datetime, timezone
 
 import frontmatter
 
 from app import queue
-from app.config import (
-    AutomationConfig,
-    ClassificationConfig,
-    YoloAction,
-    config,
-    resolve_provenance,
+from app.config import config
+from app.evaluate import (
+    MISSING,
+    evaluate_automations,
+    eval_now_operator,
+    resolve_action_provenance,
+    unwrap_actions,
 )
 from .const import DEFAULT_CLASSIFICATIONS, DETERMINISTIC_SOURCES
 from .store import EmailStore
 
 log = logging.getLogger(__name__)
-
-_OPS = {
-    ">": operator.gt,
-    "<": operator.lt,
-    ">=": operator.ge,
-    "<=": operator.le,
-    "==": operator.eq,
-}
-
-_OP_RE = re.compile(r"^\s*(>=|<=|>|<|==)\s*(\d+\.?\d*)\s*$")
-_NOW_RE = re.compile(r"^\s*(>=|<=|>|<|==)\s*now\(\)\s*$")
 
 
 @dataclass
@@ -74,124 +61,26 @@ def _snapshot_from_frontmatter(meta: dict) -> EmailSnapshot:
     )
 
 
-_MISSING = object()
-
-
-def _eval_operator(value: float, expr: str) -> bool:
-    match = _OP_RE.match(expr)
-    if not match:
-        log.warning("Invalid confidence condition: %r", expr)
-        return False
-    op_fn = _OPS[match.group(1)]
-    threshold = float(match.group(2))
-    return op_fn(value, threshold)
-
-
-def _eval_now_operator(value: str, expr: str) -> bool:
-    """Evaluate a now() comparison against an ISO 8601 datetime string.
-
-    Supports date-only strings (e.g. "2026-01-15") which are treated as
-    midnight UTC. Useful for calendar.end and calendar.start conditions.
-    """
-    match = _NOW_RE.match(expr)
-    if not match:
-        return False
-    op_fn = _OPS[match.group(1)]
-    try:
-        dt = datetime.fromisoformat(str(value))
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-    except (ValueError, TypeError):
-        log.warning("Cannot parse datetime for now() comparison: %r", value)
-        return False
-    return op_fn(dt, datetime.now(timezone.utc))
-
-
-def _check_condition(value, condition, cls_config: ClassificationConfig) -> bool:
-    if cls_config.type == "boolean":
-        return value is condition
-
-    if cls_config.type == "confidence":
-        if isinstance(condition, (int, float)):
-            return value >= condition
-        if isinstance(condition, str):
-            return _eval_operator(value, condition)
-        return False
-
-    if cls_config.type == "enum":
-        if isinstance(condition, list):
-            return value in condition
-        return value == condition
-
-    return False
-
-
-def _check_deterministic_condition(value, condition) -> bool:
-    if isinstance(condition, str) and _NOW_RE.match(condition):
-        return _eval_now_operator(value, condition)
-    if isinstance(condition, bool):
-        return value is condition
-    if isinstance(condition, list):
-        return value in condition
-    return value == condition
-
-
-def _resolve_value(key: str, snapshot: EmailSnapshot, classification: dict):
-    """Resolve a namespaced condition key to a value from the email snapshot.
-
-    Returns _MISSING if the key cannot be resolved.
-    """
-    if key.startswith("classification."):
-        cls_key = key[len("classification."):]
-        return classification.get(cls_key, _MISSING)
-
-    if key.startswith("authentication."):
-        auth_key = key[len("authentication."):]
-        return snapshot.authentication.get(auth_key, _MISSING)
-
-    if key.startswith("calendar."):
-        if snapshot.calendar is None:
-            return _MISSING
-        cal_key = key[len("calendar."):]
-        return snapshot.calendar.get(cal_key, _MISSING)
-
-    return getattr(snapshot, key, _MISSING)
-
-
-def _conditions_match(
-    when: dict,
-    snapshot: EmailSnapshot,
-    result: dict,
-    classifications: dict[str, ClassificationConfig],
-) -> bool:
-    for key, condition in when.items():
-        value = _resolve_value(key, snapshot, result)
-        if value is _MISSING:
-            return False
-
+def _make_resolver(snapshot: EmailSnapshot):
+    """Return a resolve_value callable for the shared evaluation engine."""
+    def resolve_value(key: str, classification: dict):
         if key.startswith("classification."):
             cls_key = key[len("classification."):]
-            if cls_key not in classifications:
-                return False
-            if not _check_condition(value, condition, classifications[cls_key]):
-                return False
-        else:
-            if not _check_deterministic_condition(value, condition):
-                return False
-    return True
+            return classification.get(cls_key, MISSING)
 
+        if key.startswith("authentication."):
+            auth_key = key[len("authentication."):]
+            return snapshot.authentication.get(auth_key, MISSING)
 
-def _evaluate_automations(
-    automations: list[AutomationConfig],
-    snapshot: EmailSnapshot,
-    result: dict,
-    classifications: dict[str, ClassificationConfig],
-) -> list:
-    actions = []
-    for automation in automations:
-        if _conditions_match(automation.when, snapshot, result, classifications):
-            actions.extend(automation.then)
-    return actions
+        if key.startswith("calendar."):
+            if snapshot.calendar is None:
+                return MISSING
+            cal_key = key[len("calendar."):]
+            return snapshot.calendar.get(cal_key, MISSING)
+
+        return getattr(snapshot, key, MISSING)
+
+    return resolve_value
 
 
 def handle(task: dict):
@@ -217,27 +106,22 @@ def handle(task: dict):
     uid = str(meta.get("uid", ""))
 
     classifications = platform.classifications or DEFAULT_CLASSIFICATIONS
-    actions = _evaluate_automations(platform.automations, snapshot, classification, classifications)
+    resolve_value = _make_resolver(snapshot)
+    actions = evaluate_automations(platform.automations, resolve_value, classification, classifications)
 
     if actions:
-        provenances = set()
-        for automation in platform.automations:
-            if _conditions_match(automation.when, snapshot, classification, classifications):
-                provenances.add(resolve_provenance(automation.when, DETERMINISTIC_SOURCES))
-        if "llm" in provenances or "hybrid" in provenances:
-            provenance = "hybrid" if "rule" in provenances else "llm"
-        else:
-            provenance = "rule"
-
-        unwrapped = [a.value if isinstance(a, YoloAction) else a for a in actions]
+        provenance = resolve_action_provenance(
+            platform.automations, resolve_value, classification,
+            classifications, DETERMINISTIC_SOURCES,
+        )
 
         queue.enqueue({
             "type": "email.inbox.act",
             "integration": integration_id,
             "uid": uid,
-            "actions": unwrapped,
+            "actions": unwrap_actions(actions),
         }, priority=7, provenance=provenance)
         log.info(
             "email.inbox.evaluate: queued act for message_id=%s actions=%s provenance=%s",
-            message_id, unwrapped, provenance,
+            message_id, unwrap_actions(actions), provenance,
         )

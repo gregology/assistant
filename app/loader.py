@@ -72,6 +72,24 @@ def get_modules() -> dict[str, object]:
 # ---------------------------------------------------------------------------
 
 
+def _scan_directory(
+    directory: Path, builtin: bool
+) -> dict[str, IntegrationManifest]:
+    """Scan a single directory for integration packages with manifest.yaml."""
+    manifests: dict[str, IntegrationManifest] = {}
+    if not directory.is_dir():
+        return manifests
+    for integration_dir in sorted(directory.iterdir()):
+        if not integration_dir.is_dir():
+            continue
+        if not (integration_dir / "manifest.yaml").exists():
+            continue
+        manifest = _load_manifest(integration_dir, builtin=builtin)
+        if manifest:
+            manifests[manifest.domain] = manifest
+    return manifests
+
+
 def discover_integrations(
     builtin_dir: Path,
     custom_dir: Path | None = None,
@@ -82,32 +100,16 @@ def discover_integrations(
     (with a logged warning). Populates the module-level manifest registry.
     """
     global _manifests
-    manifests: dict[str, IntegrationManifest] = {}
+    manifests = _scan_directory(builtin_dir, builtin=True)
 
-    if builtin_dir.is_dir():
-        for integration_dir in sorted(builtin_dir.iterdir()):
-            if not integration_dir.is_dir():
-                continue
-            if not (integration_dir / "manifest.yaml").exists():
-                continue
-            manifest = _load_manifest(integration_dir, builtin=True)
-            if manifest:
-                manifests[manifest.domain] = manifest
-
-    if custom_dir and custom_dir.is_dir():
-        for integration_dir in sorted(custom_dir.iterdir()):
-            if not integration_dir.is_dir():
-                continue
-            if not (integration_dir / "manifest.yaml").exists():
-                continue
-            manifest = _load_manifest(integration_dir, builtin=False)
-            if manifest:
-                if manifest.domain in manifests:
-                    log.warning(
-                        "Custom integration '%s' shadows built-in integration",
-                        manifest.domain,
-                    )
-                manifests[manifest.domain] = manifest
+    if custom_dir:
+        for domain, manifest in _scan_directory(custom_dir, builtin=False).items():
+            if domain in manifests:
+                log.warning(
+                    "Custom integration '%s' shadows built-in integration",
+                    domain,
+                )
+            manifests[domain] = manifest
 
     _manifests = manifests
     return manifests
@@ -305,29 +307,32 @@ def load_platform_const_module(manifest: IntegrationManifest, platform_name: str
 
     Looks in {manifest.path}/platforms/{platform_name}/const.py.
     Returns None if const.py does not exist.
+
+    Uses spec_from_file_location for both builtin and custom modules
+    to avoid triggering the package __init__.py, which may have
+    circular import issues when called during config loading.
     """
     const_path = manifest.path / "platforms" / platform_name / "const.py"
     if not const_path.exists():
         return None
 
     if manifest.builtin:
-        try:
-            return importlib.import_module(
-                f"app.integrations.{manifest.domain}.platforms.{platform_name}.const"
-            )
-        except ImportError:
-            return None
+        module_name = f"app.integrations.{manifest.domain}.platforms.{platform_name}.const"
     else:
         module_name = f"gaas_ext.{manifest.domain}.platforms.{platform_name}.const"
-        spec = importlib.util.spec_from_file_location(module_name, const_path)
-        if spec is None:
-            return None
-        module = importlib.util.module_from_spec(spec)
-        sys.modules[module_name] = module
-        try:
-            spec.loader.exec_module(module)
-        except Exception:
-            log.exception("Failed to load platform const module: %s", const_path)
-            del sys.modules[module_name]
-            return None
-        return module
+
+    if module_name in sys.modules:
+        return sys.modules[module_name]
+
+    spec = importlib.util.spec_from_file_location(module_name, const_path)
+    if spec is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    try:
+        spec.loader.exec_module(module)
+    except Exception:
+        log.exception("Failed to load platform const module: %s", const_path)
+        del sys.modules[module_name]
+        return None
+    return module

@@ -297,6 +297,24 @@ def _parse_received_date(headers: dict) -> datetime | None:
         return None
 
 
+def _count_attendees(attendees) -> int:
+    if attendees is None:
+        return 0
+    if isinstance(attendees, list):
+        return len(attendees)
+    return 1
+
+
+def _extract_partstat(method: str, attendees) -> str | None:
+    if method != "reply":
+        return None
+    first = attendees[0] if isinstance(attendees, list) else attendees
+    if first is None:
+        return None
+    raw = str(first.params.get("partstat", "")).lower()
+    return raw or None
+
+
 def _parse_calendar(attachments) -> dict | None:
     """Extract calendar event data from email attachments.
 
@@ -327,25 +345,13 @@ def _parse_calendar(attachments) -> dict | None:
             dtend = component.get("dtend")
             sequence = int(component.get("sequence", 0))
             attendees = component.get("attendee")
-            if attendees is None:
-                guest_count = 0
-            elif isinstance(attendees, list):
-                guest_count = len(attendees)
-            else:
-                guest_count = 1
-            partstat = None
-            if method == "reply":
-                first = attendees[0] if isinstance(attendees, list) else attendees
-                if first is not None:
-                    raw = str(first.params.get("partstat", "")).lower()
-                    partstat = raw or None
             return {
                 "start": dtstart.dt.isoformat() if dtstart else None,
                 "end": dtend.dt.isoformat() if dtend else None,
-                "guest_count": guest_count,
+                "guest_count": _count_attendees(attendees),
                 "method": method,
                 "is_update": method == "request" and sequence > 0,
-                "partstat": partstat,
+                "partstat": _extract_partstat(method, attendees),
             }
     return None
 

@@ -233,6 +233,12 @@ Why: not all backends honor `response_format`. Some ignore it. Local validation 
 
 Why: the storage pattern is the same everywhere. Only the domain logic differs. Wrapping keeps the generic code generic and the domain code focused.
 
+### `GitHubEntityStore` base class for PR and issue stores
+
+`PullRequestStore` and `IssueStore` share identical logic for `find`, `find_anywhere`, `active_keys`, `update`, `move_to_synced`, and `restore_to_active` — all keyed by `(org, repo, number)`. The `GitHubEntityStore` base class in `app/integrations/github/entity_store.py` provides these methods. Each subclass overrides only `save()` with entity-specific field mappings.
+
+Why: the two stores were 106 and 105 lines of nearly identical code. Divergence risk was high — a bug fix in one might not propagate to the other. The base class lives at the integration level (not in `app/`) because it's GitHub-specific infrastructure, not a core pattern.
+
 ### `synced/` subdirectory
 
 Active notes live in the root directory. Notes that no longer require attention live in `synced/`. For email, this means "no longer in the IMAP inbox." For GitHub, "PR merged or issue closed."
@@ -274,6 +280,22 @@ Why: the manifest can be read without importing the integration's Python code. T
 Config schemas in `manifest.yaml` are JSON Schema. At startup, `build_integration_model()` constructs Pydantic models dynamically using `pydantic.create_model()`. The discriminated union on the `type` field means Pydantic picks the right model automatically.
 
 Why: custom integrations can define their own config fields without modifying core code. The dynamic model approach means adding a new integration type is a YAML change, not a Python change.
+
+### Integration isolation over shared abstractions
+
+Each integration owns its pipeline stages. `evaluate.py`, `classify.py`, `act.py` — each lives inside the integration package with platform-specific logic (snapshot construction, prompt rendering, action execution, value resolution).
+
+However, the automation evaluation engine and classification schema builder are **infrastructure**, not pipeline logic. They operate on `AutomationConfig` and `ClassificationConfig` from `app.config` and have no integration-specific knowledge. They live in `app/evaluate.py` and `app/classify.py` respectively, in the same category as `resolve_provenance` and `YoloAction`.
+
+The line: if it operates on core config types and is identical across all platforms (evaluation engine, schema building, provenance), it goes in `app/`. If it touches platform-specific data (snapshots, prompts, stores, actions, value resolution), it stays in the integration.
+
+This was originally "everything stays in the integration" but was refined when three-way duplication of the evaluation engine across platforms created a maintenance burden. The evaluation engine is the safety-critical dispatch boundary — having a single authoritative copy reduces the risk of divergence in safety-critical code. Custom integrations import from `app.evaluate` just like they import from `app.config`.
+
+### `const.py` loaded via `spec_from_file_location`, not `import_module`
+
+Platform const modules are loaded using `importlib.util.spec_from_file_location` for both builtin and custom modules. This bypasses the package `__init__.py`, avoiding circular imports when `const.py` is loaded during config validation (which happens at module import time, before the full integration packages are initialized).
+
+Previously, builtin const modules used `importlib.import_module`, which traversed the package hierarchy and triggered `__init__.py` imports. This created a circular dependency: `config.py` → `_validate_automation_safety` → `load_platform_const_module` → package `__init__.py` → `evaluate.py` → `app.evaluate` → `app.config`.
 
 ### `const.py` loaded separately from the main module
 

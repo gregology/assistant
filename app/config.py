@@ -336,6 +336,50 @@ def build_integration_union(manifests: dict) -> type:
 # ---------------------------------------------------------------------------
 
 
+def _find_unsafe_actions(
+    automation: AutomationConfig,
+    irreversible_actions: frozenset[str],
+) -> list[str]:
+    """Return irreversible action names that lack a !yolo override."""
+    unsafe = []
+    for action in automation.then:
+        if isinstance(action, YoloAction):
+            continue
+        name = action if isinstance(action, str) else next(iter(action), "")
+        if name in irreversible_actions:
+            unsafe.append(name)
+    return unsafe
+
+
+def _filter_platform_automations(
+    platform,
+    integration_name: str,
+    platform_name: str,
+    deterministic_sources: frozenset[str],
+    irreversible_actions: frozenset[str],
+) -> list[str]:
+    """Remove unsafe automations from a platform, returning warning messages."""
+    warnings = []
+    safe = []
+    for automation in platform.automations:
+        provenance = resolve_provenance(automation.when, deterministic_sources)
+        if provenance in ("llm", "hybrid"):
+            unsafe_actions = _find_unsafe_actions(automation, irreversible_actions)
+            if unsafe_actions:
+                when_keys = ", ".join(automation.when.keys())
+                warnings.append(
+                    f"Automation disabled in '{integration_name}.{platform_name}': "
+                    f"irreversible actions [{', '.join(unsafe_actions)}] "
+                    f"with {provenance} provenance "
+                    f"(conditions: {when_keys}). "
+                    f"Use !yolo tag on the action to override."
+                )
+                continue
+        safe.append(automation)
+    platform.automations = safe
+    return warnings
+
+
 def _validate_automation_safety(integrations: list) -> list[str]:
     """Validate that no automation triggers irreversible actions from
     non-deterministic provenance without a !yolo override.
@@ -353,38 +397,16 @@ def _validate_automation_safety(integrations: list) -> list[str]:
             continue
         for platform_name in type(platforms).model_fields:
             platform = getattr(platforms, platform_name)
-            if platform is None:
-                continue
-            if not hasattr(platform, "automations"):
+            if platform is None or not hasattr(platform, "automations"):
                 continue
 
             const = _load_platform_const(integration.type, platform_name)
-            deterministic_sources: frozenset[str] = getattr(const, "DETERMINISTIC_SOURCES", frozenset())
-            irreversible_actions: frozenset[str] = getattr(const, "IRREVERSIBLE_ACTIONS", frozenset())
-            safe = []
-            for automation in platform.automations:
-                provenance = resolve_provenance(automation.when, deterministic_sources)
-                if provenance in ("llm", "hybrid"):
-                    unsafe_actions = []
-                    for action in automation.then:
-                        if isinstance(action, YoloAction):
-                            continue
-                        name = action if isinstance(action, str) else next(iter(action), "")
-                        if name in irreversible_actions:
-                            unsafe_actions.append(name)
-                    if unsafe_actions:
-                        when_keys = ", ".join(automation.when.keys())
-                        msg = (
-                            f"Automation disabled in '{integration.name}.{platform_name}': "
-                            f"irreversible actions [{', '.join(unsafe_actions)}] "
-                            f"with {provenance} provenance "
-                            f"(conditions: {when_keys}). "
-                            f"Use !yolo tag on the action to override."
-                        )
-                        warnings.append(msg)
-                        continue
-                safe.append(automation)
-            platform.automations = safe
+            deterministic_sources = getattr(const, "DETERMINISTIC_SOURCES", frozenset())
+            irreversible_actions = getattr(const, "IRREVERSIBLE_ACTIONS", frozenset())
+            warnings.extend(_filter_platform_automations(
+                platform, integration.name, platform_name,
+                deterministic_sources, irreversible_actions,
+            ))
     return warnings
 
 

@@ -9,11 +9,7 @@ import pytest
 from hypothesis import given, settings, strategies as st
 
 from app.config import AutomationConfig, ClassificationConfig
-from app.integrations.email.platforms.inbox.evaluate import (
-    _evaluate_automations,
-    _check_condition,
-    _conditions_match,
-)
+from app.evaluate import MISSING, check_condition, conditions_match, evaluate_automations
 
 # ---------------------------------------------------------------------------
 # Shared configs
@@ -71,6 +67,26 @@ class _MockEmail:
 _DEFAULT_EMAIL = _MockEmail()
 
 
+def _make_email_resolver(email):
+    def resolve_value(key, classification):
+        if key.startswith("classification."):
+            cls_key = key[len("classification."):]
+            return classification.get(cls_key, MISSING)
+        if key.startswith("authentication."):
+            auth_key = key[len("authentication."):]
+            return email.authentication.get(auth_key, MISSING)
+        if key.startswith("calendar."):
+            if email.calendar is None:
+                return MISSING
+            cal_key = key[len("calendar."):]
+            return email.calendar.get(cal_key, MISSING)
+        return getattr(email, key, MISSING)
+    return resolve_value
+
+
+_DEFAULT_RESOLVER = _make_email_resolver(_DEFAULT_EMAIL)
+
+
 def _extract_action_names(actions: list) -> set[str]:
     names = set()
     for action in actions:
@@ -95,7 +111,7 @@ class TestChaosClassifications:
             "requires_response": True,
             "priority": "critical",
         }
-        actions = _evaluate_automations(AUTOMATIONS, _DEFAULT_EMAIL, result, CLASSIFICATIONS)
+        actions = evaluate_automations(AUTOMATIONS, _DEFAULT_RESOLVER, result, CLASSIFICATIONS)
         produced = _extract_action_names(actions)
         assert produced <= ALLOWED_ACTIONS
 
@@ -107,7 +123,7 @@ class TestChaosClassifications:
             "requires_response": False,
             "priority": "low",
         }
-        actions = _evaluate_automations(AUTOMATIONS, _DEFAULT_EMAIL, result, CLASSIFICATIONS)
+        actions = evaluate_automations(AUTOMATIONS, _DEFAULT_RESOLVER, result, CLASSIFICATIONS)
         produced = _extract_action_names(actions)
         assert produced <= ALLOWED_ACTIONS
 
@@ -119,7 +135,7 @@ class TestChaosClassifications:
             "requires_response": False,
             "priority": "medium",
         }
-        actions = _evaluate_automations(AUTOMATIONS, _DEFAULT_EMAIL, result, CLASSIFICATIONS)
+        actions = evaluate_automations(AUTOMATIONS, _DEFAULT_RESOLVER, result, CLASSIFICATIONS)
         produced = _extract_action_names(actions)
         assert produced <= ALLOWED_ACTIONS
 
@@ -132,7 +148,7 @@ class TestChaosClassifications:
             "requires_response": True,
             "priority": "critical",
         }
-        actions = _evaluate_automations(AUTOMATIONS, _DEFAULT_EMAIL, result, CLASSIFICATIONS)
+        actions = evaluate_automations(AUTOMATIONS, _DEFAULT_RESOLVER, result, CLASSIFICATIONS)
         produced = _extract_action_names(actions)
         assert produced <= ALLOWED_ACTIONS
 
@@ -151,7 +167,7 @@ class TestChaosGarbageInput:
             "requires_response": True,
             "priority": "high",
         }
-        actions = _evaluate_automations(AUTOMATIONS, _DEFAULT_EMAIL, result, CLASSIFICATIONS)
+        actions = evaluate_automations(AUTOMATIONS, _DEFAULT_RESOLVER, result, CLASSIFICATIONS)
         produced = _extract_action_names(actions)
         assert produced <= ALLOWED_ACTIONS
 
@@ -162,7 +178,7 @@ class TestChaosGarbageInput:
             "requires_response": False,
             "priority": "low",
         }
-        actions = _evaluate_automations(AUTOMATIONS, _DEFAULT_EMAIL, result, CLASSIFICATIONS)
+        actions = evaluate_automations(AUTOMATIONS, _DEFAULT_RESOLVER, result, CLASSIFICATIONS)
         produced = _extract_action_names(actions)
         assert produced <= ALLOWED_ACTIONS
 
@@ -174,8 +190,8 @@ class TestChaosGarbageInput:
             "requires_response": "no",
             "priority": "low",
         }
-        # _check_condition uses `is` for booleans, so "yes" is not True
-        actions = _evaluate_automations(AUTOMATIONS, _DEFAULT_EMAIL, result, CLASSIFICATIONS)
+        # check_condition uses `is` for booleans, so "yes" is not True
+        actions = evaluate_automations(AUTOMATIONS, _DEFAULT_RESOLVER, result, CLASSIFICATIONS)
         produced = _extract_action_names(actions)
         assert produced <= ALLOWED_ACTIONS
 
@@ -187,19 +203,19 @@ class TestChaosGarbageInput:
             "requires_response": False,
             "priority": 999,
         }
-        actions = _evaluate_automations(AUTOMATIONS, _DEFAULT_EMAIL, result, CLASSIFICATIONS)
+        actions = evaluate_automations(AUTOMATIONS, _DEFAULT_RESOLVER, result, CLASSIFICATIONS)
         produced = _extract_action_names(actions)
         assert produced <= ALLOWED_ACTIONS
 
     def test_missing_keys_does_not_crash(self):
         """LLM returns only partial classification."""
         result = {"human": 0.5}
-        actions = _evaluate_automations(AUTOMATIONS, _DEFAULT_EMAIL, result, CLASSIFICATIONS)
+        actions = evaluate_automations(AUTOMATIONS, _DEFAULT_RESOLVER, result, CLASSIFICATIONS)
         produced = _extract_action_names(actions)
         assert produced <= ALLOWED_ACTIONS
 
     def test_empty_result_does_not_crash(self):
-        actions = _evaluate_automations(AUTOMATIONS, _DEFAULT_EMAIL, {}, CLASSIFICATIONS)
+        actions = evaluate_automations(AUTOMATIONS, _DEFAULT_RESOLVER, {}, CLASSIFICATIONS)
         assert actions == []
 
     def test_none_values_do_not_crash(self):
@@ -212,7 +228,7 @@ class TestChaosGarbageInput:
         # Should not raise, may or may not produce actions depending on
         # how None compares, but must never crash
         try:
-            actions = _evaluate_automations(AUTOMATIONS, _DEFAULT_EMAIL, result, CLASSIFICATIONS)
+            actions = evaluate_automations(AUTOMATIONS, _DEFAULT_RESOLVER, result, CLASSIFICATIONS)
             produced = _extract_action_names(actions)
             assert produced <= ALLOWED_ACTIONS
         except TypeError:
@@ -252,7 +268,7 @@ def test_dispatch_never_crashes_on_garbage(result):
     without raising an unhandled exception, and must only ever produce
     actions from the allowed set."""
     try:
-        actions = _evaluate_automations(AUTOMATIONS, _DEFAULT_EMAIL, result, CLASSIFICATIONS)
+        actions = evaluate_automations(AUTOMATIONS, _DEFAULT_RESOLVER, result, CLASSIFICATIONS)
     except TypeError:
         # TypeError from comparison operations (e.g. None >= 0.8) is
         # acceptable as a rejection of garbage input

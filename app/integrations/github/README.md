@@ -172,8 +172,27 @@ notes/github/issues/{integration-name}/
 
 Each note is a markdown file with YAML frontmatter containing metadata and classification results.
 
-## Current Status
+## Actions
 
-Classification and automation evaluation are fully implemented for both platforms. No actions are wired up yet. The `act.py` files are stubs that log only. The `SIMPLE_ACTIONS` sets are empty. Classification results are stored and automation rules are evaluated, but the results don't trigger any external side effects.
+Classification and automation evaluation are fully implemented for both platforms. No platform-specific actions are wired up yet. The `act.py` files are stubs that log only, and the `SIMPLE_ACTIONS` sets are empty.
 
-The expectation for now is that you set up some rules-based approach in your notes tool to order and prioritize these items. Some automations we may introduce later: creating time-block calendar events for PRs, adding labels to issues, or posting review comments.
+However, **script actions** are available as a cross-cutting action type. Automations on either platform can trigger user-defined shell scripts:
+
+```yaml
+platforms:
+  pull_requests:
+    automations:
+      - when:
+          classification.risk: "> 0.8"
+        then:
+          - !yolo
+            script:
+              name: notify_high_risk
+              inputs:
+                repo: $repo
+                number: $number
+```
+
+Scripts are defined in the top-level `scripts:` config section. Inputs use `$field` references resolved against the PR or issue snapshot (e.g., `$repo`, `$number`, `$author`). Scripts are irreversible by default and follow the same provenance rules as other irreversible actions.
+
+Some platform-specific automations we may introduce later: creating time-block calendar events for PRs, adding labels to issues, or posting review comments.

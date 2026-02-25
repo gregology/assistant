@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 import frontmatter
 
-from app import queue
+from app.actions import enqueue_actions
 from app.config import config
 from app.evaluate import (
     MISSING,
@@ -97,15 +97,21 @@ def handle(task: dict):
         classifications, DETERMINISTIC_SOURCES,
     )
 
-    queue.enqueue({
-        "type": "github.issues.act",
-        "integration": integration_id,
-        "org": org,
-        "repo": repo,
-        "number": number,
-        "actions": unwrap_actions(actions),
-    }, priority=7, provenance=provenance)
     log.info(
-        "github.issues.evaluate: queued act for %s/%s#%d actions=%s provenance=%s",
+        "github.issues.evaluate: queuing actions for %s/%s#%d actions=%s provenance=%s",
         org, repo, number, unwrap_actions(actions), provenance,
+    )
+    enqueue_actions(
+        actions=unwrap_actions(actions),
+        platform_payload={
+            "type": "github.issues.act",
+            "integration": integration_id,
+            "org": org,
+            "repo": repo,
+            "number": number,
+        },
+        resolve_value=resolve_value,
+        classification=classification,
+        provenance=provenance,
+        priority=7,
     )

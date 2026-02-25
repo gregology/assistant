@@ -40,9 +40,13 @@ AUTOMATIONS = [
         then=[{"draft_reply": "Urgent, reviewing now."}],
     ),
     AutomationConfig(when={"classification.human": ">0.9"}, then=["unsubscribe"]),
+    AutomationConfig(
+        when={"classification.user_agreement_update": True},
+        then=[{"script": {"name": "research_tos", "inputs": {"domain": "$domain"}}}],
+    ),
 ]
 
-ALLOWED_ACTIONS = {"archive", "spam", "unsubscribe", "draft_reply"}
+ALLOWED_ACTIONS = {"archive", "spam", "unsubscribe", "draft_reply", "script"}
 
 
 class _MockEmail:

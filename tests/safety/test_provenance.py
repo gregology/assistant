@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 
 from app.config import (
     AutomationConfig,
+    ScriptConfig,
     YoloAction,
     _validate_automation_safety,
     resolve_provenance,
@@ -221,3 +222,59 @@ class TestSafetyValidation:
         assert "unsubscribe" in warnings[0]
         assert "llm" in warnings[0]
         assert "!yolo" in warnings[0]
+
+    def test_script_from_llm_provenance_blocked(self):
+        """Script action without !yolo + LLM provenance is blocked."""
+        automations = [
+            AutomationConfig(
+                when={"classification.human": "> 0.8"},
+                then=[{"script": {"name": "research_tos", "inputs": {"domain": "$domain"}}}],
+            ),
+        ]
+        integration, platform = _make_integration("test", automations)
+        warnings = _validate_automation_safety([integration])
+        assert len(warnings) == 1
+        assert "script:research_tos" in warnings[0]
+        assert len(platform.automations) == 0
+
+    def test_script_with_yolo_from_llm_provenance_allowed(self):
+        """YoloAction wrapping a script action + LLM provenance is allowed."""
+        automations = [
+            AutomationConfig(
+                when={"classification.human": "> 0.8"},
+                then=[YoloAction({"script": {"name": "research_tos", "inputs": {"domain": "$domain"}}})],
+            ),
+        ]
+        integration, platform = _make_integration("test", automations)
+        warnings = _validate_automation_safety([integration])
+        assert warnings == []
+        assert len(platform.automations) == 1
+
+    def test_script_from_deterministic_provenance_allowed(self):
+        """Script action from rule provenance is allowed without !yolo."""
+        automations = [
+            AutomationConfig(
+                when={"domain": "example.com"},
+                then=[{"script": {"name": "research_tos", "inputs": {"domain": "$domain"}}}],
+            ),
+        ]
+        integration, platform = _make_integration("test", automations)
+        warnings = _validate_automation_safety([integration])
+        assert warnings == []
+        assert len(platform.automations) == 1
+
+    def test_reversible_script_from_llm_allowed(self):
+        """Script with reversible=True + LLM provenance is allowed without !yolo."""
+        scripts = {
+            "safe_script": ScriptConfig(shell="echo safe", reversible=True),
+        }
+        automations = [
+            AutomationConfig(
+                when={"classification.human": "> 0.8"},
+                then=[{"script": {"name": "safe_script"}}],
+            ),
+        ]
+        integration, platform = _make_integration("test", automations)
+        warnings = _validate_automation_safety([integration], scripts=scripts)
+        assert warnings == []
+        assert len(platform.automations) == 1

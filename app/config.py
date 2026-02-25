@@ -48,7 +48,7 @@ class YoloAction:
     running this irreversible action with non-deterministic provenance.
     """
 
-    def __init__(self, value: str):
+    def __init__(self, value: str | dict):
         self.value = value
 
     def __repr__(self) -> str:
@@ -60,12 +60,19 @@ class YoloAction:
         return NotImplemented
 
     def __hash__(self) -> int:
-        return hash(("yolo", self.value))
+        return hash(("yolo", repr(self.value)))
 
 
-def _yolo_constructor(loader: yaml.SafeLoader, node: yaml.ScalarNode) -> YoloAction:
-    value = loader.construct_scalar(node)
-    return YoloAction(value)
+def _yolo_constructor(loader: yaml.SafeLoader, node: yaml.Node) -> YoloAction:
+    if isinstance(node, yaml.ScalarNode):
+        return YoloAction(loader.construct_scalar(node))
+    if isinstance(node, yaml.MappingNode):
+        return YoloAction(loader.construct_mapping(node, deep=True))
+    raise yaml.constructor.ConstructorError(
+        None, None,
+        f"expected a scalar or mapping node, but found {node.id}",
+        node.start_mark,
+    )
 
 
 _Loader.add_constructor("!yolo", _yolo_constructor)
@@ -133,6 +140,16 @@ class ScheduleConfig(BaseModel):
     cron: str | None = None
 
 
+class ScriptConfig(BaseModel):
+    description: str = ""
+    inputs: list[str] = []
+    timeout: int = 120
+    shell: str
+    output: str | None = None
+    on_output: str = "human_log"
+    reversible: bool = False
+
+
 class ClassificationConfig(BaseModel):
     prompt: str
     type: Literal["confidence", "boolean", "enum"] = "confidence"
@@ -151,7 +168,7 @@ class AutomationConfig(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     when: dict[str, Any]
-    then: list[str | dict[str, str] | YoloAction]
+    then: list[str | dict[str, Any] | YoloAction]
 
     @model_validator(mode="before")
     @classmethod
@@ -159,7 +176,7 @@ class AutomationConfig(BaseModel):
         if not isinstance(data, dict):
             return data
         then = data.get("then")
-        if isinstance(then, (str, YoloAction)):
+        if isinstance(then, (str, dict, YoloAction)):
             data["then"] = [then]
         return data
 
@@ -339,15 +356,29 @@ def build_integration_union(manifests: dict) -> type:
 def _find_unsafe_actions(
     automation: AutomationConfig,
     irreversible_actions: frozenset[str],
+    scripts: dict[str, ScriptConfig] | None = None,
 ) -> list[str]:
     """Return irreversible action names that lack a !yolo override."""
     unsafe = []
     for action in automation.then:
         if isinstance(action, YoloAction):
             continue
-        name = action if isinstance(action, str) else next(iter(action), "")
-        if name in irreversible_actions:
-            unsafe.append(name)
+        if isinstance(action, str):
+            if action in irreversible_actions:
+                unsafe.append(action)
+        elif isinstance(action, dict) and "script" in action:
+            script_ref = action["script"]
+            script_name = script_ref.get("name", "") if isinstance(script_ref, dict) else script_ref
+            if scripts is None:
+                unsafe.append(f"script:{script_name}")
+            else:
+                script_def = scripts.get(script_name)
+                if script_def is None or not script_def.reversible:
+                    unsafe.append(f"script:{script_name}")
+        elif isinstance(action, dict):
+            name = next(iter(action), "")
+            if name in irreversible_actions:
+                unsafe.append(name)
     return unsafe
 
 
@@ -357,6 +388,7 @@ def _filter_platform_automations(
     platform_name: str,
     deterministic_sources: frozenset[str],
     irreversible_actions: frozenset[str],
+    scripts: dict[str, ScriptConfig] | None = None,
 ) -> list[str]:
     """Remove unsafe automations from a platform, returning warning messages."""
     warnings = []
@@ -364,7 +396,7 @@ def _filter_platform_automations(
     for automation in platform.automations:
         provenance = resolve_provenance(automation.when, deterministic_sources)
         if provenance in ("llm", "hybrid"):
-            unsafe_actions = _find_unsafe_actions(automation, irreversible_actions)
+            unsafe_actions = _find_unsafe_actions(automation, irreversible_actions, scripts=scripts)
             if unsafe_actions:
                 when_keys = ", ".join(automation.when.keys())
                 warnings.append(
@@ -380,7 +412,10 @@ def _filter_platform_automations(
     return warnings
 
 
-def _validate_automation_safety(integrations: list) -> list[str]:
+def _validate_automation_safety(
+    integrations: list,
+    scripts: dict[str, ScriptConfig] | None = None,
+) -> list[str]:
     """Validate that no automation triggers irreversible actions from
     non-deterministic provenance without a !yolo override.
 
@@ -406,7 +441,40 @@ def _validate_automation_safety(integrations: list) -> list[str]:
             warnings.extend(_filter_platform_automations(
                 platform, integration.name, platform_name,
                 deterministic_sources, irreversible_actions,
+                scripts=scripts,
             ))
+    return warnings
+
+
+def _validate_script_references(
+    integrations: list,
+    scripts: dict[str, ScriptConfig],
+) -> list[str]:
+    """Warn about automation rules that reference undefined scripts.
+
+    The automations are NOT disabled — the handler gracefully skips
+    unknown scripts at runtime, matching the act.py pattern.
+    """
+    warnings = []
+    for integration in integrations:
+        platforms = getattr(integration, "platforms", None)
+        if platforms is None:
+            continue
+        for platform_name in type(platforms).model_fields:
+            platform = getattr(platforms, platform_name)
+            if platform is None or not hasattr(platform, "automations"):
+                continue
+            for automation in platform.automations:
+                for action in automation.then:
+                    raw = action.value if isinstance(action, YoloAction) else action
+                    if isinstance(raw, dict) and "script" in raw:
+                        script_ref = raw["script"]
+                        name = script_ref.get("name", "") if isinstance(script_ref, dict) else script_ref
+                        if name not in scripts:
+                            warnings.append(
+                                f"Automation in '{integration.name}.{platform_name}' "
+                                f"references undefined script '{name}'"
+                            )
     return warnings
 
 
@@ -444,6 +512,7 @@ def load_config(config_path: Path = _CONFIG_PATH) -> tuple:
         llms: dict[str, LLMConfig]
         integrations: list[Integration] = []
         directories: DirectoriesConfig = DirectoriesConfig()
+        scripts: dict[str, ScriptConfig] = {}
 
         @model_validator(mode="after")
         def _check_unique_names(self):
@@ -483,7 +552,8 @@ def load_config(config_path: Path = _CONFIG_PATH) -> tuple:
             return platform
 
     cfg = AppConfig(**raw)
-    warnings = _validate_automation_safety(cfg.integrations)
+    warnings = _validate_automation_safety(cfg.integrations, scripts=cfg.scripts)
+    warnings.extend(_validate_script_references(cfg.integrations, cfg.scripts))
     return cfg, warnings
 
 

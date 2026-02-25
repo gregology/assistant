@@ -528,3 +528,59 @@ Parses `.ics` attachments. Extracts method, sequence, attendees, start/end times
 ### `fastapi-crons` for scheduling
 
 Runs cron jobs inside the FastAPI process. Avoids a separate scheduler process or dependency on system cron. The `interval_to_cron()` helper converts friendly syntax (`every: 30m`) to cron expressions for this library.
+
+---
+
+## Shared Action Layer
+
+### Scripts as a cross-cutting action type, not per-platform
+
+Scripts can be triggered from any integration's automations (email, GitHub, etc.). Rather than adding script awareness to every platform's `act.py` or `evaluate.py`, there's a shared action layer in `app/actions/` where the evaluate phase partitions actions into platform-specific and shared actions.
+
+Three alternatives were considered. Adding a `_handle_script` function to every platform's `act.py` would mean script logic duplicated across every platform. Intercepting scripts in each platform's `evaluate.py` before the queue would couple evaluation to script execution. A middleware layer between the queue and handlers would add a new processing stage to understand.
+
+The chosen approach is cleaner: `enqueue_actions()` is called by each platform's evaluate handler. It splits the action list. Script actions become independent `script.run` queue tasks. Platform actions go to the platform's `act.py` as before. The evaluate handler doesn't need to know what a script does. The script handler doesn't need to know which platform triggered it.
+
+### Scripts are irreversible by default
+
+The system can't statically verify what shell code does. A script that `curl`s an external API is irreversible. A script that writes to a local file is probably reversible. Rather than guess, every script is treated as irreversible unless the author explicitly opts in with `reversible: true` on the script definition.
+
+This means script actions from `llm` or `hybrid` provenance are blocked at config load time (like `unsubscribe`) unless wrapped in `!yolo` or the script is marked `reversible: true`.
+
+### `!yolo` on YAML mappings
+
+The original `!yolo` tag only worked on scalars (`!yolo unsubscribe`). Script actions are dicts, not strings. The YAML constructor was extended to handle mapping nodes:
+
+```yaml
+- !yolo
+  script:
+    name: research_tos
+    inputs:
+      domain: $domain
+```
+
+`YoloAction.value` became `str | dict`. `__hash__` uses `repr(self.value)` for stable hashing of both types. This keeps the existing safety validation infrastructure working without special cases.
+
+### Input resolution at evaluate time, not execution time
+
+Script inputs use `$field` references (e.g., `$domain`) that are resolved against the automation context. This resolution happens in the evaluate phase, not in the script executor. The executor only receives fully resolved string values.
+
+Why: the evaluate phase has the snapshot context (email properties, classification results). The script executor runs later, potentially in a different worker process, and shouldn't need to reconstruct the snapshot. Resolving early also means the resolved values are visible in the queue task YAML, which helps debugging.
+
+### Separate queue tasks per script
+
+Each script action becomes its own `script.run` queue task. An automation that triggers two scripts and an archive produces three queue tasks: two `script.run` tasks and one platform act task.
+
+Why: scripts can be long-running. A 5-minute ToS research script shouldn't block a 100ms archive. Independent tasks also mean independent failure tracking. A failed script lands in `failed/` with its error while the platform action still completes.
+
+### Preamble-injected logging helpers
+
+Every script gets a bash preamble prepended with `log_human`, `log_info`, and `log_warn` functions. These write `LEVEL\tMESSAGE` records to a temp file (`$GAAS_LOG`) using `\x1e` (ASCII Record Separator) as the record delimiter.
+
+Why `\x1e` instead of newlines: multi-line log messages (heredocs) need to pass through cleanly. The Record Separator character never appears in natural text. After the script completes, the executor reads the file, splits on `\x1e`, and routes each record to the appropriate Python logger.
+
+### Config-only scripts, no `scripts/` directory
+
+Scripts are defined inline in `config.yaml` under the `scripts:` section. There's no separate `scripts/` directory with `.sh` files.
+
+Why: a web UI is the eventual goal for editing scripts. Keeping them in config means the config file is the single source of truth. Shell code in YAML is ugly, but it's also easily parseable and validatable by the config system. A future web UI will provide a better editing experience.

@@ -49,6 +49,11 @@ integrations:
               classification.user_agreement_update: true
             then:
               - archive
+              - !yolo
+                script:
+                  name: research_tos
+                  inputs:
+                    domain: $domain
           - when:
               classification.robot: 0.8         # Confidence >= 0.8
             then: archive                       # Shorthand for single action
@@ -139,6 +144,19 @@ integrations:
   #   platforms:
   #     inbox:
   #       limit: 500
+
+scripts:
+  research_tos:
+    description: "Research ToS changes for a domain"
+    inputs: [domain]
+    timeout: 300
+    output: OUTPUT
+    on_output: human_log
+    shell: |
+      log_info "Researching ToS changes for $GAAS_INPUT_DOMAIN"
+      # Replace with actual research logic
+      OUTPUT="ToS review for $GAAS_INPUT_DOMAIN: no significant changes found"
+      log_human "Completed ToS research for $GAAS_INPUT_DOMAIN"
 
 directories:
   notes: /path/to/notes

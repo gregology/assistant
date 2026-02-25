@@ -37,6 +37,8 @@ The logic is straightforward. If a condition was evaluated by deterministic code
 
 Each platform defines its own `DETERMINISTIC_SOURCES` and `IRREVERSIBLE_ACTIONS` sets in `const.py`. The provenance check at startup iterates all integrations, then all platforms within each integration, loading the relevant constants and validating each automation rule.
 
+Script actions are also subject to provenance gating. Scripts are **irreversible by default** because the system can't statically verify what shell code does. A script definition can opt in to reversibility with `reversible: true`, which allows it to fire from `llm`/`hybrid` provenance without `!yolo`. Without that flag, script actions follow the same rules as `unsubscribe`: blocked from non-deterministic provenance unless explicitly overridden.
+
 ### The `!yolo` override
 
 You're a grown up and sometimes you want to do silly things like let an LLM-triggered automation do something irreversible. The `!yolo` tag is an explicit, auditable escape hatch for this.
@@ -79,7 +81,9 @@ The key insight is that these two boundaries are independent. Even if the prompt
 If you're adding a new action:
 
 1. Categorize it by reversibility tier first
-2. Add it to the `SIMPLE_ACTIONS` set or dict action handling in `act.py`
+2. For platform-specific actions: add to `SIMPLE_ACTIONS` or dict action handling in `act.py`. For cross-cutting actions: add to the shared action layer in `app/actions/`
 3. If it's irreversible, it cannot fire from `llm` or `hybrid` provenance without `!yolo`
 4. Write tests proportional to the tier (see [testing philosophy](../testing/philosophy.md))
 5. Use `log.human()` so the action appears in the [daily audit log](human-log.md)
+
+If you're adding a script: define it in the `scripts:` section of `config.yaml`. Scripts are irreversible by default. Set `reversible: true` only if you're confident the script's effects can be undone.

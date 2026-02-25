@@ -16,11 +16,13 @@ CI runs on GitHub Actions (`.github/workflows/test.yml`): checkout, setup uv, sy
 ```
 tests/
   conftest.py                           # Shared fixtures
-  test_config.py                        # YoloAction tag handling
+  test_actions.py                       # Shared action partitioning, input resolution
+  test_config.py                        # YoloAction tag handling, ScriptConfig
   test_queue.py                         # Queue lifecycle + stateful property tests
   test_llm.py                           # LLM conversation, schema validation
   test_loader.py                        # Manifest parsing, discovery, dynamic models
   test_scheduler.py                     # interval_to_cron conversion
+  test_script_execution.py              # Script executor, preamble logging, output capture
   test_store.py                         # NoteStore CRUD + archive
   safety/
     test_automation_invariants.py        # Property tests: all possible classifications
@@ -58,7 +60,7 @@ Injects specific fault patterns at the classification level and asserts that saf
 
 ### Provenance tests (`test_provenance.py`)
 
-Tests the provenance derivation system (`resolve_provenance`) and the startup safety validation (`_validate_automation_safety`). Verifies that irreversible actions from non-deterministic provenance are blocked unless `!yolo` is set. Operates at the platform level, matching how automations are configured per-platform in the config.
+Tests the provenance derivation system (`resolve_provenance`) and the startup safety validation (`_validate_automation_safety`). Verifies that irreversible actions from non-deterministic provenance are blocked unless `!yolo` is set. Covers script actions: scripts from LLM provenance are blocked by default, allowed with `!yolo` or when the script has `reversible: true`. Operates at the platform level, matching how automations are configured per-platform in the config.
 
 ## Stateful queue testing (`test_queue.py`)
 
@@ -86,7 +88,7 @@ Assert on the whole tree, not individual files. After `enqueue -> dequeue -> com
 
 1. **Categorize the reversibility tier.** Read-only, soft reversible, hard reversible, or irreversible. This comes first. See the [safety model](../architecture/safety-model.md) for tier definitions.
 
-2. **Add the action to `act.py`.** Either add it to `SIMPLE_ACTIONS` for string actions or add handling in the dict action section. The `SIMPLE_ACTIONS` set must not grow without deliberate reversibility review.
+2. **Add the action.** For platform-specific actions: add to `SIMPLE_ACTIONS` or dict action handling in `act.py`. For cross-cutting actions (like scripts): add to the shared action layer in `app/actions/`. The `SIMPLE_ACTIONS` set must not grow without deliberate reversibility review.
 
 3. **Write tests matching the tier.** Read-only gets unit tests. Soft reversible gets filesystem snapshot assertions. Hard reversible gets shadow/dry-run verification. Irreversible gets property-based safety invariants and mandatory dry run.
 

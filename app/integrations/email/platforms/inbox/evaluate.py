@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 import frontmatter
 
-from app import queue
+from app.actions import enqueue_actions
 from app.config import config
 from app.evaluate import (
     MISSING,
@@ -115,13 +115,19 @@ def handle(task: dict):
             classifications, DETERMINISTIC_SOURCES,
         )
 
-        queue.enqueue({
-            "type": "email.inbox.act",
-            "integration": integration_id,
-            "uid": uid,
-            "actions": unwrap_actions(actions),
-        }, priority=7, provenance=provenance)
         log.info(
-            "email.inbox.evaluate: queued act for message_id=%s actions=%s provenance=%s",
+            "email.inbox.evaluate: queuing actions for message_id=%s actions=%s provenance=%s",
             message_id, unwrap_actions(actions), provenance,
+        )
+        enqueue_actions(
+            actions=unwrap_actions(actions),
+            platform_payload={
+                "type": "email.inbox.act",
+                "integration": integration_id,
+                "uid": uid,
+            },
+            resolve_value=resolve_value,
+            classification=classification,
+            provenance=provenance,
+            priority=7,
         )

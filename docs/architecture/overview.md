@@ -77,6 +77,14 @@ Each platform also has an entry task. This is the starting point when a schedule
 
 There is no mandatory pipeline shape. Email uses a five-stage pipeline: `check -> collect -> classify -> evaluate -> act`. GitHub uses the same pattern. New integrations define whatever flow makes sense for their domain.
 
+### Shared action layer
+
+Some actions are cross-cutting — they can be triggered from any integration's automations. Scripts are the first such action type, defined in `config.yaml` under `scripts:` and triggered via `{"script": {"name": "...", "inputs": {...}}}` in automation `then` lists.
+
+The shared action layer (`app/actions/`) handles these. Each platform's evaluate handler calls `enqueue_actions()`, which partitions the action list: script actions become individual `script.run` queue tasks, platform actions get bundled into the platform's act task as before. The partitioning is transparent to the rest of the pipeline.
+
+Script tasks run as first-class queue citizens with independent failure tracking, timeout enforcement, and in-script logging via preamble-injected helper functions (`log_human`, `log_info`, `log_warn`).
+
 ### Task priorities
 
 Tasks enqueue downstream tasks with explicit priorities:

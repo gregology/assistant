@@ -167,6 +167,20 @@ When a folder action fires, the associated note in `notes/emails/{name}/` is mov
 | `unsubscribe` | HTTP POST one-click unsubscribe (RFC 8058). Only fires if `is_unsubscribable` would be true. | **Irreversible** |
 | `draft_reply: "text"` | Creates a draft reply in `\Drafts`. Never sends. | Soft |
 
+### Script actions
+
+Scripts defined in the top-level `scripts:` config section can be triggered from email automations. Script actions are a cross-cutting action type handled by the shared action layer, not by the email platform's `act.py`.
+
+```yaml
+then:
+  - script:
+      name: research_tos
+      inputs:
+        domain: $domain
+```
+
+Inputs use `$field` references resolved against the email snapshot context (e.g., `$domain` resolves to the sender's domain). Scripts are **irreversible by default** and follow the same provenance rules as `unsubscribe`. Use `!yolo` or mark the script `reversible: true` to allow it from LLM provenance.
+
 ### Shorthand syntax
 
 ```yaml
@@ -230,7 +244,7 @@ Every automation is assigned a **provenance** based on which condition keys it u
 | `llm` | LLM classification only | No (unless `!yolo`) |
 | `hybrid` | Mix of both | No (unless `!yolo`) |
 
-The only irreversible action is `unsubscribe`. `archive`, `trash`, `spam`, and `draft_reply` are all reversible and are never blocked.
+The platform-specific irreversible action is `unsubscribe`. `archive`, `trash`, `spam`, and `draft_reply` are all reversible and never blocked. Script actions are also irreversible by default (see [script actions](#script-actions) above).
 
 ### The `!yolo` override
 

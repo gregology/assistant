@@ -403,6 +403,8 @@ def _get_log_dates() -> list[LogDateView]:
 
 def _read_log_file(date: str) -> str | None:
     log_dir = Path(config.directories.logs)
+    if not log_dir.is_dir():
+        return None
     for f in log_dir.iterdir():
         if f.suffix == ".md" and f.stem == date:
             return f.read_text()

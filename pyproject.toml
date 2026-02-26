@@ -1,7 +1,7 @@
 [project]
 name = "gaas"
 version = "0.1.0"
-description = "Add your description here"
+description = "AI-powered personal assistant — email, PRs, issues, safely"
 requires-python = ">=3.12"
 dependencies = [
     "beautifulsoup4>=4.12",

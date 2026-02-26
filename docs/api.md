@@ -33,10 +33,10 @@ The `{integration_id}` is a composite ID in `{type}.{name}` format, like `email.
 
 ```bash
 # Fire all platforms for the personal email integration
-curl -X POST http://localhost:8000/integrations/email.personal/run
+curl -X POST http://localhost:6767/integrations/email.personal/run
 
 # Just the GitHub issues platform
-curl -X POST http://localhost:8000/integrations/github.my_repos/issues/run
+curl -X POST http://localhost:6767/integrations/github.my_repos/issues/run
 ```
 
 ## Scheduled vs manual triggers

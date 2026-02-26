@@ -80,7 +80,7 @@ def main():
 
     python = sys.executable
 
-    server_cmd = [python, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000"]
+    server_cmd = [python, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "6767"]
     if args.dev:
         server_cmd.append("--reload")
 

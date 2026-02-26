@@ -632,3 +632,15 @@ When Phase 2 lands, `ruamel.yaml` replaces PyYAML for config writing (not readin
 Gotchas we're aware of: must use `typ='rt'` mode (without it, comments are silently dropped). The C extension kills comment preservation. Deleting list elements can orphan adjacent comments. No stable public API for comment manipulation. Prefer modifying values in-place over delete-and-recreate.
 
 StrictYAML was considered but rejects custom YAML tags (`!secret`, `!yolo`). That's a dealbreaker.
+
+---
+
+## Server Configuration
+
+### Default port 6767, not 8000
+
+GaaS binds to port 6767 instead of the uvicorn default of 8000.
+
+Port 8000 conflicts with llama.cpp's default server port. Since GaaS is designed to work with local LLM inference and llama.cpp is a common backend, running both on 8000 means one of them has to be reconfigured every time. Making GaaS the one that moves is the right call: llama.cpp's port is baked into model server scripts, docker-compose files, and other tooling that's harder to change. GaaS is one line in the supervisor.
+
+6767 was chosen because it's not claimed by any well-known service and is easy to remember.

@@ -133,6 +133,7 @@ config.yaml
 config.yaml.bak
 config.yml
 config.yml.bak
+config.lock
 secrets.yaml
 .venv
 env/

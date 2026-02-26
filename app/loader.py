@@ -34,6 +34,7 @@ class PlatformManifest:
     name: str
     entry_task: str
     config_schema: dict
+    handlers: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -49,6 +50,7 @@ class IntegrationManifest:
     platforms: dict[str, PlatformManifest]
     path: Path
     builtin: bool
+    handlers: dict[str, str] = field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
@@ -151,6 +153,7 @@ def _load_manifest(
             name=plat_def.get("name", plat_name),
             entry_task=plat_def.get("entry_task", "check"),
             config_schema=plat_def.get("config_schema", {}),
+            handlers=plat_def.get("handlers", {}),
         )
 
     return IntegrationManifest(
@@ -161,9 +164,11 @@ def _load_manifest(
         dependencies=raw.get("dependencies", []),
         config_schema=raw.get("config_schema", {}),
         platforms=platforms,
+        handlers=raw.get("handlers", {}),
         path=integration_dir,
         builtin=builtin,
     )
+
 
 
 # ---------------------------------------------------------------------------

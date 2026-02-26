@@ -1,0 +1,14 @@
+<div id="config-banner-container" hx-swap-oob="true">
+  {% if config_dirty %}
+  <div class="alert alert-info mb-4">
+    {% if supervisor_active %}
+    <span>Config has been updated.</span>
+    <form method="POST" action="/ui/system/restart" class="inline">
+      <button type="submit" class="btn btn-sm btn-primary ml-2">Restart GaaS</button>
+    </form>
+    {% else %}
+    Config has been updated. Restart GaaS for changes to take effect.
+    {% endif %}
+  </div>
+  {% endif %}
+</div>

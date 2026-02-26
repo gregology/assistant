@@ -8,9 +8,29 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   <script src="https://unpkg.com/alpinejs@3.14.3" defer></script>
-  <style>[x-cloak] { display: none !important; }</style>
+  <style>
+    [x-cloak] { display: none !important; }
+    .corner-ribbon {
+      width: 200px;
+      background: #e43;
+      position: absolute;
+      top: 25px;
+      right: -50px;
+      text-align: center;
+      line-height: 50px;
+      letter-spacing: 1px;
+      color: #f0f0f0;
+      transform: rotate(45deg);
+      -webkit-transform: rotate(45deg);
+      z-index: 1000;
+      font-weight: bold;
+      pointer-events: none;
+      box-shadow: 0 0 3px rgba(0,0,0,0.3);
+    }
+  </style>
 </head>
-<body class="min-h-screen bg-base-200">
+<body class="min-h-screen bg-base-200 overflow-x-hidden">
+  <div class="corner-ribbon">ALPHA</div>
   <div class="navbar bg-base-100 shadow-lg">
     <div class="navbar-start">
       <a href="/ui/" class="btn btn-ghost text-xl">GaaS</a>
@@ -26,18 +46,20 @@
     <div class="navbar-end"></div>
   </div>
   <main class="container mx-auto p-6">
-    {% if config_dirty %}
-    <div class="alert alert-info mb-4">
-      {% if supervisor_active %}
-      <span>Config has been updated.</span>
-      <form method="POST" action="/ui/system/restart" class="inline">
-        <button type="submit" class="btn btn-sm btn-primary ml-2">Restart GaaS</button>
-      </form>
-      {% else %}
-      Config has been updated. Restart GaaS for changes to take effect.
+    <div id="config-banner-container">
+      {% if config_dirty %}
+      <div class="alert alert-info mb-4">
+        {% if supervisor_active %}
+        <span>Config has been updated.</span>
+        <form method="POST" action="/ui/system/restart" class="inline">
+          <button type="submit" class="btn btn-sm btn-primary ml-2">Restart GaaS</button>
+        </form>
+        {% else %}
+        Config has been updated. Restart GaaS for changes to take effect.
+        {% endif %}
+      </div>
       {% endif %}
     </div>
-    {% endif %}
     {% block content %}{% endblock %}
   </main>
   <footer class="footer footer-center p-4 text-base-content">

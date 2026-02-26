@@ -28,12 +28,19 @@
       {% endif %}
       <p class="text-sm">LLM: {{ integration.llm_profile }}</p>
       {% if integration.platforms %}
-      <div class="flex gap-1 mt-1">
+      <div class="flex gap-1 mt-1 mb-4">
         {% for platform in integration.platforms %}
         <span class="badge badge-neutral badge-sm">{{ platform.name }}</span>
         {% endfor %}
       </div>
       {% endif %}
+      <div class="card-actions justify-end">
+        <button class="btn btn-primary btn-sm"
+                hx-post="/ui/integrations/{{ integration.id }}/run"
+                hx-target="#run-status-{{ loop.index }}"
+                hx-swap="innerHTML">Run Now</button>
+      </div>
+      <div id="run-status-{{ loop.index }}"></div>
     </div>
   </div>
   {% endfor %}

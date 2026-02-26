@@ -18,6 +18,7 @@ from app.ui.presenters import (
     raw_yaml_context,
     scripts_list_context,
 )
+from app.config import reload_config
 from app.ui.yaml_rw import (
     ConfigValidationError,
     delete_llm_profile,
@@ -53,31 +54,40 @@ def _render_error(error_msg: str) -> HTMLResponse:
     return HTMLResponse(template.render(error=error_msg), status_code=422)
 
 
+def _render_oob_banner() -> str:
+    template = _env.get_template("partials/_config_banner.html")
+    return template.render(config_dirty=is_dirty(), supervisor_active=_supervisor_active())
+
+
 def _render_config_page() -> HTMLResponse:
     """Render the config page. Presenters read from disk, so this always
     reflects the file as written — no reload needed."""
     template = _env.get_template("config.html")
-    return HTMLResponse(template.render(**config_context()))
+    return HTMLResponse(template.render(**config_context(), supervisor_active=_supervisor_active()))
 
 
 def _render_llm_section() -> HTMLResponse:
     template = _env.get_template("partials/_llm_section.html")
-    return HTMLResponse(template.render(**llm_profiles_context()))
+    content = template.render(**llm_profiles_context())
+    return HTMLResponse(content + _render_oob_banner())
 
 
 def _render_scripts_section() -> HTMLResponse:
     template = _env.get_template("partials/_scripts_section.html")
-    return HTMLResponse(template.render(**scripts_list_context()))
+    content = template.render(**scripts_list_context())
+    return HTMLResponse(content + _render_oob_banner())
 
 
 def _render_directories_section() -> HTMLResponse:
     template = _env.get_template("partials/_directories_section.html")
-    return HTMLResponse(template.render(**directories_context()))
+    content = template.render(**directories_context())
+    return HTMLResponse(content + _render_oob_banner())
 
 
 def _render_integration_header(index: int) -> HTMLResponse:
     template = _env.get_template("partials/_integration_header.html")
-    return HTMLResponse(template.render(**integration_header_context(index)))
+    content = template.render(**integration_header_context(index))
+    return HTMLResponse(content + _render_oob_banner())
 
 
 def _parse_parameters(raw: str) -> dict:
@@ -198,6 +208,7 @@ async def update_llm(name: str, request: Request):
             return _render_error("Model is required")
 
         update_llm_profile(profile_name, updates)
+        reload_config()
     except ConfigValidationError as exc:
         return _render_error(str(exc))
 
@@ -208,6 +219,7 @@ async def update_llm(name: str, request: Request):
 async def remove_llm(name: str):
     try:
         delete_llm_profile(name)
+        reload_config()
     except ConfigValidationError as exc:
         return _render_error(str(exc))
 
@@ -229,6 +241,7 @@ async def update_dirs(request: Request):
         if not updates.get("logs"):
             return _render_error("Logs path is required")
         update_directories(updates)
+        reload_config()
     except ConfigValidationError as exc:
         return _render_error(str(exc))
 
@@ -248,6 +261,7 @@ async def update_integration(index: int, request: Request):
         if form.get("llm"):
             updates["llm"] = form["llm"]
         update_integration_settings(index, updates)
+        reload_config()
     except ConfigValidationError as exc:
         return _render_error(str(exc))
 
@@ -285,6 +299,7 @@ async def update_script_endpoint(name: str, request: Request):
             return _render_error("Shell command is required")
 
         update_script(script_name, updates)
+        reload_config()
     except ConfigValidationError as exc:
         return _render_error(str(exc))
 
@@ -295,10 +310,23 @@ async def update_script_endpoint(name: str, request: Request):
 async def remove_script(name: str):
     try:
         delete_script(name)
+        reload_config()
     except ConfigValidationError as exc:
         return _render_error(str(exc))
 
     return _render_scripts_section()
+
+
+@router.post("/integrations/{integration_id}/run", response_class=HTMLResponse)
+async def trigger_integration(integration_id: str):
+    from app.main import _run_integration
+    try:
+        result = _run_integration(integration_id)
+        task_ids = result.get("task_ids", [])
+        msg = f"Enqueued {len(task_ids)} tasks: {', '.join(task_ids)}"
+        return HTMLResponse(f'<div class="text-xs text-success mt-2">{msg}</div>')
+    except Exception as exc:
+        return _render_error(str(exc))
 
 
 @router.post("/config/yaml", response_class=HTMLResponse)
@@ -307,16 +335,9 @@ async def save_raw(request: Request):
     yaml_content = form.get("yaml_content", "")
     try:
         save_raw_yaml(yaml_content)
+        reload_config()
     except ConfigValidationError as exc:
         return _render_error(str(exc))
 
-    if _supervisor_active():
-        success_html = (
-            '<div class="alert alert-success mb-4"><span>Config saved.</span>'
-            '<form method="POST" action="/ui/system/restart" class="inline">'
-            '<button type="submit" class="btn btn-sm btn-primary ml-2">Restart GaaS</button>'
-            '</form></div>'
-        )
-    else:
-        success_html = '<div class="alert alert-success mb-4"><span>Config saved. Restart GaaS for changes to take effect.</span></div>'
-    return HTMLResponse(success_html)
+    success_content = f'<div class="alert alert-success mb-4"><span>Config saved.</span></div>'
+    return HTMLResponse(success_content + _render_oob_banner())

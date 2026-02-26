@@ -54,24 +54,19 @@ This means every piece of state in the system is human-readable. You can open an
 
 Integrations live under `app/integrations/` as Python packages. Following the Home Assistant pattern, each integration contains **platforms** that handle specific resource types. The GitHub integration has `pull_requests` and `issues` platforms. The email integration has an `inbox` platform.
 
-Each platform exports a `HANDLERS` dict mapping task type suffixes to handler functions. The integration's `__init__.py` aggregates them with platform prefixes:
+Each platform declares its `handlers` in the integration's `manifest.yaml`, mapping task type suffixes to Python handler functions.
 
-```python
-# github/platforms/pull_requests/__init__.py
-HANDLERS = {
-    "check": check_handle,
-    "collect": collect_handle,
-    "classify": classify_handle,
-}
-
-# github/__init__.py
-from .platforms.pull_requests import HANDLERS as pr_handlers
-HANDLERS = {}
-for suffix, handler in pr_handlers.items():
-    HANDLERS[f"pull_requests.{suffix}"] = handler
+```yaml
+# manifest.yaml
+platforms:
+  pull_requests:
+    handlers:
+      check: ".platforms.pull_requests.check.handle"
+      collect: ".platforms.pull_requests.collect.handle"
+      classify: ".platforms.pull_requests.classify.handle"
 ```
 
-The top-level `app/integrations/__init__.py` registers these with the domain prefix, producing task types like `email.inbox.check` or `github.pull_requests.classify`. The worker routes tasks to handlers using these strings.
+The top-level `app/integrations/__init__.py` registers these with the domain and platform prefixes, producing task types like `email.inbox.check` or `github.pull_requests.classify`. The worker routes tasks to handlers using these strings.
 
 Each platform also has an entry task. This is the starting point when a schedule fires or someone hits the API. The scheduler enqueues entry tasks for each enabled platform within an integration. Entry tasks discover work (new emails, new PRs, new issues) and enqueue downstream tasks to process it.
 

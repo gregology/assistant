@@ -644,3 +644,19 @@ GaaS binds to port 6767 instead of the uvicorn default of 8000.
 Port 8000 conflicts with llama.cpp's default server port. Since GaaS is designed to work with local LLM inference and llama.cpp is a common backend, running both on 8000 means one of them has to be reconfigured every time. Making GaaS the one that moves is the right call: llama.cpp's port is baked into model server scripts, docker-compose files, and other tooling that's harder to change. GaaS is one line in the supervisor.
 
 6767 was chosen because it's not claimed by any well-known service and is easy to remember.
+
+---
+
+## Configuration Updates in the UI
+
+### File-level locking via `fcntl` for RMW cycles
+
+All configuration mutations in `app/ui/yaml_rw.py` use an exclusive lock on a separate `.lock` file during the Read-Modify-Write cycle.
+
+Why: the UI allows multiple concurrent POST requests (e.g. updating an LLM profile and a script simultaneously). Without locking, one process could read the file, a second process writes to it, and the first process then overwrites those changes with its own stale data. Using a separate lockfile ensures atomic updates even for complex round-trip YAML editing.
+
+### In-memory synchronization via `reload_config()`
+
+The web process calls `reload_config()` immediately after any successful configuration write.
+
+Why: GaaS uses a module-level `config` singleton loaded at startup. While the UI writes to `config.yaml` on disk, the running web server's memory remains stale. Explicitly reloading the singleton ensures that the Dashboard, navigation, and subsequent config views reflect the changes (like updated log paths or integration names) without requiring a full process restart. Note that the worker and scheduler processes still require a full restart to pick up changes, as they are separate processes.

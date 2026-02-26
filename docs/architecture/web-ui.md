@@ -103,7 +103,21 @@ Add `ruamel.yaml` dependency here. Implement round-trip save that preserves comm
 
 The onboarding wizard naturally emerges from the editing components. A "new integration" flow reuses the same forms. This is also where enabling the UI during install makes sense. The install procedure could optionally run the Phase 3 wizard to generate the initial `config.yaml`.
 
-### API layer
+### UI Features
+
+### Triggering integrations from the Dashboard
+
+The Dashboard provides a "Run Now" button for each configured integration. This uses HTMX to trigger a POST request to `/ui/integrations/{integration_id}/run`.
+
+Why: manual triggering is the most common user request for debugging and immediate feedback. While the scheduler handles periodic runs, the UI must provide a "pull" mechanism. The UI route wraps the existing `_run_integration` logic and returns an HTML partial with the enqueued task IDs for immediate user feedback.
+
+### Alpha status visibility
+
+The UI includes a high-visibility "ALPHA" corner ribbon and fixed "Restart Required" banner.
+
+Why: clear visual signaling prevents users from mistaking an experimental tool for a production-ready one. The ribbon is a permanent fixture in `base.html`, while the banner uses HTMX Out-of-Band (OOB) swaps to appear or update whenever a configuration change is saved.
+
+## API layer
 
 The UI talks to FastAPI endpoints that read/write config. The endpoints are the validation boundary. Direct file editing by the UI is not allowed. This aligns with HA's position that the API boundary is the right abstraction layer.
 

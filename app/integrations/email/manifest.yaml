@@ -22,6 +22,12 @@ platforms:
   inbox:
     name: "Inbox"
     entry_task: check
+    handlers:
+      check: ".platforms.inbox.check.handle"
+      collect: ".platforms.inbox.collect.handle"
+      classify: ".platforms.inbox.classify.handle"
+      evaluate: ".platforms.inbox.evaluate.handle"
+      act: ".platforms.inbox.act.handle"
     config_schema:
       properties:
         limit:

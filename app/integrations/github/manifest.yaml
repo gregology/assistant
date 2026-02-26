@@ -18,6 +18,12 @@ platforms:
   pull_requests:
     name: "Pull Requests"
     entry_task: check
+    handlers:
+      check: ".platforms.pull_requests.check.handle"
+      collect: ".platforms.pull_requests.collect.handle"
+      classify: ".platforms.pull_requests.classify.handle"
+      evaluate: ".platforms.pull_requests.evaluate.handle"
+      act: ".platforms.pull_requests.act.handle"
     config_schema:
       properties:
         include_mentions:
@@ -27,6 +33,12 @@ platforms:
   issues:
     name: "Issues"
     entry_task: check
+    handlers:
+      check: ".platforms.issues.check.handle"
+      collect: ".platforms.issues.collect.handle"
+      classify: ".platforms.issues.classify.handle"
+      evaluate: ".platforms.issues.evaluate.handle"
+      act: ".platforms.issues.act.handle"
     config_schema:
       properties:
         include_mentions:

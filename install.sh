@@ -168,6 +168,7 @@ if [ ! -d "\$GAAS_HOME" ]; then
     echo "Re-run the installer or set GAAS_HOME to the correct path." >&2
     exit 1
 fi
+export PYTHONPATH="\$GAAS_HOME\${PYTHONPATH:+:\$PYTHONPATH}"
 exec uv run --project "\$GAAS_HOME" python -m app.cli "\$@"
 SCRIPT
     chmod +x "$WRAPPER"

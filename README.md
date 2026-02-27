@@ -1,13 +1,13 @@
 # GaaS (Greg as a Service)
 
-Like OpenClaw but with elastic bands around the pinchers.
+GaaS is built on 3 principles:
+
+ - **Reversibility** - autonomous actions can be undone
+ - **Audibility** - autonomous activities are logged for humans
+ - **Accountability** - irreversable actions require a human
 
 
-## GaaS Manifesto
-
-### The Principle of Reversibility
-
-Every action that GaaS takes autonomously is reversible.
+## Reversability
 
 **❌ Sending an email**  
 An email can be sent, it can not be unsent, this is a non-reversible action.
@@ -21,27 +21,28 @@ A search query is sent to Google, private information has been sent to an untrus
 **✅ Searching the user's notes for an acronym found in an email**  
 A grep command can scan a directory, no private information has left the system, this is a reversible action.
 
-**✅ Searching a local Wikipedia instance for an acronym found in an email**  
-`kiwix-search` is used to query a ZIM file, no private information has left the system, this is a reversible action.
+There are 3 dimensions of reversibility:
+ - Complexity - resubscribing to a mailing list you unsubscribed from is technically possible but painful.
+ - Temporal - A deleted email is only recoverable for 30 days.
+ - Context - Turning off a heat pump is not reversible in sub-zero temperatures if it causes the pipes to freeze.
 
-Not all reversibility is equal. Unarchiving an email is trivial. Resubscribing to a mailing list you unsubscribed from is technically possible but painful. Deleting an email is reversible within a 30 day retention window and then it is not. Turning off a heat pump is reversible unless the pipes freeze overnight. The four reversibility tiers used in the testing philosophy are a starting point. As GaaS expands into new integrations the model will need to account for difficulty, time windows, and context.
+The human can determine the level of reversibility they are comfortable with.
 
-### The Principle of Audibility
 
-Every action the AI makes should be auditable.
-Log what the agent does, don't ask it what it did.
+## Installation
 
-### The Principle of Accountability
+GaaS is in **alpha** so shit will break.
 
-AI has ability but no accountability.
-Every non reversible action requires human-in-the-loop.
+```bash
+curl -fsSL https://raw.githubusercontent.com/gregology/GaaS/main/install.sh | bash
+```
 
 
 ## Design Principles
 
 ### WWHAD
 
-What would Home Assistant Do? Home Assistant has battle hardened patterns for complex configurations and intuitive UIs to set those configurations.
+_What would Home Assistant Do?_ Home Assistant has battle hardened patterns for complex configurations and intuitive UIs to set those configurations.
 
 ### Human readable
 
@@ -54,49 +55,16 @@ Asking an LLM to do a programmable task is the robot equivalent of _this meeting
 
 ### Zero trust
 
-Patterns should not rely on trusting a non deterministic machine, no matter how much it glazes you.
+Patterns should not rely on trusting a non deterministic machine.
 
 ### Optimize for memory
 
 Memory is most valuable for inference. The disk based queueing system was added for human readability _and_ to reduce memory usage.
 
-### Know your sources
+### Provenance
 
 Not all classification is equal. An email classified by an LLM is a probabilistic guess. An email classified by its domain name is deterministic. The system tracks this distinction as **provenance** (`rule`, `llm`, or `hybrid`) and uses it to gate irreversible actions. Automations with LLM provenance cannot trigger irreversible actions unless explicitly overridden with `!yolo`.
 
-## Setup
-
-```bash
-uv sync
-```
-
-### Run
-
-The supervisor starts both the API server and task worker in a single terminal:
-
-```bash
-uv run python -m app.supervisor --dev   # Development (auto-reload)
-uv run python -m app.supervisor          # Production
-```
-
-By default the server only listens on `localhost` (127.0.0.1). To access the UI or API from another device on your network, add `--expose`:
-
-```bash
-uv run python -m app.supervisor --dev --expose
-```
-
-You can also set a custom port (default is 6767):
-
-```bash
-uv run python -m app.supervisor --port 8080
-uv run python -m app.supervisor --dev --expose --port 8080
-```
-
-### Run tests
-
-```bash
-uv run pytest -v
-```
 
 ## Documentation
 

@@ -224,15 +224,6 @@ add_to_path() {
 main() {
     banner
 
-    # If GaaS is already installed and the wrapper exists, delegate to gaas update
-    if [ -x "$WRAPPER" ] && [ -d "$GAAS_HOME/.git" ]; then
-        info "Existing GaaS installation detected at $GAAS_HOME"
-        info "Running update..."
-        printf "\n"
-        export PATH="${GAAS_BIN_DIR}:$PATH"
-        exec gaas update
-    fi
-
     printf "%b  Installing to: %s%b\n" "${DIM}" "$GAAS_HOME" "${NC}"
     printf "%b  CLI wrapper:   %s%b\n\n" "${DIM}" "$WRAPPER" "${NC}"
 

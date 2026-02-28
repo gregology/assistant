@@ -1,0 +1,15 @@
+domain: gemini
+name: Gemini
+version: 0.1.0
+config_schema:
+  api_key:
+    type: string
+    description: "Google Gemini API Key"
+  model:
+    type: string
+    default: "gemini-3-flash-preview"
+    description: "Default Gemini model to use"
+
+handlers:
+  research: .actions.research.handle
+  prompt: .actions.prompt.handle

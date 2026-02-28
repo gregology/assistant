@@ -18,6 +18,10 @@ config_schema:
     - imap_server
     - username
     - password
+
+handlers:
+  draft_reply: ".actions.draft_reply"
+
 platforms:
   inbox:
     name: "Inbox"

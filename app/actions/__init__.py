@@ -54,27 +54,30 @@ def enqueue_actions(
     provenance: str,
     priority: int = 7,
 ) -> None:
-    """Partition actions into platform-specific and shared, enqueuing each appropriately.
+    """Enqueue an automation.run task with the full list of actions and context."""
+    # Build the initial context for template resolution
+    context = {
+        **classification,  # Include all classification results directly
+        "classification": classification, # And under the classification prefix
+    }
+    
+    # Resolve all top-level fields that the resolver knows about
+    # This is a bit of a hack to get snapshot data into the context
+    # In a more robust system, we'd have a standard list of context keys per platform
+    fields = [
+        "domain", "from_address", "subject", "is_reply", "is_forward",
+        "has_attachments", "is_read", "is_starred"
+    ]
+    for field in fields:
+        val = resolve_value(field, classification)
+        from app.evaluate import MISSING
+        if val is not MISSING:
+            context[field] = val
 
-    Script actions become individual script.run queue tasks.
-    Remaining platform actions are bundled into a single platform act task.
-    """
-    platform_actions = []
-    for action in actions:
-        if is_script_action(action):
-            script_ref = action["script"]
-            script_name = script_ref.get("name", "") if isinstance(script_ref, dict) else script_ref
-            raw_inputs = script_ref.get("inputs", {}) if isinstance(script_ref, dict) else {}
-            resolved_inputs = resolve_script_inputs(raw_inputs, resolve_value, classification)
-            queue.enqueue({
-                "type": "script.run",
-                "script_name": script_name,
-                "inputs": resolved_inputs,
-            }, priority=priority, provenance=provenance)
-            log.info("Enqueued script.run for script=%s inputs=%s", script_name, resolved_inputs)
-        else:
-            platform_actions.append(action)
-
-    if platform_actions:
-        platform_payload["actions"] = platform_actions
-        queue.enqueue(platform_payload, priority=priority, provenance=provenance)
+    queue.enqueue({
+        "type": "automation.run",
+        "actions": actions,
+        "context": context,
+        "platform_payload": platform_payload,
+    }, priority=priority, provenance=provenance)
+    log.info("Enqueued automation.run with %d actions", len(actions))

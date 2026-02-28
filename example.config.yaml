@@ -18,6 +18,11 @@ llms:
   #     max_tokens: 4096
 
 integrations:
+  - type: gemini
+    name: main_gemini
+    api_key: !secret gemini_api_key
+    model: gemini-3-flash-preview
+
   - type: email
     name: personal
     imap_server: imap.example.com
@@ -40,20 +45,46 @@ integrations:
             prompt: how urgent is this email?
             type: enum
             values: [none, low, medium, high, critical]
-          user_agreement_update:
-            prompt: is this email only to tell me that a user agreement has been updated?
+          privacy_policy_update:
+            prompt: is this email about the company updating their privacy policy?
             type: boolean
         automations:                            # Optional — act on classification results
-          # Non-deterministic: conditions reference classification.*
+          # Example: Research privacy policy updates using Gemini
           - when:
-              classification.user_agreement_update: true
+              classification.privacy_policy_update: true
             then:
               - archive
-              - !yolo
-                script:
-                  name: research_tos
-                  inputs:
-                    domain: $domain
+              - action: gemini.research
+                inputs:
+                  prompt: |
+                    The website {{ domain }} recently updated their Privacy Policy.
+                    I live in Ontario Canada. I want to know how these recent changes might impact me.
+                    Focus on: privacy policy changes.
+                    Return a list of any changes that are relevant to me.
+                  schema:
+                    type: OBJECT
+                    properties:
+                      summary: { type: STRING }
+                      relevant_changes:
+                        type: ARRAY
+                        items:
+                          type: OBJECT
+                          properties:
+                            title: { type: STRING }
+                            summary_of_what_changed: { type: STRING }
+                            specific_wording: { type: STRING }
+                            url: { type: STRING }
+                            relevance: { type: NUMBER }
+                            importance: { type: NUMBER }
+                        required: ["title", "summary_of_what_changed", "specific_wording", "url", "relevance", "importance"]
+                    required: ["summary", "relevant_changes"]
+                register: research_result
+              - action: email.draft_reply
+                inputs:
+                  body: |
+                    I've researched the changes for {{ domain }}.
+                    Key highlights: {{ research_result.summary }}
+
           - when:
               classification.robot: 0.8         # Confidence >= 0.8
             then: archive                       # Shorthand for single action

@@ -94,7 +94,17 @@ Example.com recently updated their terms of service. The key changes include...
 **What appears in the daily log** (`logs/2026-03-03 Tuesday.md`):
 
 ```
- - 14:25 service.gemini.web_research: result saved (2,431 chars) → services/gemini/web_research/2026_03_03__14_25_32__a1b2c3d4.md
+ - 14:25 Web research: research example.com terms of service changes -> services/gemini/web_research/2026_03_03__14_25_32__a1b2c3d4.md
+```
+
+The log message comes from the `human_log` template in the manifest (`"Web research: {{ prompt | truncate(80) }}"`). You can override it per-automation by adding `human_log:` to the service action in your config:
+
+```yaml
+- service:
+    call: gemini.default.web_research
+    inputs:
+      prompt: "research {{ domain }} terms of service changes"
+    human_log: "ToS update for {{ domain }}"
 ```
 
 The full result is also stored in the completed task YAML in `data/queue/done/` for audit purposes.

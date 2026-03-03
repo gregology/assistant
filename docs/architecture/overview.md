@@ -71,7 +71,7 @@ platforms:
 services:
   web_research:
     handler: ".services.web_research.handle"
-    reversible: true
+    human_log: "Web research: {{ prompt | truncate(80) }}"
 ```
 
 The top-level `app/integrations/__init__.py` registers these with the domain and platform prefixes, producing task types like `email.inbox.check` or `github.pull_requests.classify`. Service handlers register as `service.{domain}.{service_name}`. The worker routes tasks to handlers using these strings.

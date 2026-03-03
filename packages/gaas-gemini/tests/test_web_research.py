@@ -13,6 +13,11 @@ def _mock_runtime(api_key="test-key", model=None):
     return patch("gaas_gemini.services.web_research.runtime.get_integration", return_value=cfg)
 
 
+def _task(**payload_fields):
+    """Build a full task dict wrapping the given payload fields."""
+    return {"payload": payload_fields}
+
+
 class TestWebResearchHandler:
     def test_basic_research(self):
         with _mock_runtime(), \
@@ -23,27 +28,27 @@ class TestWebResearchHandler:
                 [{"title": "Source", "url": "https://example.com"}],
             )
 
-            result = handle({
-                "integration": "gemini.default",
-                "inputs": {"prompt": "What is GaaS?"},
-            })
+            result = handle(_task(
+                integration="gemini.default",
+                inputs={"prompt": "What is GaaS?"},
+            ))
 
             assert result["text"] == "Research results"
             assert len(result["sources"]) == 1
             client.grounded_search.assert_called_once_with("What is GaaS?")
 
     def test_empty_prompt_returns_empty(self):
-        result = handle({
-            "integration": "gemini.default",
-            "inputs": {"prompt": ""},
-        })
+        result = handle(_task(
+            integration="gemini.default",
+            inputs={"prompt": ""},
+        ))
         assert result == {"text": "", "sources": []}
 
     def test_missing_prompt_returns_empty(self):
-        result = handle({
-            "integration": "gemini.default",
-            "inputs": {},
-        })
+        result = handle(_task(
+            integration="gemini.default",
+            inputs={},
+        ))
         assert result == {"text": "", "sources": []}
 
     def test_with_output_schema(self):
@@ -57,13 +62,13 @@ class TestWebResearchHandler:
             client.structured_output.return_value = {"summary": "Structured result"}
 
             schema = {"type": "object", "properties": {"summary": {"type": "string"}}}
-            result = handle({
-                "integration": "gemini.default",
-                "inputs": {
+            result = handle(_task(
+                integration="gemini.default",
+                inputs={
                     "prompt": "Research topic",
                     "output_schema": schema,
                 },
-            })
+            ))
 
             assert result["text"] == "Research text"
             assert result["structured"] == {"summary": "Structured result"}
@@ -76,13 +81,13 @@ class TestWebResearchHandler:
             client.grounded_search.return_value = ("Research text", [])
             client.structured_output.side_effect = Exception("API error")
 
-            result = handle({
-                "integration": "gemini.default",
-                "inputs": {
+            result = handle(_task(
+                integration="gemini.default",
+                inputs={
                     "prompt": "Research topic",
                     "output_schema": {"type": "object"},
                 },
-            })
+            ))
 
             assert result["text"] == "Research text"
             assert "structured" not in result
@@ -93,10 +98,10 @@ class TestWebResearchHandler:
             client = MockClient.return_value
             client.grounded_search.return_value = ("Text only", [])
 
-            result = handle({
-                "integration": "gemini.default",
-                "inputs": {"prompt": "Simple query"},
-            })
+            result = handle(_task(
+                integration="gemini.default",
+                inputs={"prompt": "Simple query"},
+            ))
 
             assert result["text"] == "Text only"
             assert "structured" not in result
@@ -108,10 +113,10 @@ class TestWebResearchHandler:
             client = MockClient.return_value
             client.grounded_search.return_value = ("ok", [])
 
-            handle({
-                "integration": "gemini.default",
-                "inputs": {"prompt": "test"},
-            })
+            handle(_task(
+                integration="gemini.default",
+                inputs={"prompt": "test"},
+            ))
 
             MockClient.assert_called_once_with(api_key="test-key", model="gemini-2.5-pro")
 
@@ -121,9 +126,9 @@ class TestWebResearchHandler:
             client = MockClient.return_value
             client.grounded_search.return_value = ("ok", [])
 
-            handle({
-                "integration": "gemini.default",
-                "inputs": {"prompt": "test"},
-            })
+            handle(_task(
+                integration="gemini.default",
+                inputs={"prompt": "test"},
+            ))
 
-            MockClient.assert_called_once_with(api_key="test-key", model="gemini-2.0-flash")
+            MockClient.assert_called_once_with(api_key="test-key", model="gemini-3-pro-preview")

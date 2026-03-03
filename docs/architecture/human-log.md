@@ -42,6 +42,13 @@ The human log captures state-changing events. Not every function call or debug t
  - 10:02 Archived email from **boss@company.com** -- `Q1 budget review` (uid 54321)
 ```
 
+**Service results.** When a service handler finishes and its output gets saved to a note:
+```
+ - 14:25 Web research: research example.com terms of service changes -> services/gemini/web_research/2026_03_03__14_25_32__a1b2c3d4.md
+```
+
+The message comes from the service's `human_log` template, declared in the integration manifest or overridden per-automation in config. If no template exists, you get the generic fallback: `service.gemini.web_research: result saved (2,431 chars) -> path/to/note.md`.
+
 **Safety warnings.** At server startup, any config issues or safety warnings are logged:
 ```
  - 08:00 !yolo override on automation #3 for integration "personal"

@@ -21,14 +21,18 @@ log = logging.getLogger(__name__)
 def handle(task: dict) -> dict:
     """Handle a service.gemini.web_research queue task.
 
-    Expected task payload:
+    Receives the full task dict from the worker, consistent with
+    platform handlers.  Reads inputs from ``task["payload"]``.
+
+    Payload fields:
         integration: "gemini.{name}"  — integration ID to load config from
         inputs:
             prompt: str               — the research query
             output_schema: dict       — optional JSON schema for structured output
     """
-    integration_id = task.get("integration", "")
-    inputs = task.get("inputs", {})
+    payload = task["payload"]
+    integration_id = payload.get("integration", "")
+    inputs = payload.get("inputs", {})
     prompt = inputs.get("prompt", "")
 
     if not prompt:
@@ -36,7 +40,7 @@ def handle(task: dict) -> dict:
         return {"text": "", "sources": []}
 
     cfg = runtime.get_integration(integration_id)
-    client = GeminiClient(api_key=cfg.api_key, model=getattr(cfg, "model", None) or "gemini-2.0-flash")
+    client = GeminiClient(api_key=cfg.api_key, model=getattr(cfg, "model", None) or "gemini-3-pro-preview")
 
     # Pass 1: Grounded search
     log.info("Gemini web research: %s", prompt[:100])

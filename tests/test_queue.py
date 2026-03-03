@@ -113,6 +113,30 @@ class TestQueueLifecycle:
         assert second["payload"]["type"] == "mid"
         assert third["payload"]["type"] == "low"
 
+    def test_complete_with_result(self, queue_dir):
+        """Result dict is stored in the completed task YAML."""
+        queue.enqueue({"type": "service.gemini.web_research"})
+        task = queue.dequeue()
+        result = {"text": "Research output", "sources": [{"title": "S1", "url": "https://s1.com"}]}
+        queue.complete(task["id"], result=result)
+
+        done_file = queue_dir / "done" / f"{task['id']}.yaml"
+        done_task = yaml.safe_load(done_file.read_text())
+        assert done_task["status"] == "done"
+        assert done_task["result"] == result
+        assert done_task["result"]["text"] == "Research output"
+        assert len(done_task["result"]["sources"]) == 1
+
+    def test_complete_without_result(self, queue_dir):
+        """Completing without a result does not add a result field."""
+        queue.enqueue({"type": "test"})
+        task = queue.dequeue()
+        queue.complete(task["id"])
+
+        done_file = queue_dir / "done" / f"{task['id']}.yaml"
+        done_task = yaml.safe_load(done_file.read_text())
+        assert "result" not in done_task
+
     def test_concurrent_dequeue_simulation(self, queue_dir):
         task_id = queue.enqueue({"type": "test"})
 

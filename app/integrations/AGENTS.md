@@ -39,7 +39,7 @@ services:
     name: "Web Research"
     description: "Grounded web research using Gemini with Google Search"
     handler: ".services.web_research.handle"
-    reversible: true
+    human_log: "Web research: {{ prompt | truncate(80) }}"
     input_schema:
       properties:
         prompt: { type: string }
@@ -48,7 +48,9 @@ services:
 
 Services register as `service.{domain}.{service_name}` handlers. The Gemini integration is service-only (`platforms: {}`, one service).
 
-**Safety**: Services are irreversible by default, same as scripts. The manifest can declare `reversible: true` for read-only services. Safety validation enforces `!yolo` for irreversible services triggered from LLM provenance.
+**Human log templates**: Services can declare a `human_log` Jinja2 template in their manifest. This template is rendered at enqueue time and stored in the task payload. When the result is routed, the rendered string appears in the daily audit log instead of the generic "result saved (N chars)" message. Users can override the manifest default per-automation in config via `human_log:` on the service action dict.
+
+**Safety**: Services are irreversible by default, same as scripts. The manifest can declare `reversible: true`, but only for services that are both read-only **and** do not transmit data beyond the system boundary. "Read-only" is necessary but not sufficient -- a service that sends user-context data to an external API is irreversible because you cannot un-send that query. Safety validation enforces `!yolo` for irreversible services triggered from LLM provenance.
 
 Triggered from automations:
 
@@ -57,10 +59,25 @@ then:
   - service:
       call: gemini.default.web_research    # {type}.{name}.{service}
       inputs:
-        prompt: "research $domain terms of service"
+        prompt: "research {{ domain }} terms of service"
 ```
 
-`$field` references in `inputs` are resolved against the automation context at evaluate time, same as script inputs.
+`{{ field }}` references in `inputs` are rendered as Jinja2 templates against the automation context at evaluate time, same as script inputs. Filters, conditionals, and dot-access (e.g. `{{ classification.human }}`) are supported via `SandboxedEnvironment`.
+
+**Result routing**: Service handlers return data (e.g., research text + sources). The worker captures this return value and routes it via `on_result` descriptors in the task payload. By default, `enqueue_actions()` sets `on_result: [{"type": "note"}]` for all service tasks. This saves the output as a markdown note under `{notes_dir}/services/{domain}/{service_name}/` and writes a human log breadcrumb. Automations can override the default routing:
+
+```yaml
+then:
+  - service:
+      call: gemini.default.web_research
+      inputs:
+        prompt: "research {{ domain }} terms of service"
+      on_result:
+        - type: note
+          path: research/tos/    # Custom subdirectory under notes_dir
+```
+
+The result is also stored in the completed task YAML in `done/` regardless of routing. Service handlers receive the full task dict from the worker and read inputs from `task["payload"]`, consistent with platform handlers.
 
 ### Integration Package Structure
 
@@ -116,7 +133,8 @@ services:                       # Optional: callable services
     name: "My Service"
     description: "What this service does"
     handler: ".services.my_service.handle"
-    reversible: false           # Default. Set true for read-only services
+    reversible: false           # Default. Only set true for local-only, read-only services
+    human_log: "My service: {{ query | truncate(80) }}"  # Optional: Jinja2 template for human log
     input_schema:
       properties:
         query: { type: string }
@@ -184,10 +202,10 @@ When conditions use AND semantics. All conditions in a `when` dict must match. M
 Some actions are cross-cutting -- they can be triggered from any integration's automations. The evaluate phase partitions actions via `enqueue_actions()` from `gaas_sdk.actions`:
 
 - **Script actions** (`{"script": {"name": "...", "inputs": {...}}}`) are enqueued as individual `script.run` queue tasks with resolved inputs.
-- **Service actions** (`{"service": {"call": "...", "inputs": {...}}}`) are enqueued as individual `service.{domain}.{service_name}` queue tasks.
+- **Service actions** (`{"service": {"call": "...", "inputs": {...}}}`) are enqueued as individual `service.{domain}.{service_name}` queue tasks with default `on_result` routing (note + human log).
 - **Platform actions** (strings like `"archive"`, dicts like `{"draft_reply": "..."}`) are bundled into a single platform act task as before.
 
-Each platform's `evaluate.py` calls `enqueue_actions()` instead of `runtime.enqueue()` directly. The partitioning is transparent to the rest of the pipeline.
+Each platform's `evaluate.py` calls `enqueue_actions()` instead of `runtime.enqueue()` directly. The partitioning is transparent to the rest of the pipeline. Service actions can include `on_result` in their config to override default result routing.
 
 ## Prompt Templates
 

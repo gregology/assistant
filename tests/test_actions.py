@@ -2,7 +2,8 @@
 
 from unittest.mock import patch
 
-from app.actions import enqueue_actions, is_script_action, resolve_script_inputs
+from app.actions import enqueue_actions, is_script_action, resolve_inputs
+from gaas_sdk.actions import _render_template
 from app.evaluate import MISSING
 
 
@@ -32,8 +33,8 @@ class TestIsScriptAction:
 class TestResolveScriptInputs:
     def test_field_resolution(self):
         resolver = _make_resolver(domain="example.com", author="alice")
-        result = resolve_script_inputs(
-            {"domain": "$domain", "author": "$author"},
+        result = resolve_inputs(
+            {"domain": "{{ domain }}", "author": "{{ author }}"},
             resolver,
             {},
         )
@@ -41,7 +42,7 @@ class TestResolveScriptInputs:
 
     def test_literal_passthrough(self):
         resolver = _make_resolver()
-        result = resolve_script_inputs(
+        result = resolve_inputs(
             {"key": "literal_value"},
             resolver,
             {},
@@ -50,8 +51,8 @@ class TestResolveScriptInputs:
 
     def test_missing_field_empty_string(self):
         resolver = _make_resolver()
-        result = resolve_script_inputs(
-            {"missing": "$nonexistent"},
+        result = resolve_inputs(
+            {"missing": "{{ nonexistent }}"},
             resolver,
             {},
         )
@@ -59,8 +60,8 @@ class TestResolveScriptInputs:
 
     def test_mixed_inputs(self):
         resolver = _make_resolver(domain="test.com")
-        result = resolve_script_inputs(
-            {"domain": "$domain", "mode": "full"},
+        result = resolve_inputs(
+            {"domain": "{{ domain }}", "mode": "full"},
             resolver,
             {},
         )
@@ -68,12 +69,124 @@ class TestResolveScriptInputs:
 
     def test_non_string_value_converted(self):
         resolver = _make_resolver(count=42)
-        result = resolve_script_inputs(
-            {"count": "$count"},
+        result = resolve_inputs(
+            {"count": "{{ count }}"},
             resolver,
             {},
         )
         assert result == {"count": "42"}
+
+    def test_embedded_field_in_string(self):
+        resolver = _make_resolver(domain="questrade.com")
+        result = resolve_inputs(
+            {"prompt": "research {{ domain }} privacy policy"},
+            resolver,
+            {},
+        )
+        assert result == {"prompt": "research questrade.com privacy policy"}
+
+    def test_multiple_embedded_fields(self):
+        resolver = _make_resolver(domain="example.com", author="alice")
+        result = resolve_inputs(
+            {"prompt": "{{ author }} asked about {{ domain }} policy"},
+            resolver,
+            {},
+        )
+        assert result == {"prompt": "alice asked about example.com policy"}
+
+    def test_embedded_missing_field_empty_string(self):
+        resolver = _make_resolver(domain="example.com")
+        result = resolve_inputs(
+            {"prompt": "research {{ domain }} by {{ unknown }}"},
+            resolver,
+            {},
+        )
+        assert result == {"prompt": "research example.com by "}
+
+    def test_no_template_markers_passthrough(self):
+        resolver = _make_resolver()
+        result = resolve_inputs(
+            {"prompt": "no references here"},
+            resolver,
+            {},
+        )
+        assert result == {"prompt": "no references here"}
+
+    def test_jinja2_filter(self):
+        resolver = _make_resolver(domain="example.com")
+        result = resolve_inputs(
+            {"prompt": "{{ domain | upper }}"},
+            resolver,
+            {},
+        )
+        assert result == {"prompt": "EXAMPLE.COM"}
+
+    def test_jinja2_conditional(self):
+        resolver = _make_resolver(domain="example.com")
+        result = resolve_inputs(
+            {"prompt": "{% if domain %}{{ domain }}{% else %}unknown{% endif %}"},
+            resolver,
+            {},
+        )
+        assert result == {"prompt": "example.com"}
+
+    def test_jinja2_conditional_missing(self):
+        resolver = _make_resolver()
+        result = resolve_inputs(
+            {"prompt": "{% if domain %}{{ domain }}{% else %}unknown{% endif %}"},
+            resolver,
+            {},
+        )
+        assert result == {"prompt": "unknown"}
+
+    def test_sandbox_blocks_dunder_access(self):
+        resolver = _make_resolver(x="hello")
+        result = resolve_inputs(
+            {"prompt": "{{ x.__class__ }}"},
+            resolver,
+            {},
+        )
+        # SandboxedEnvironment blocks __class__ access; ChainableUndefined
+        # renders it as empty string rather than raising.
+        assert result == {"prompt": ""}
+
+    def test_classification_dot_access(self):
+        resolver = _make_resolver()
+        result = resolve_inputs(
+            {"score": "{{ classification.human }}"},
+            resolver,
+            {"human": 0.85},
+        )
+        assert result == {"score": "0.85"}
+
+
+class TestRenderTemplate:
+    def test_plain_string_passthrough(self):
+        resolver = _make_resolver()
+        result = _render_template("no templates here", resolver, {})
+        assert result == "no templates here"
+
+    def test_resolver_variable(self):
+        resolver = _make_resolver(domain="example.com")
+        result = _render_template("Update for {{ domain }}", resolver, {})
+        assert result == "Update for example.com"
+
+    def test_extra_context(self):
+        resolver = _make_resolver()
+        result = _render_template(
+            "Research: {{ prompt | truncate(80) }}",
+            resolver, {},
+            extra={"prompt": "a very long research prompt"},
+        )
+        assert result == "Research: a very long research prompt"
+
+    def test_extra_overrides_resolver(self):
+        resolver = _make_resolver(prompt="from resolver")
+        result = _render_template(
+            "{{ prompt }}", resolver, {},
+            extra={"prompt": "from extra"},
+        )
+        assert result == "from extra"
 
 
 class TestEnqueueActions:
@@ -100,7 +213,7 @@ class TestEnqueueActions:
         with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
             mock_enqueue.return_value = "task_1"
             enqueue_actions(
-                actions=[{"script": {"name": "research", "inputs": {"domain": "$domain"}}}],
+                actions=[{"script": {"name": "research", "inputs": {"domain": "{{ domain }}"}}}],
                 platform_payload={"type": "email.inbox.act", "uid": "123"},
                 resolve_value=resolver,
                 classification={},
@@ -120,7 +233,7 @@ class TestEnqueueActions:
             enqueue_actions(
                 actions=[
                     "archive",
-                    {"script": {"name": "research", "inputs": {"domain": "$domain"}}},
+                    {"script": {"name": "research", "inputs": {"domain": "{{ domain }}"}}},
                 ],
                 platform_payload={"type": "email.inbox.act", "uid": "123"},
                 resolve_value=resolver,

@@ -6,16 +6,13 @@ from gaas_sdk.actions import (
     enqueue_actions,
     is_script_action,
     is_service_action,
-    resolve_script_inputs,
+    resolve_inputs,
 )
 from gaas_sdk.evaluate import MISSING
 
 
 def _make_resolver(**fields):
     def resolve_value(key, classification):
-        if key.startswith("classification."):
-            cls_key = key[len("classification."):]
-            return classification.get(cls_key, MISSING)
         if key in fields:
             return fields[key]
         return MISSING
@@ -56,40 +53,40 @@ class TestIsServiceAction:
 
 
 # ---------------------------------------------------------------------------
-# resolve_script_inputs
+# resolve_inputs
 # ---------------------------------------------------------------------------
 
 
 class TestResolveScriptInputs:
     def test_field_resolution(self):
         resolver = _make_resolver(domain="example.com")
-        result = resolve_script_inputs({"d": "$domain"}, resolver, {})
+        result = resolve_inputs({"d": "{{ domain }}"}, resolver, {})
         assert result == {"d": "example.com"}
 
     def test_literal_passthrough(self):
         resolver = _make_resolver()
-        result = resolve_script_inputs({"k": "literal"}, resolver, {})
+        result = resolve_inputs({"k": "literal"}, resolver, {})
         assert result == {"k": "literal"}
 
     def test_missing_field_empty_string(self):
         resolver = _make_resolver()
-        result = resolve_script_inputs({"m": "$missing"}, resolver, {})
+        result = resolve_inputs({"m": "{{ missing }}"}, resolver, {})
         assert result == {"m": ""}
 
     def test_non_string_converted(self):
         resolver = _make_resolver(count=42)
-        result = resolve_script_inputs({"c": "$count"}, resolver, {})
+        result = resolve_inputs({"c": "{{ count }}"}, resolver, {})
         assert result == {"c": "42"}
 
     def test_none_value_becomes_empty(self):
         resolver = _make_resolver()
-        result = resolve_script_inputs({"n": None}, resolver, {})
+        result = resolve_inputs({"n": None}, resolver, {})
         assert result == {"n": ""}
 
     def test_classification_field(self):
         resolver = _make_resolver()
-        result = resolve_script_inputs(
-            {"s": "$classification.score"}, resolver, {"score": 0.9},
+        result = resolve_inputs(
+            {"s": "{{ classification.score }}"}, resolver, {"score": 0.9},
         )
         assert result == {"s": "0.9"}
 
@@ -121,7 +118,7 @@ class TestEnqueueActions:
         with patch("gaas_sdk.runtime._enqueue") as mock:
             mock.return_value = "t1"
             enqueue_actions(
-                actions=[{"script": {"name": "research", "inputs": {"d": "$domain"}}}],
+                actions=[{"script": {"name": "research", "inputs": {"d": "{{ domain }}"}}}],
                 platform_payload={"type": "test.act", "id": "1"},
                 resolve_value=resolver,
                 classification={},

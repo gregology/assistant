@@ -271,6 +271,51 @@ class TestEvaluateAutomations:
         assert "a" in actions
         assert "b" in actions
 
+    def test_duplicate_string_actions_deduplicated(self):
+        """Two rules both producing 'archive' yield a single 'archive' action."""
+        resolver = _make_resolver()
+        autos = [
+            AutomationConfig(when={"classification.score": 0.5}, then=["archive"]),
+            AutomationConfig(when={"classification.flag": True}, then=["archive"]),
+        ]
+        result = {"score": 0.9, "flag": True}
+        actions = evaluate_automations(autos, resolver, result, CLASSIFICATIONS)
+        assert actions == ["archive"]
+
+    def test_duplicate_string_across_rules_preserves_order(self):
+        """Dedup keeps first occurrence; non-duplicate actions pass through."""
+        resolver = _make_resolver()
+        autos = [
+            AutomationConfig(when={"classification.score": 0.5}, then=["archive", "log"]),
+            AutomationConfig(when={"classification.flag": True}, then=["archive", "alert"]),
+        ]
+        result = {"score": 0.9, "flag": True}
+        actions = evaluate_automations(autos, resolver, result, CLASSIFICATIONS)
+        assert actions == ["archive", "log", "alert"]
+
+    def test_dict_actions_not_deduplicated(self):
+        """Dict actions (service, script) are never deduplicated."""
+        resolver = _make_resolver()
+        svc = {"service": {"call": "a.b.c"}}
+        autos = [
+            AutomationConfig(when={"classification.score": 0.5}, then=[svc]),
+            AutomationConfig(when={"classification.flag": True}, then=[svc]),
+        ]
+        result = {"score": 0.9, "flag": True}
+        actions = evaluate_automations(autos, resolver, result, CLASSIFICATIONS)
+        assert len(actions) == 2
+
+    def test_yolo_string_not_deduped_with_plain(self):
+        """A plain 'archive' and YoloAction('archive') are not treated as duplicates."""
+        resolver = _make_resolver()
+        autos = [
+            AutomationConfig(when={"classification.score": 0.5}, then=["archive"]),
+            AutomationConfig(when={"classification.flag": True}, then=[YoloAction("archive")]),
+        ]
+        result = {"score": 0.9, "flag": True}
+        actions = evaluate_automations(autos, resolver, result, CLASSIFICATIONS)
+        assert len(actions) == 2
+
     def test_no_automations(self):
         resolver = _make_resolver()
         assert evaluate_automations([], resolver, {"score": 0.9}, CLASSIFICATIONS) == []

@@ -71,7 +71,7 @@ platforms:
 services:
   web_research:
     handler: ".services.web_research.handle"
-    reversible: true
+    human_log: "Web research: {{ prompt | truncate(80) }}"
 ```
 
 The top-level `app/integrations/__init__.py` registers these with the domain and platform prefixes, producing task types like `email.inbox.check` or `github.pull_requests.classify`. Service handlers register as `service.{domain}.{service_name}`. The worker routes tasks to handlers using these strings.
@@ -86,7 +86,7 @@ Some actions are cross-cutting -- they can be triggered from any integration's a
 
 The shared action layer (`gaas_sdk.actions`, re-exported via `app/actions/`) handles these. Each platform's evaluate handler calls `enqueue_actions()`, which partitions the action list: script actions become individual `script.run` queue tasks, service actions become individual `service.{domain}.{service_name}` queue tasks, and platform actions get bundled into the platform's act task as before. The partitioning is transparent to the rest of the pipeline.
 
-Script tasks run as first-class queue citizens with independent failure tracking, timeout enforcement, and in-script logging via preamble-injected helper functions (`log_human`, `log_info`, `log_warn`). Service tasks run the handler function declared in the integration's manifest.
+Script tasks run as first-class queue citizens with independent failure tracking, timeout enforcement, and in-script logging via preamble-injected helper functions (`log_human`, `log_info`, `log_warn`). Service tasks run the handler function declared in the integration's manifest. When a service handler returns data, the worker captures it and routes it via `on_result` descriptors in the task payload (`app/result_routes.py`). The default route saves results as a markdown note under `{notes_dir}/services/{domain}/{service_name}/` with frontmatter metadata and a human log breadcrumb. The full result is also stored in the completed task YAML for audit.
 
 ### Task priorities
 

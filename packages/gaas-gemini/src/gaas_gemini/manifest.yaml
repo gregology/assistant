@@ -18,7 +18,7 @@ services:
     name: "Web Research"
     description: "Grounded web research using Gemini with Google Search"
     handler: ".services.web_research.handle"
-    reversible: true
+    human_log: "Web research: {{ prompt | truncate(80) }}"
     input_schema:
       properties:
         prompt: { type: string }

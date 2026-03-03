@@ -140,9 +140,15 @@ def evaluate_automations(
     platform-specific value resolution.
     """
     actions = []
+    seen_strings: set[str] = set()
     for automation in automations:
         if conditions_match(automation.when, resolve_value, classification, classifications):
-            actions.extend(automation.then)
+            for action in automation.then:
+                if isinstance(action, str):
+                    if action in seen_strings:
+                        continue
+                    seen_strings.add(action)
+                actions.append(action)
     return actions
 
 

@@ -85,3 +85,18 @@ def get_notes_dir() -> Any:
     if _get_notes_dir is None:
         raise RuntimeNotRegistered("get_notes_dir")
     return _get_notes_dir()
+
+
+# ---------------------------------------------------------------------------
+# Service log templates (simple key-value storage, no callback registration)
+# ---------------------------------------------------------------------------
+
+_service_log_templates: dict[str, str] = {}
+
+
+def set_service_log_template(task_type: str, template: str) -> None:
+    _service_log_templates[task_type] = template
+
+
+def get_service_log_template(task_type: str) -> str | None:
+    return _service_log_templates.get(task_type)

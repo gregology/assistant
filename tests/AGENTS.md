@@ -107,8 +107,10 @@ tests/
   test_queue.py                         # Queue lifecycle + stateful property tests
   test_llm.py                           # LLM conversation, schema validation
   test_loader.py                        # Manifest parsing, discovery, dynamic models
+  test_result_routes.py                 # Service result routing (note persistence, custom paths, fallbacks)
   test_scheduler.py                     # interval_to_cron conversion
   test_script_execution.py              # Script executor, preamble logging, output capture
+  test_services.py                      # Service manifest parsing, enqueue with on_result
   test_store.py                         # NoteStore CRUD + archive
   safety/
     test_automation_invariants.py        # Property tests: all possible classifications
@@ -123,7 +125,7 @@ packages/gaas-email/tests/
 
 packages/gaas-gemini/tests/
   test_client.py                         # GeminiClient two-pass flow (mocked)
-  test_web_research.py                   # Service handler with/without output_schema
+  test_web_research.py                   # Service handler with full task dict, with/without output_schema
 ```
 
 Package tests import from `gaas_sdk.*` directly and run without loading the app config singleton. Run them in isolation with `uv run pytest packages/gaas-email/tests/` etc.

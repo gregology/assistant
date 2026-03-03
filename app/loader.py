@@ -182,6 +182,7 @@ def _load_manifest(
             handler=svc_def.get("handler", ""),
             reversible=svc_def.get("reversible", False),
             input_schema=svc_def.get("input_schema", {}),
+            human_log=svc_def.get("human_log"),
         )
 
     return IntegrationManifest(
@@ -218,11 +219,16 @@ def check_dependencies(manifest: IntegrationManifest) -> list[str]:
             .split("!=")[0]
             .strip()
         )
-        import_name = pkg_name.replace("-", "_")
+        # Try distribution name first (handles google-genai etc.), then
+        # fall back to import check for backwards compatibility.
         try:
-            importlib.import_module(import_name)
-        except ImportError:
-            missing.append(dep)
+            importlib.metadata.distribution(pkg_name)
+        except importlib.metadata.PackageNotFoundError:
+            import_name = pkg_name.replace("-", "_")
+            try:
+                importlib.import_module(import_name)
+            except ImportError:
+                missing.append(dep)
     return missing
 
 

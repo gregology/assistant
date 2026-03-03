@@ -42,7 +42,7 @@ AUTOMATIONS = [
     AutomationConfig(when={"classification.human": ">0.9"}, then=["unsubscribe"]),
     AutomationConfig(
         when={"classification.user_agreement_update": True},
-        then=[{"script": {"name": "research_tos", "inputs": {"domain": "$domain"}}}],
+        then=[{"script": {"name": "research_tos", "inputs": {"domain": "{{ domain }}"}}}],
     ),
 ]
 

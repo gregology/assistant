@@ -15,6 +15,7 @@ class ServiceManifest:
     handler: str
     reversible: bool = False
     input_schema: dict = field(default_factory=dict)
+    human_log: str | None = None
 
 
 @dataclass

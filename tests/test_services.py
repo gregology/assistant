@@ -121,7 +121,7 @@ class TestEnqueueServiceActions:
                 actions=[{
                     "service": {
                         "call": "gemini.default.web_research",
-                        "inputs": {"prompt": "research $domain"},
+                        "inputs": {"prompt": "research {{ domain }}"},
                     },
                 }],
                 platform_payload={"type": "email.inbox.act", "uid": "123"},
@@ -133,10 +133,10 @@ class TestEnqueueServiceActions:
             payload = mock_enqueue.call_args[0][0]
             assert payload["type"] == "service.gemini.web_research"
             assert payload["integration"] == "gemini.default"
-            assert payload["inputs"] == {"prompt": "research $domain"}
+            assert payload["inputs"] == {"prompt": "research test.com"}
 
     def test_service_input_resolution(self):
-        """$field references in service inputs are resolved."""
+        """{{ field }} references in service inputs are resolved."""
         resolver = _make_resolver(domain="test.com")
         with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
             mock_enqueue.return_value = "task_1"
@@ -144,7 +144,7 @@ class TestEnqueueServiceActions:
                 actions=[{
                     "service": {
                         "call": "gemini.default.web_research",
-                        "inputs": {"prompt": "$domain"},
+                        "inputs": {"prompt": "{{ domain }}"},
                     },
                 }],
                 platform_payload={"type": "email.inbox.act", "uid": "123"},
@@ -187,3 +187,145 @@ class TestEnqueueServiceActions:
             types = [c[0][0]["type"] for c in mock_enqueue.call_args_list]
             assert "service.gemini.web_research" in types
             assert "email.inbox.act" in types
+
+    def test_default_on_result_for_service(self):
+        """Service tasks include default on_result routing."""
+        resolver = _make_resolver()
+        with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
+            mock_enqueue.return_value = "task_1"
+            enqueue_actions(
+                actions=[{
+                    "service": {
+                        "call": "gemini.default.web_research",
+                        "inputs": {"prompt": "test"},
+                    },
+                }],
+                platform_payload={"type": "email.inbox.act", "uid": "123"},
+                resolve_value=resolver,
+                classification={},
+                provenance="rule",
+            )
+            payload = mock_enqueue.call_args[0][0]
+            assert payload["on_result"] == [{"type": "note"}]
+
+    def test_custom_on_result_from_action(self):
+        """Service action can override on_result routing."""
+        resolver = _make_resolver()
+        custom_routes = [{"type": "note", "path": "research/"}]
+        with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
+            mock_enqueue.return_value = "task_1"
+            enqueue_actions(
+                actions=[{
+                    "service": {
+                        "call": "gemini.default.web_research",
+                        "inputs": {"prompt": "test"},
+                        "on_result": custom_routes,
+                    },
+                }],
+                platform_payload={"type": "email.inbox.act", "uid": "123"},
+                resolve_value=resolver,
+                classification={},
+                provenance="rule",
+            )
+            payload = mock_enqueue.call_args[0][0]
+            assert payload["on_result"] == custom_routes
+
+
+class TestServiceHumanLog:
+    def test_human_log_from_config(self):
+        """Config-level human_log is resolved and included in payload."""
+        resolver = _make_resolver(domain="questrade.com")
+        with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
+            mock_enqueue.return_value = "task_1"
+            enqueue_actions(
+                actions=[{
+                    "service": {
+                        "call": "gemini.default.web_research",
+                        "inputs": {"prompt": "test"},
+                        "human_log": "Privacy Policy update for {{ domain }}",
+                    },
+                }],
+                platform_payload={"type": "email.inbox.act", "uid": "123"},
+                resolve_value=resolver,
+                classification={},
+                provenance="rule",
+            )
+            payload = mock_enqueue.call_args[0][0]
+            assert payload["human_log"] == "Privacy Policy update for questrade.com"
+
+    def test_human_log_from_manifest_fallback(self):
+        """Manifest-level human_log is used when config doesn't specify one."""
+        from gaas_sdk import runtime
+        runtime.set_service_log_template(
+            "service.gemini.web_research",
+            "Web research: {{ prompt | truncate(80) }}",
+        )
+        try:
+            resolver = _make_resolver()
+            with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
+                mock_enqueue.return_value = "task_1"
+                enqueue_actions(
+                    actions=[{
+                        "service": {
+                            "call": "gemini.default.web_research",
+                            "inputs": {"prompt": "research something important"},
+                        },
+                    }],
+                    platform_payload={"type": "email.inbox.act", "uid": "123"},
+                    resolve_value=resolver,
+                    classification={},
+                    provenance="rule",
+                )
+                payload = mock_enqueue.call_args[0][0]
+                assert payload["human_log"] == "Web research: research something important"
+        finally:
+            runtime._service_log_templates.pop("service.gemini.web_research", None)
+
+    def test_config_human_log_overrides_manifest(self):
+        """Config human_log takes precedence over manifest default."""
+        from gaas_sdk import runtime
+        runtime.set_service_log_template(
+            "service.gemini.web_research",
+            "Web research: {{ prompt | truncate(80) }}",
+        )
+        try:
+            resolver = _make_resolver(domain="example.com")
+            with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
+                mock_enqueue.return_value = "task_1"
+                enqueue_actions(
+                    actions=[{
+                        "service": {
+                            "call": "gemini.default.web_research",
+                            "inputs": {"prompt": "test"},
+                            "human_log": "Custom: {{ domain }}",
+                        },
+                    }],
+                    platform_payload={"type": "email.inbox.act", "uid": "123"},
+                    resolve_value=resolver,
+                    classification={},
+                    provenance="rule",
+                )
+                payload = mock_enqueue.call_args[0][0]
+                assert payload["human_log"] == "Custom: example.com"
+        finally:
+            runtime._service_log_templates.pop("service.gemini.web_research", None)
+
+    def test_no_human_log_omitted_from_payload(self):
+        """When no human_log is configured, the key is absent from payload."""
+        resolver = _make_resolver()
+        with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
+            mock_enqueue.return_value = "task_1"
+            enqueue_actions(
+                actions=[{
+                    "service": {
+                        "call": "gemini.default.web_research",
+                        "inputs": {"prompt": "test"},
+                    },
+                }],
+                platform_payload={"type": "email.inbox.act", "uid": "123"},
+                resolve_value=resolver,
+                classification={},
+                provenance="rule",
+            )
+            payload = mock_enqueue.call_args[0][0]
+            assert "human_log" not in payload

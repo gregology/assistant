@@ -10,10 +10,40 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from jinja2 import ChainableUndefined, meta
+from jinja2.sandbox import SandboxedEnvironment
+
 from gaas_sdk import runtime
 from gaas_sdk.evaluate import MISSING
 
 log = logging.getLogger(__name__)
+
+_jinja_env = SandboxedEnvironment(undefined=ChainableUndefined)
+
+_JINJA_MARKERS = ("{{", "{%", "{#")
+
+
+def _build_context(
+    template_source: str,
+    resolve_value,
+    classification: dict,
+) -> dict[str, Any]:
+    """Build a template context dict by resolving referenced variables.
+
+    Parses the template to discover undeclared variables, then resolves
+    each via the platform resolver.  ``classification`` is always
+    available for dot-access (``{{ classification.human }}``).
+    """
+    ast = _jinja_env.parse(template_source)
+    variables = meta.find_undeclared_variables(ast)
+    ctx: dict[str, Any] = {"classification": classification}
+    for var in variables:
+        if var == "classification":
+            continue
+        result = resolve_value(var, classification)
+        if result is not MISSING:
+            ctx[var] = result
+    return ctx
 
 
 def is_script_action(action: Any) -> bool:
@@ -26,28 +56,49 @@ def is_service_action(action: Any) -> bool:
     return isinstance(action, dict) and "service" in action
 
 
-def resolve_script_inputs(
+def _render_template(
+    template_str: str,
+    resolve_value,
+    classification: dict,
+    extra: dict[str, Any] | None = None,
+) -> str:
+    """Render a single Jinja2 template string against the automation context.
+
+    ``extra`` is merged into the context after resolver variables, allowing
+    already-resolved inputs to be referenced (e.g. ``{{ prompt }}``).
+    """
+    if not any(m in template_str for m in _JINJA_MARKERS):
+        return template_str
+    ctx = _build_context(template_str, resolve_value, classification)
+    if extra:
+        ctx.update(extra)
+    return _jinja_env.from_string(template_str).render(ctx)
+
+
+def resolve_inputs(
     raw_inputs: dict[str, str],
     resolve_value,
     classification: dict,
 ) -> dict[str, str]:
-    """Resolve $field references in script inputs against the automation context.
+    """Resolve ``{{ field }}`` Jinja2 templates in script/service inputs.
 
-    Literal values (no $ prefix) pass through as-is.
-    Missing fields resolve to empty string with a warning.
+    Supports Jinja2 expressions (``{{ domain }}``), filters
+    (``{{ domain | upper }}``), and conditionals (``{% if ... %}``).
+    Values without Jinja2 markers pass through unchanged.  Missing
+    variables render as empty string via ``ChainableUndefined``.
+
+    Uses ``SandboxedEnvironment`` to block attribute access on
+    internal Python objects.
     """
     resolved = {}
     for key, value in raw_inputs.items():
-        if isinstance(value, str) and value.startswith("$"):
-            field = value[1:]
-            result = resolve_value(field, classification)
-            if result is MISSING:
-                log.warning("Script input '$%s' could not be resolved, using empty string", field)
-                resolved[key] = ""
-            else:
-                resolved[key] = str(result)
-        else:
+        if not isinstance(value, str) or not any(m in value for m in _JINJA_MARKERS):
             resolved[key] = str(value) if value is not None else ""
+            continue
+
+        ctx = _build_context(value, resolve_value, classification)
+        template = _jinja_env.from_string(value)
+        resolved[key] = template.render(ctx)
     return resolved
 
 
@@ -71,7 +122,7 @@ def enqueue_actions(
             script_ref = action["script"]
             script_name = script_ref.get("name", "") if isinstance(script_ref, dict) else script_ref
             raw_inputs = script_ref.get("inputs", {}) if isinstance(script_ref, dict) else {}
-            resolved_inputs = resolve_script_inputs(raw_inputs, resolve_value, classification)
+            resolved_inputs = resolve_inputs(raw_inputs, resolve_value, classification)
             runtime.enqueue({
                 "type": "script.run",
                 "script_name": script_name,
@@ -82,18 +133,28 @@ def enqueue_actions(
             service_ref = action["service"]
             call = service_ref.get("call", "")
             raw_inputs = service_ref.get("inputs", {})
-            resolved_inputs = resolve_script_inputs(raw_inputs, resolve_value, classification)
+            resolved_inputs = resolve_inputs(raw_inputs, resolve_value, classification)
             # Parse call: {type}.{name}.{service_name}
             parts = call.rsplit(".", 2)
             if len(parts) == 3:
                 svc_type, svc_name, service_name = parts
-                runtime.enqueue({
+                on_result = service_ref.get("on_result", [{"type": "note"}])
+                payload = {
                     "type": f"service.{svc_type}.{service_name}",
                     "integration": f"{svc_type}.{svc_name}",
                     "inputs": resolved_inputs,
-                }, priority=priority, provenance=provenance)
-                log.info("Enqueued service.%s.%s for integration=%s.%s",
-                         svc_type, service_name, svc_type, svc_name)
+                    "on_result": on_result,
+                }
+                raw_human_log = service_ref.get("human_log") or runtime.get_service_log_template(
+                    f"service.{svc_type}.{service_name}"
+                )
+                if raw_human_log:
+                    payload["human_log"] = _render_template(
+                        raw_human_log, resolve_value, classification, extra=resolved_inputs,
+                    )
+                runtime.enqueue(payload, priority=priority, provenance=provenance)
+                log.info("Enqueued service.%s.%s for integration=%s.%s inputs=%s",
+                         svc_type, service_name, svc_type, svc_name, resolved_inputs)
             else:
                 log.warning("Invalid service call format: %r (expected type.name.service)", call)
         else:

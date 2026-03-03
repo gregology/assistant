@@ -5,6 +5,7 @@ import time
 import app.human_log  # noqa: F401 — registers log.human()
 from app import queue
 from app.actions.script import handle as script_run_handle
+from app.result_routes import route_results
 from app.runtime_init import register_runtime
 from app.loader import load_all_modules
 from app.integrations import HANDLERS, register_all
@@ -26,9 +27,8 @@ def handle(task: dict):
     task_type = task["payload"].get("type")
     handler = HANDLERS.get(task_type)
     if handler is None:
-        log.warning("Unknown task type: %s", task_type)
-        return
-    handler(task)
+        raise ValueError(f"Unknown task type: {task_type}")
+    return handler(task)
 
 
 def main():
@@ -54,8 +54,10 @@ def main():
 
         log.info("Dequeued task %s", task["id"])
         try:
-            handle(task)
-            queue.complete(task["id"])
+            result = handle(task)
+            if result is not None:
+                route_results(result, task)
+            queue.complete(task["id"], result=result)
             log.info("Completed task %s", task["id"])
         except Exception as exc:
             log.exception("Task %s failed", task["id"])

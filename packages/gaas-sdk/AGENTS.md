@@ -32,8 +32,10 @@ Available runtime functions:
 - `create_llm_conversation(model, system)` - create an LLM conversation instance
 - `get_llm_config(profile)` - get LLM backend config by profile name
 - `get_notes_dir()` - get the notes directory path
+- `set_service_log_template(task_type, template)` - store a human_log Jinja2 template for a service
+- `get_service_log_template(task_type)` - retrieve a stored human_log template (returns None if absent)
 
-Calling any of these before `register()` raises `RuntimeNotRegistered` with the function name. This gives a clear error instead of a mysterious import failure.
+Calling `enqueue` etc. before `register()` raises `RuntimeNotRegistered` with the function name. The service log template functions are simple key-value storage and work without `register()`.
 
 ## Module dependency order
 
@@ -53,7 +55,9 @@ No circular imports. Models and runtime are foundational.
 
 **YoloAction wrapper** in `models.py`: wraps actions tagged `!yolo` in YAML. `isinstance(action, YoloAction)` is how the safety validation identifies explicitly acknowledged risks. Works on both scalar (`!yolo unsubscribe`) and mapping nodes (`!yolo {script: ...}`).
 
-**Action partitioning** in `actions.py`: `enqueue_actions()` splits an action list into three buckets. Script actions become individual `script.run` queue tasks. Service actions become individual `service.{domain}.{service_name}` tasks. Platform-specific actions get bundled into a single platform act task. The partitioning is transparent to the rest of the pipeline.
+**Action partitioning** in `actions.py`: `enqueue_actions()` splits an action list into three buckets. Script actions become individual `script.run` queue tasks. Service actions become individual `service.{domain}.{service_name}` tasks with default `on_result: [{"type": "note"}]` routing. Platform-specific actions get bundled into a single platform act task. The partitioning is transparent to the rest of the pipeline. Service actions can override the default `on_result` via their config dict. Service actions also resolve a `human_log` Jinja2 template (config override > manifest default via `runtime.get_service_log_template()`) at enqueue time and store the rendered string in the task payload.
+
+**Action deduplication** in `evaluate.py`: `evaluate_automations()` deduplicates string actions across matching rules. If two rules both produce `"archive"`, only the first occurrence is kept. Dict actions (service, script, draft_reply) and `YoloAction` wrappers are never deduplicated.
 
 ## When modifying this package
 

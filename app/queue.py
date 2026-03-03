@@ -64,7 +64,7 @@ def dequeue() -> dict | None:
     return task
 
 
-def complete(task_id: str):
+def complete(task_id: str, result: dict | None = None):
     filename = f"{task_id}.yaml"
     src = BASE_DIR / "active" / filename
     dst = BASE_DIR / "done" / filename
@@ -72,6 +72,8 @@ def complete(task_id: str):
     task = yaml.safe_load(src.read_text())
     task["status"] = "done"
     task["completed_at"] = _now().isoformat()
+    if result is not None:
+        task["result"] = result
     src.write_text(yaml.dump(task, default_flow_style=False, sort_keys=False))
 
     os.rename(src, dst)

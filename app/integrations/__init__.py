@@ -8,6 +8,7 @@ import importlib
 import logging
 
 from app.loader import get_manifests, get_modules
+from gaas_sdk import runtime
 
 log = logging.getLogger(__name__)
 
@@ -73,3 +74,8 @@ def register_all() -> None:
             handler = _load_handler(module_name, service_manifest.handler)
             if handler:
                 HANDLERS[f"service.{domain}.{service_name}"] = handler
+                if service_manifest.human_log:
+                    runtime.set_service_log_template(
+                        f"service.{domain}.{service_name}",
+                        service_manifest.human_log,
+                    )

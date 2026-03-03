@@ -1,4 +1,4 @@
-# GaaS example config. A single email integration to get started.
+# GaaS example config. Email integration with optional Gemini web research.
 # See packages/gaas-email/README.md, packages/gaas-github/README.md,
 # and packages/gaas-gemini/README.md for more config options and examples.
 
@@ -26,15 +26,46 @@ integrations:
           requires_response:
             prompt: does this email require a response?
             type: boolean
+        privacy_policy_update:
+          prompt: is this email to tell me that a privacy policy has been updated?
+          type: boolean
         automations:
+
           # Deterministic: archive calendar events (no LLM needed)
           - when:
               is_calendar_event: true
             then: archive
+
           # LLM-based: archive emails that aren't from a human
           - when:
               classification.human: "< 0.2"
             then: archive
+
+          # LLM-based: research ToS updates via Gemini (requires gemini integration below)
+          # !yolo required: LLM provenance + data sent to external API
+          - when:
+              classification.privacy_policy_update: true
+            then:
+              - archive
+              - !yolo
+                service:
+                  call: gemini.default.web_research
+                  inputs:
+                    prompt: >
+                      I live in Canada and the privacy policy for {{ domain }}
+                      has recently been updated. Craft a concise report on the
+                      changes in the new privacy policy and how it may impact
+                      me. Include links to primary sources.
+                  human_log: "Privacy Policy update for {{ domain }}"
+                  on_result:
+                    - type: note
+                      path: research/privacy_policy_updates/
+
+  # Gemini web research service used for privacy policy updates (requires `uv sync --extra gemini`)
+  - type: gemini
+    name: default
+    api_key: !secret gemini_api_key
+    model: gemini-3-pro-preview 
 
 directories:
   notes: /path/to/notes

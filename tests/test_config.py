@@ -34,12 +34,12 @@ class TestYoloTag:
 
     def test_yolo_on_mapping(self):
         raw = yaml.load(
-            "action: !yolo\n  script:\n    name: test\n    inputs:\n      domain: $domain",
+            "action: !yolo\n  script:\n    name: test\n    inputs:\n      domain: '{{ domain }}'",
             Loader=_Loader,
         )
         assert isinstance(raw["action"], YoloAction)
         assert isinstance(raw["action"].value, dict)
-        assert raw["action"].value == {"script": {"name": "test", "inputs": {"domain": "$domain"}}}
+        assert raw["action"].value == {"script": {"name": "test", "inputs": {"domain": "{{ domain }}"}}}
 
     def test_yolo_on_mapping_unwrap(self):
         action = YoloAction({"script": {"name": "test"}})

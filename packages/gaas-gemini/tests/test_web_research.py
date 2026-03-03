@@ -131,4 +131,4 @@ class TestWebResearchHandler:
                 inputs={"prompt": "test"},
             ))
 
-            MockClient.assert_called_once_with(api_key="test-key", model="gemini-2.0-flash")
+            MockClient.assert_called_once_with(api_key="test-key", model="gemini-3-pro-preview")

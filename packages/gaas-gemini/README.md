@@ -21,7 +21,7 @@ integrations:
   - type: gemini
     name: default
     api_key: !secret gemini_api_key
-    # model: gemini-2.0-flash       # Optional, uses SDK default if omitted
+    # model: gemini-3-pro-preview       # Optional, uses SDK default if omitted
 ```
 
 `api_key` is required. `model` is optional.
@@ -37,7 +37,8 @@ automations:
       classification.user_agreement_update: true
     then:
       - archive
-      - service:
+      - !yolo
+        service:
           call: gemini.default.web_research
           inputs:
             prompt: "research $domain terms of service changes"
@@ -120,6 +121,16 @@ This saves the research note to `{notes_dir}/research/tos_updates/` instead.
 
 ## Safety
 
-The `web_research` service is declared `reversible: true` in its manifest because it only reads. No side effects. That means it can be triggered from LLM-provenance automations without `!yolo`.
+The `web_research` service is **irreversible** (the default). Although it doesn't modify local state, it sends user-context data to Google's Gemini API -- you cannot un-send that query. The prompt may contain information extracted from emails or other private sources (e.g., an LLM misclassifies a password as an acronym and sends it for research). Because the data leaves the system boundary, this is not reversible.
 
-A future service with write side effects would need `reversible: false` (the default) and would require `!yolo` when triggered from non-deterministic conditions.
+When triggered from LLM-provenance automations, `!yolo` is required:
+
+```yaml
+- !yolo
+  service:
+    call: gemini.default.web_research
+    inputs:
+      prompt: "research $domain terms of service"
+```
+
+From deterministic provenance (e.g., `when: {domain: "example.com"}`), no `!yolo` is needed.

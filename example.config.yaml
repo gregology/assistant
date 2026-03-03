@@ -26,33 +26,41 @@ integrations:
           requires_response:
             prompt: does this email require a response?
             type: boolean
+        privacy_policy_update:
+          prompt: is this email to tell me that a privacy policy has been updated?
+          type: boolean
         automations:
+
           # Deterministic: archive calendar events (no LLM needed)
           - when:
               is_calendar_event: true
             then: archive
+
           # LLM-based: archive emails that aren't from a human
           - when:
               classification.human: "< 0.2"
             then: archive
-          # LLM-based: research ToS updates via Gemini (requires gemini integration below)
-          # - when:
-          #     classification.user_agreement_update: true
-          #   then:
-          #     - archive
-          #     - service:
-          #         call: gemini.default.web_research
-          #         inputs:
-          #           prompt: "research $domain terms of service changes"
-          #         # on_result:                           # Optional, defaults to saving as a note
-          #         #   - type: note
-          #         #     path: research/tos_updates/      # Custom subdirectory under notes
 
-  # Optional: Gemini web research service (requires `uv sync --extra gemini`)
-  # - type: gemini
-  #   name: default
-  #   api_key: !secret gemini_api_key
-  #   # model: gemini-2.0-flash                           # Optional, uses SDK default
+          # LLM-based: research ToS updates via Gemini (requires gemini integration below)
+          # !yolo required: LLM provenance + data sent to external API
+          - when:
+              classification.privacy_policy_update
+            then:
+              - archive
+              - !yolo
+                service:
+                  call: gemini.default.web_research
+                  inputs:
+                    prompt: "I live in Canada and the privacy policy for $domain has recently been updated. Craft a concise report on the changes in the new privacy policy and how it may impact me. Include links to primary sources."
+                  on_result:
+                    - type: note
+                      path: research/privacy_policy_updates/
+
+  # Gemini web research service used for privacy policy updates (requires `uv sync --extra gemini`)
+  - type: gemini
+    name: default
+    api_key: !secret gemini_api_key
+    model: gemini-3-pro-preview 
 
 directories:
   notes: /path/to/notes

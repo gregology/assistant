@@ -158,7 +158,7 @@ Both `config.yaml` and `secrets.yaml` are gitignored. Tests create a minimal con
 4. **Unknown actions are rejected.** `act.py` has an explicit allowlist (`SIMPLE_ACTIONS`). Unknown string or dict actions are skipped with a warning.
 5. **The `SIMPLE_ACTIONS` set must not grow without deliberate reversibility review.** Adding a new action requires classifying it by reversibility tier first.
 6. **Scripts are irreversible by default.** The system can't statically verify what shell code does. `reversible: true` is an explicit opt-in on the script definition. Without it, script actions are blocked from `llm`/`hybrid` provenance unless wrapped in `!yolo`.
-7. **Services are irreversible by default.** Same as scripts. The manifest can declare `reversible: true` for read-only services (like Gemini web research). Safety validation enforces `!yolo` for irreversible services from LLM provenance.
+7. **Services are irreversible by default.** Same as scripts. The manifest can declare `reversible: true`, but only for services that are both read-only **and** do not transmit data beyond the system boundary. "Read-only" is necessary but not sufficient -- a service that sends user-context data to an external API (like Gemini web research) is irreversible because you cannot un-send that data. Safety validation enforces `!yolo` for irreversible services from LLM provenance.
 
 ## Adding New Code
 

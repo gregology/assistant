@@ -10,7 +10,7 @@ from google.genai import types
 
 log = logging.getLogger(__name__)
 
-DEFAULT_MODEL = "gemini-2.0-flash"
+DEFAULT_MODEL = "gemini-3-pro-preview"
 
 
 class GeminiClient:

@@ -39,7 +39,6 @@ services:
     name: "Web Research"
     description: "Grounded web research using Gemini with Google Search"
     handler: ".services.web_research.handle"
-    reversible: true
     input_schema:
       properties:
         prompt: { type: string }
@@ -48,7 +47,7 @@ services:
 
 Services register as `service.{domain}.{service_name}` handlers. The Gemini integration is service-only (`platforms: {}`, one service).
 
-**Safety**: Services are irreversible by default, same as scripts. The manifest can declare `reversible: true` for read-only services. Safety validation enforces `!yolo` for irreversible services triggered from LLM provenance.
+**Safety**: Services are irreversible by default, same as scripts. The manifest can declare `reversible: true`, but only for services that are both read-only **and** do not transmit data beyond the system boundary. "Read-only" is necessary but not sufficient -- a service that sends user-context data to an external API is irreversible because you cannot un-send that query. Safety validation enforces `!yolo` for irreversible services triggered from LLM provenance.
 
 Triggered from automations:
 
@@ -131,7 +130,7 @@ services:                       # Optional: callable services
     name: "My Service"
     description: "What this service does"
     handler: ".services.my_service.handle"
-    reversible: false           # Default. Set true for read-only services
+    reversible: false           # Default. Only set true for local-only, read-only services
     input_schema:
       properties:
         query: { type: string }

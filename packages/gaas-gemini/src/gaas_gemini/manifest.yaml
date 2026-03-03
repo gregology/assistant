@@ -18,7 +18,6 @@ services:
     name: "Web Research"
     description: "Grounded web research using Gemini with Google Search"
     handler: ".services.web_research.handle"
-    reversible: true
     input_schema:
       properties:
         prompt: { type: string }

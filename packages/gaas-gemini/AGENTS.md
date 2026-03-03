@@ -36,7 +36,6 @@ services:
   web_research:
     name: "Web Research"
     handler: ".services.web_research.handle"
-    reversible: true
     input_schema:
       properties:
         prompt: { type: string }
@@ -44,13 +43,14 @@ services:
       required: [prompt]
 ```
 
-`reversible: true` means this service can be triggered from LLM provenance without `!yolo`. It only reads -- no side effects.
+Web research is **irreversible** (the default). Although it doesn't modify local state, it sends user-context data to an external API -- you cannot un-send that query. The prompt may contain information extracted from emails or other private sources, and an LLM misclassification could cause unexpected data to be transmitted. Requires `!yolo` when triggered from LLM provenance.
 
 Triggered from automations:
 
 ```yaml
 then:
-  - service:
+  - !yolo
+    service:
       call: gemini.default.web_research
       inputs:
         prompt: "research $domain terms of service"

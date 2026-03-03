@@ -320,30 +320,34 @@ class TestSafetyValidation:
         assert len(platform.automations) == 1
 
     def test_reversible_service_from_llm_allowed(self):
-        """Service with reversible=True + LLM provenance is allowed without !yolo."""
+        """Service with reversible=True + LLM provenance is allowed without !yolo.
+
+        Only local-only, read-only services should declare reversible=True.
+        Services that transmit data externally (like web research) are
+        irreversible even if they don't modify local state.
+        """
         from gaas_sdk.manifest import ServiceManifest
         from unittest.mock import patch
 
-        # Create a temporary manifest with a reversible service
+        # Hypothetical local-only service (e.g., local file search)
         svc = ServiceManifest(
-            name="Web Research",
-            description="Grounded search",
-            handler=".services.web_research.handle",
+            name="Local Search",
+            description="Search local notes",
+            handler=".services.local_search.handle",
             reversible=True,
         )
 
-        # Mock get_manifests to return a manifest with the service
         mock_manifest = MagicMock()
-        mock_manifest.services = {"web_research": svc}
+        mock_manifest.services = {"local_search": svc}
 
         automations = [
             AutomationConfig(
                 when={"classification.human": "> 0.8"},
-                then=[{"service": {"call": "gemini.default.web_research"}}],
+                then=[{"service": {"call": "tools.default.local_search"}}],
             ),
         ]
         integration, platform = _make_integration("test", automations)
-        with patch("app.loader.get_manifests", return_value={"gemini": mock_manifest}):
+        with patch("app.loader.get_manifests", return_value={"tools": mock_manifest}):
             warnings = _validate_automation_safety([integration])
         assert warnings == []
         assert len(platform.automations) == 1

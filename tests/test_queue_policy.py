@@ -171,6 +171,23 @@ class TestResolvePolicy:
             assert policy.rate_limit is not None
             assert policy.rate_limit.max == 10
 
+    def test_override_inherits_non_default_defaults(self):
+        """Override without deduplicate_pending inherits from defaults, even when
+        the configured default differs from the Pydantic field default."""
+        with patch("app.queue_policy.config") as mock_config:
+            mock_config.queue_policies = QueuePolicyConfig(
+                defaults=TaskPolicyConfig(deduplicate_pending=False),
+                overrides={
+                    "service.gemini.web_research": TaskPolicyConfig(
+                        rate_limit=RateLimitConfig(max=10, per="1h"),
+                    )
+                }
+            )
+            policy = resolve_policy("service.gemini.web_research")
+            assert policy.deduplicate_pending is False  # inherited from configured default
+            assert policy.rate_limit is not None
+            assert policy.rate_limit.max == 10
+
     def test_unmatched_type_gets_defaults(self):
         with patch("app.queue_policy.config") as mock_config:
             mock_config.queue_policies = QueuePolicyConfig(

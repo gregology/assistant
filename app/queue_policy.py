@@ -35,19 +35,19 @@ def _parse_duration_seconds(duration: str) -> int:
 
 
 def resolve_policy(task_type: str) -> TaskPolicyConfig:
-    """Look up the effective policy for a task type (override or default)."""
+    """Look up the effective policy for a task type (override or default).
+
+    Overrides inherit from defaults. Only fields explicitly set in the
+    override replace the default value. Uses Pydantic's model_fields_set
+    to distinguish "user wrote this" from "Pydantic filled in the default".
+    """
     policies = config.queue_policies
     if task_type in policies.overrides:
-        # Merge: override inherits defaults for fields not explicitly set
         override = policies.overrides[task_type]
-        return TaskPolicyConfig(
-            deduplicate_pending=(
-                override.deduplicate_pending
-                if override.deduplicate_pending != policies.defaults.deduplicate_pending
-                else policies.defaults.deduplicate_pending
-            ),
-            rate_limit=override.rate_limit if override.rate_limit is not None else policies.defaults.rate_limit,
-        )
+        merged = policies.defaults.model_dump()
+        for field in override.model_fields_set:
+            merged[field] = getattr(override, field)
+        return TaskPolicyConfig(**merged)
     return policies.defaults
 
 

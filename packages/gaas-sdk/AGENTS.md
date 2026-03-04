@@ -63,5 +63,6 @@ No circular imports. Models and runtime are foundational.
 
 - This is the safety-critical code path. `evaluate.py` is where bugs become irreversible actions.
 - Any change to condition matching or action partitioning needs corresponding safety test updates in `tests/safety/`.
-- The SDK has no dependency on `app.*`. If you find yourself importing from `app`, you're going the wrong direction.
-- Re-export shims in `app/` must stay in sync. If you add a new public function here, add the re-export too.
+- The SDK has no dependency on `app.*`. If you find yourself importing from `app`, you're going the wrong direction. Run `uv run lint-imports` to verify. The import-linter config in `pyproject.toml` enforces this boundary automatically.
+- Re-export shims in `app/` must stay in sync. If you add a new public function here, add the re-export too. Run `uv run vulture app/evaluate.py app/classify.py app/store.py app/actions/__init__.py --min-confidence 80` to check for stale re-exports.
+- Run `uv run mypy packages/gaas-sdk/src/ --ignore-missing-imports` after changing function signatures or adding new models. Type drift in the SDK propagates to every integration.

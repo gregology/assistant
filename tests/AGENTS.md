@@ -79,6 +79,22 @@ After a full task lifecycle (`enqueue -> dequeue -> complete`): pending is empty
 - `notes_dir` - Isolated tmp directory for NoteStore operations
 - Config bootstrap: Creates a minimal `config.yaml` if missing (config loads eagerly at import time)
 
+## Test Coverage
+
+```bash
+uv run pytest --cov=app --cov-report=term-missing -v   # Line coverage with uncovered lines
+uv run pytest --cov=app --cov-report=html               # HTML report (open htmlcov/index.html)
+```
+
+Don't chase 100%. Coverage priority follows the same rule as test rigor: proportional to irreversibility. 95% coverage on `evaluate.py` and `actions.py` matters more than 95% on `scheduler.py`. When coverage reports show gaps, check the reversibility tier of the uncovered code before deciding whether to write tests for it.
+
+Package-level coverage (run from repo root):
+
+```bash
+uv run pytest --cov=gaas_sdk --cov-report=term-missing packages/gaas-sdk/tests/
+uv run pytest --cov=gaas_email --cov-report=term-missing packages/gaas-email/tests/
+```
+
 ## Running Tests
 
 ```bash

@@ -13,7 +13,6 @@ dependencies = [
     "python-frontmatter>=1.1.0",
     "pyyaml>=6.0",
     "fastapi-crons>=0.2",
-    "complexipy>=5.2.0",
     "ruamel.yaml>=0.18",
 ]
 
@@ -33,7 +32,16 @@ packages = ["app"]
 [dependency-groups]
 dev = [
     "pytest>=8.0",
+    "pytest-cov>=6.0",
     "hypothesis>=6.100",
+    "mypy>=1.10",
+    "complexipy>=5.2.0",
+    "radon>=6.0",
+    "vulture>=2.11",
+    "deptry>=0.16",
+    "import-linter>=2.0",
+    "bandit>=1.7",
+    "ruff>=0.4",
 ]
 
 [tool.uv.sources]

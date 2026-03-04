@@ -162,6 +162,30 @@ Both `config.yaml` and `secrets.yaml` are gitignored. Tests create a minimal con
 6. **Scripts are irreversible by default.** The system can't statically verify what shell code does. `reversible: true` is an explicit opt-in on the script definition. Without it, script actions are blocked from `llm`/`hybrid` provenance unless wrapped in `!yolo`.
 7. **Services are irreversible by default.** Same as scripts. The manifest can declare `reversible: true`, but only for services that are both read-only **and** do not transmit data beyond the system boundary. "Read-only" is necessary but not sufficient -- a service that sends user-context data to an external API (like Gemini web research) is irreversible because you cannot un-send that data. Safety validation enforces `!yolo` for irreversible services from LLM provenance.
 
+## Code Quality Tools
+
+Dev dependencies for spotting tech debt, dead code, complexity creep, and architectural violations. See `docs/code-quality-tools.md` for full usage details. Quick reference:
+
+```bash
+uv run mypy app/ packages/ --ignore-missing-imports   # Type checking
+uv run complexipy app/ packages/ --max-complexity 15   # Cognitive complexity
+uv run radon cc app/ -a -nc                            # Cyclomatic complexity (C+ only)
+uv run vulture app/ packages/ --min-confidence 80      # Dead code
+uv run deptry .                                        # Unused/missing deps
+uv run bandit -r app/ -q                               # Security issues
+uv run ruff check app/ packages/ tests/                # Linting
+uv run lint-imports                                    # Architectural boundary checks
+uv run pytest --cov=app --cov-report=term-missing -v   # Test coverage
+```
+
+When to use these: before refactors, after extracting or removing code, or as periodic sweeps. Not every commit. The output is signal for human judgment, not a checklist.
+
+Key tools for this codebase:
+- **import-linter** enforces the SDK boundary (integrations must not import `app.*`). Config lives in `pyproject.toml` under `[tool.importlinter]`.
+- **bandit** will always flag `app/actions/script.py` because it runs shell commands by design. Suppress reviewed findings with `# nosec`.
+- **vulture** can't see dynamic handler registration (`HANDLERS` dicts, entry points), so expect false positives there.
+- **complexipy** — `config.py` and `loader.py` are the usual complexity hotspots. Functions above 15 are worth looking at.
+
 ## Adding New Code
 
 - Categorize every new action by reversibility tier before writing tests

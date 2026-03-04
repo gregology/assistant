@@ -6,9 +6,8 @@ You are a senior software architect performing a periodic refactoring audit of t
 
 ### 1. Read the documentation first
 
-- Read `CLAUDE.md` (or equivalent project instructions) to understand the project's principles, architecture, and constraints.
 - Read `DECISIONS.md` in full. This document explains _why_ architectural choices were made. Do not propose undoing a decision unless the constraints that led to it have materially changed. If you believe constraints have changed, say so explicitly and recommend updating `DECISIONS.md` as part of the refactor.
-- Read any `AGENTS.md` files for subsystem-specific context.
+- Read `AGENTS.md` files for subsystem-specific context.
 - Read `README.md` and any docs under `docs/` for additional architectural context.
 
 ### 2. Explore the codebase
@@ -27,6 +26,10 @@ Thoroughly read the source code — not just file names and structures, but actu
 - **Extensibility bottlenecks**: Places where adding a new integration, action type, or feature requires touching many files. Hardcoded values that should be configurable. Closed designs where open ones would be natural.
 - **API surface bloat**: Re-export shims that have outlived their usefulness. Public functions that are only used internally. Multiple ways to do the same thing.
 - **Naming and readability**: Misleading names. Functions that do more than their name suggests. Magic numbers or strings without explanation.
+- **Stale architectural approaches**: Patterns that made sense under earlier constraints (fewer integrations, smaller scale, different feature set) but now constrain evolution. Architecture that accumulated organically rather than by decision — no entry in DECISIONS.md, but baked into the code's structure. Designs optimized for a problem shape the project has outgrown. This is distinct from DECISIONS.md staleness (section 4 below) — stale decisions were explicit; stale architectures are emergent.
+- **Domain language alignment**: The same concept having different names across code, config, logs, docs, and CLI output (e.g., "task" vs "job" vs "work item"). Different concepts sharing the same name in different modules. Abbreviations used inconsistently (`cfg` / `config` / `configuration`). Config key naming conventions that diverge from code conventions. Domain terms that a new contributor couldn't discover by reading any single file.
+- **Test-risk alignment**: Whether test density is proportional to the _risk_ of each code path, not just its complexity or coverage percentage. This project states "test rigor is proportional to irreversibility, not code complexity" — check if that's true in practice. Are the irreversible action paths the most thoroughly tested? Are the safety boundary tests (provenance enforcement, dispatch-layer invariants) using property-based testing? Is there well-tested utility code paired with under-tested safety-critical code?
+- **Governance gaps**: Conventions that exist as documentation or tribal knowledge but lack automated enforcement. Rules in AGENTS.md or CLAUDE.md that could be a lint rule, import-linter contract, or CI check but aren't. Safety-critical conventions (e.g., "integrations must not import `app.*`") that rely on code review rather than tooling. Distinguish between conventions that _should_ be enforced (safety, correctness) and those that are deliberately soft ("prefer X").
 
 ### 3. Evaluate what you find
 
@@ -56,7 +59,7 @@ If there are no meaningful refactoring opportunities, respond with:
 
 Otherwise, return a numbered list of refactoring opportunities, ordered by impact (highest first). Each item must include:
 
-### [N]. [Title — a concise name for the refactor]
+### [Title — a concise name for the refactor]
 
 **Summary**: 2-3 sentences describing what would change and why.
 
@@ -80,7 +83,7 @@ Otherwise, return a numbered list of refactoring opportunities, ordered by impac
 
 ## Guidelines
 
-- Limit your output to **at most 3** refactoring opportunities. If you find more, keep only the highest-impact ones. Quality over quantity.
+- Limit your output to **at most 5** refactoring opportunities. If you find more, keep only the highest-impact ones. Quality over quantity.
 - Do not recommend refactors that are purely cosmetic (renaming for style, reordering imports, adding docstrings to stable code).
 - Do not recommend adding features disguised as refactors. A refactor changes structure, not behavior.
 - Do not recommend refactors that would require changing the project's core principles. If a principle seems wrong, flag it as a DECISIONS.md review item instead.
@@ -99,9 +102,10 @@ The following output was collected from static analysis tools. Use it as additio
 
 # Output Instructions
 
-Write exactly 3 refactoring opportunity files:
+Create refactoring opportunity issue files:
 - `to_review/01-<slug>.md`
 - `to_review/02-<slug>.md`
 - `to_review/03-<slug>.md`
+etc...
 
 Each file should contain one refactoring opportunity using the output format from the prompt above. The slug should be a short, kebab-case summary of the refactor.

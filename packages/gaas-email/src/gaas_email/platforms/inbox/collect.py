@@ -1,12 +1,13 @@
 import logging
 
 from gaas_sdk import runtime
+from gaas_sdk.task import TaskRecord
 from .store import EmailStore
 
 log = logging.getLogger(__name__)
 
 
-def handle(task: dict):
+def handle(task: TaskRecord):
     from ...mail import Mailbox
 
     integration_id = task["payload"]["integration"]

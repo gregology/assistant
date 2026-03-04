@@ -12,13 +12,14 @@ from __future__ import annotations
 import logging
 
 from gaas_sdk import runtime
+from gaas_sdk.task import TaskRecord
 
 from gaas_gemini.client import GeminiClient
 
 log = logging.getLogger(__name__)
 
 
-def handle(task: dict) -> dict:
+def handle(task: TaskRecord) -> dict:
     """Handle a service.gemini.web_research queue task.
 
     Receives the full task dict from the worker, consistent with

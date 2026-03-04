@@ -8,10 +8,12 @@ from __future__ import annotations
 
 import logging
 
+from gaas_sdk.task import TaskRecord
+
 log = logging.getLogger(__name__)
 
 
-def handle(task: dict):
+def handle(task: TaskRecord):
     org = task["payload"]["org"]
     repo = task["payload"]["repo"]
     number = task["payload"]["number"]

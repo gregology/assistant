@@ -1,6 +1,7 @@
 import logging
 
 from gaas_sdk import runtime
+from gaas_sdk.task import TaskRecord
 from .const import SIMPLE_ACTIONS
 from .store import EmailStore
 
@@ -25,7 +26,7 @@ def _execute_action(email, action) -> None:
             log.warning("email.inbox.act: unknown action dict %r, skipping", action)
 
 
-def handle(task: dict):
+def handle(task: TaskRecord):
     from ...mail import Mailbox
 
     integration_id = task["payload"]["integration"]

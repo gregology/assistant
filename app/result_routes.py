@@ -18,11 +18,12 @@ from pathlib import Path
 import app.human_log  # noqa: F401 — registers log.human()
 from gaas_sdk import runtime
 from gaas_sdk.store import NoteStore
+from gaas_sdk.task import TaskRecord
 
 log = logging.getLogger(__name__)
 
 
-def route_results(result: dict, task: dict) -> None:
+def route_results(result: dict, task: TaskRecord) -> None:
     """Dispatch a handler's return value to configured result routes.
 
     Reads ``on_result`` from the task payload. Falls back to a ``note``
@@ -51,7 +52,7 @@ def route_results(result: dict, task: dict) -> None:
             )
 
 
-def _route_note(result: dict, task: dict, route_config: dict) -> Path:
+def _route_note(result: dict, task: TaskRecord, route_config: dict) -> Path:
     """Save result as a markdown note with frontmatter.
 
     Directory is derived from the task type unless overridden by

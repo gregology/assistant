@@ -90,6 +90,17 @@ Why: the dangerous failure mode is a task existing in two directories (processed
 
 Priority 9 for unauthenticated emails ensures the user's important messages are processed first. The gap between priority levels leaves room for future insertions and we can also use multiple numbers like 8, 801, 81... etc if we want finer granularity.
 
+### TypedDicts for task payloads and queue records
+
+`TaskPayload` and `TaskRecord` in `gaas_sdk.task` define the canonical shape of task dicts. They're structural (TypedDict), not runtime-enforced. mypy and IDEs can catch key typos; handler signatures document what they receive.
+
+The base `TaskPayload` only covers fields shared across all task types: `type` (required) and `integration` (not required — `script.run` tasks omit it). Per-task-type fields (`uid`, `org`, `repo`, `inputs`, `on_result`, etc.) are accessed via `.get()` and intentionally not declared. Adding per-type subtypes is optional and can happen incrementally without breaking the base contract.
+
+This was chosen over two alternatives:
+
+- **Pydantic models** — Runtime validation would add overhead to every enqueue/dequeue cycle for no safety gain (the queue is internal, not a trust boundary). TypedDicts are zero-cost at runtime.
+- **Per-type dataclasses** — Would require deserialization at every handler boundary. The dict-in, dict-out pattern is simpler and already established.
+
 ---
 
 ## Provenance System

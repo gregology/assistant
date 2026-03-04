@@ -34,4 +34,5 @@ from gaas_sdk.actions import (  # noqa: F401
     is_service_action,
     resolve_inputs,
 )
+from gaas_sdk.task import TaskPayload, TaskRecord  # noqa: F401
 from gaas_sdk import runtime  # noqa: F401

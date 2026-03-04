@@ -3,6 +3,7 @@ import re
 from datetime import date, timedelta
 
 from gaas_sdk import runtime
+from gaas_sdk.task import TaskRecord
 from .store import EmailStore
 
 log = logging.getLogger(__name__)
@@ -19,7 +20,7 @@ def _parse_window_days(window: str) -> int:
     return int(match.group(1))
 
 
-def handle(task: dict):
+def handle(task: TaskRecord):
     from ...mail import Mailbox
 
     integration_id = task["payload"]["integration"]

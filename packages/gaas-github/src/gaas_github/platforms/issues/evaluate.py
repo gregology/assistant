@@ -13,6 +13,7 @@ from gaas_sdk.evaluate import (
     resolve_action_provenance,
     unwrap_actions,
 )
+from gaas_sdk.task import TaskRecord
 from .const import DEFAULT_CLASSIFICATIONS, DETERMINISTIC_SOURCES
 from .store import IssueStore
 
@@ -60,7 +61,7 @@ def _make_resolver(snapshot: IssueSnapshot):
     return resolve_value
 
 
-def handle(task: dict):
+def handle(task: TaskRecord):
     integration_id = task["payload"]["integration"]
     integration = runtime.get_integration(integration_id)
     platform = runtime.get_platform(integration_id, "issues")

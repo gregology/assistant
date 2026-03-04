@@ -3,13 +3,14 @@ from __future__ import annotations
 import logging
 
 from gaas_sdk import runtime
+from gaas_sdk.task import TaskRecord
 
 from .store import PullRequestStore
 
 log = logging.getLogger(__name__)
 
 
-def handle(task: dict):
+def handle(task: TaskRecord):
     from ...client import GitHubClient
 
     integration_id = task["payload"]["integration"]

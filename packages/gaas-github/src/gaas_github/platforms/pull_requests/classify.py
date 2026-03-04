@@ -10,6 +10,7 @@ import frontmatter
 from gaas_sdk import runtime
 from gaas_sdk.classify import build_schema, make_jinja_env
 from gaas_sdk.models import ClassificationConfig
+from gaas_sdk.task import TaskRecord
 
 from .const import DEFAULT_CLASSIFICATIONS
 from .store import PullRequestStore
@@ -43,7 +44,7 @@ def _render_prompt(
     )
 
 
-def handle(task: dict):
+def handle(task: TaskRecord):
     from ...client import GitHubClient
 
     integration_id = task["payload"]["integration"]

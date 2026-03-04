@@ -14,6 +14,7 @@ from pathlib import Path
 
 import app.human_log  # noqa: F401 — registers log.human()
 from app.config import config
+from gaas_sdk.task import TaskRecord
 
 log = logging.getLogger(__name__)
 
@@ -134,7 +135,7 @@ def execute(script_def, inputs: dict[str, str]) -> str | None:
                 f.unlink()
 
 
-def handle(task: dict) -> None:
+def handle(task: TaskRecord) -> None:
     """Worker handler for script.run tasks."""
     payload = task["payload"]
     script_name = payload.get("script_name", "")

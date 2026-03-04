@@ -9,6 +9,7 @@ from app.result_routes import route_results
 from app.runtime_init import register_runtime
 from app.loader import load_all_modules
 from app.integrations import HANDLERS, register_all
+from gaas_sdk.task import TaskRecord
 
 log = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ def _shutdown_handler(signum, frame):
     log.info("Received signal %s, shutting down gracefully…", signum)
 
 
-def handle(task: dict):
+def handle(task: TaskRecord):
     task_type = task["payload"].get("type")
     handler = HANDLERS.get(task_type)
     if handler is None:

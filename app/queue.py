@@ -11,6 +11,7 @@ from pathlib import Path
 import yaml
 
 from app.config import config
+from gaas_sdk.task import TaskRecord
 
 log = logging.getLogger(__name__)
 
@@ -137,7 +138,7 @@ def enqueue(payload: dict, priority: int = 5, provenance: str | None = None) -> 
     return task_id
 
 
-def dequeue() -> dict | None:
+def dequeue() -> TaskRecord | None:
     pending_dir = BASE_DIR / "pending"
     files = sorted(f.name for f in pending_dir.iterdir() if f.suffix == ".yaml")
 
@@ -169,7 +170,7 @@ def complete(task_id: str, result: dict | None = None):
     src = BASE_DIR / "active" / filename
     dst = BASE_DIR / "done" / filename
 
-    task = yaml.safe_load(src.read_text())
+    task: TaskRecord = yaml.safe_load(src.read_text())
     task["status"] = "done"
     task["completed_at"] = _now().isoformat()
     if result is not None:
@@ -184,7 +185,7 @@ def fail(task_id: str, error: str):
     src = BASE_DIR / "active" / filename
     dst = BASE_DIR / "failed" / filename
 
-    task = yaml.safe_load(src.read_text())
+    task: TaskRecord = yaml.safe_load(src.read_text())
     task["status"] = "failed"
     task["failed_at"] = _now().isoformat()
     task["error"] = error

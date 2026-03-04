@@ -35,7 +35,7 @@ The human can determine the level of reversibility they are comfortable with.
 GaaS is in **alpha** so shit will break.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/gregology/GaaS/main/install.sh | bash
+curl -fsSL https://gho.st/install.sh | bash
 ```
 
 ## Documentation

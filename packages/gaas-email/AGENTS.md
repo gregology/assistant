@@ -42,6 +42,7 @@ Each stage enqueues the next as a separate queue task. The evaluate stage calls 
 ```
 tests/
   test_act.py             # Action execution, allowlist enforcement
+  test_check.py           # Window parsing, inbox fetch ordering and IMAP criteria
   test_classify.py        # Condition matching, operators, schema building
   test_email_store.py     # EmailStore CRUD, move, dedup
   test_mail_parsing.py    # Header parsing (auth, unsubscribe, dates, calendar)
@@ -57,7 +58,9 @@ Tests import from `gaas_sdk.*` directly, not through `app.*` re-export shims. Th
 
 ## Key patterns
 
-**mail.py**: The `Mailbox` class wraps `imap-tools` with context manager support. Email objects expose parsed headers, authentication results (DKIM/DMARC/SPF), calendar events, and unsubscribe capability. `Received:` header is used for timestamps instead of `Date:` (which is sender-controlled).
+**mail.py**: The `Mailbox` class wraps `imap-tools` with context manager support. Email objects expose parsed headers, authentication results (DKIM/DMARC/SPF), calendar events, and unsubscribe capability. `Received:` header is used for timestamps instead of `Date:` (which is sender-controlled). `inbox_message_ids()` fetches newest first (`reverse=True`) and accepts an optional `since` date for IMAP `SINCE` filtering. The `since` param is day-granularity because that's all IMAP supports.
+
+**check.py**: The entry task reads `limit` and `window` from platform config. `window` is an opt-in string like `"7d"` that gets parsed into a `since` date by `_parse_window_days()`. Only days are accepted (not hours or minutes) because IMAP `SINCE` has no time component. When no window is configured, all inbox messages are considered.
 
 **Unsubscribe**: RFC 8058 one-click only. Requires both `List-Unsubscribe` (HTTP URL) and `List-Unsubscribe-Post` headers. HTTP POST method per the spec. This is irreversible.
 

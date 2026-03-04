@@ -21,6 +21,7 @@ integrations:
     platforms:
       inbox:
         limit: 50
+        window: 7d                              # Optional: only check last N days (default: all)
         classifications:                        # Optional, defaults are used if omitted
           human: is this a personal email written by a human?
           requires_response:

@@ -33,4 +33,6 @@ platforms:
         limit:
           type: integer
           default: 50
+        window:
+          type: string
       required: []

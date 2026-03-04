@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from email.message import EmailMessage
 from email.policy import EmailPolicy
 from email.utils import parsedate_to_datetime
@@ -189,15 +189,18 @@ class Mailbox:
             log.info("IMAP connected to %s as %s", self._imap_server, self._username)
             log.info("Discovered folders: %s", self._folders)
 
-    def inbox_message_ids(self, limit: int = 500) -> list[tuple[str, str]]:
+    def inbox_message_ids(self, limit: int = 500, since: date | None = None) -> list[tuple[str, str]]:
         """Fetch (uid, message_id) pairs from the inbox using headers-only fetch.
 
-        Returns a list of (uid, raw_message_id) tuples. message_id may be an
-        empty string for malformed emails that lack a Message-ID header.
+        Returns a list of (uid, raw_message_id) tuples, newest first.
+        message_id may be an empty string for malformed emails that lack a
+        Message-ID header. When *since* is provided, only emails on or after
+        that date are returned (IMAP SINCE is day-granularity).
         """
         self._ensure_connected()
         assert self._conn is not None
-        messages = list(self._conn.fetch(headers_only=True, limit=limit, reverse=False))
+        criteria = AND(date_gte=since) if since else "ALL"
+        messages = list(self._conn.fetch(criteria, headers_only=True, limit=limit, reverse=True))
         result = []
         for msg in messages:
             uid = msg.uid or ""

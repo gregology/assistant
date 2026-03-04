@@ -23,6 +23,7 @@ integrations:
     platforms:
       inbox:
         limit: 50                         # Max emails per check (default: 50)
+        # window: 7d                      # Optional: only fetch emails from the last N days
         classifications:
           # ...
         automations:
@@ -193,6 +194,7 @@ integrations:
     platforms:
       inbox:
         limit: 50
+        # window: 7d                      # Optional: only fetch emails from the last N days
         classifications:
           human: is this a personal email written by a human?
           requires_response:

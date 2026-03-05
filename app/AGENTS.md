@@ -121,9 +121,9 @@ Designed for extensibility: new route types (e.g., `chat_reply` for the future t
 
 ### Worker (`worker.py`)
 
-Polling loop: dequeue, route to handler by task type string, capture the return value, route results, mark complete or failed. The handler registry lives in `app/integrations/__init__.py`. After `register_all()`, the worker also registers `script.run` for the shared action layer (`app.actions.script.handle`) and service handlers discovered from integration manifests.
+Polling loop: dequeue, route to handler by task type string, capture the return value, mark complete or failed, then route results. The handler registry lives in `app/integrations/__init__.py`. After `register_all()`, the worker also registers `script.run` for the shared action layer (`app.actions.script.handle`) and service handlers discovered from integration manifests.
 
-When a handler returns a non-None result (service handlers), the worker: (1) calls `route_results()` to persist the output via configured routes, and (2) passes the result to `queue.complete()` which stores it in the completed task YAML as an audit record.
+When a handler returns a non-None result (service handlers), the worker: (1) passes the result to `queue.complete()` which stores it in the completed task YAML as an audit record, and (2) calls `route_results()` to persist the output via configured routes. This ordering ensures a routing failure never marks a completed task as failed — the result is preserved in `done/` as the recovery point.
 
 Integrations are discovered through three channels: the builtin `app/integrations/` directory, a user-configurable custom integrations directory, and Python entry points (`gaas.integrations` group). Entry-point discovery allows packages under `packages/` to register themselves without being copied into `app/integrations/`.
 

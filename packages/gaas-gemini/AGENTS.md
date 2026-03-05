@@ -61,7 +61,7 @@ then:
 
 The handler receives the full task dict from the worker and reads inputs from `task["payload"]` (consistent with platform handlers). It returns `{"text": str, "sources": list, "structured": dict | None}`.
 
-The worker captures the return value, routes it via `on_result` (default: save as markdown note + human log breadcrumb), and stores it in the completed task YAML. Results are saved to `{notes_dir}/services/gemini/web_research/` as markdown files with frontmatter.
+The worker stores the return value in the completed task YAML first, then routes it via `on_result` (default: save as markdown note + human log breadcrumb). Results are saved to `{notes_dir}/services/gemini/web_research/` as markdown files with frontmatter. If routing fails, the result is still preserved in `done/`.
 
 ## Tests
 

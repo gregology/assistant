@@ -101,6 +101,14 @@ This was chosen over two alternatives:
 - **Pydantic models** — Runtime validation would add overhead to every enqueue/dequeue cycle for no safety gain (the queue is internal, not a trust boundary). TypedDicts are zero-cost at runtime.
 - **Per-type dataclasses** — Would require deserialization at every handler boundary. The dict-in, dict-out pattern is simpler and already established.
 
+### Complete before route: task state is the source of truth
+
+The worker completes a task (`queue.complete()`) before routing its results (`route_results()`). This means a handler failure marks the task as failed with no side effects, and a routing failure leaves the task completed with its result preserved in `done/`.
+
+The alternative — routing before completing — creates partial-state risk: if routing partially succeeds (e.g., writes a note to disk) but then the completion step fails, the task is marked failed despite having already produced side effects. That violates task conservation's spirit: the task's state no longer reflects reality.
+
+With complete-then-route, the `done/` task file (which includes the full result dict) is the recovery point. If routing fails, the result is never lost — it's in the completed task YAML and can be re-routed. Routing failures are logged but don't change the task's terminal state.
+
 ---
 
 ## Provenance System

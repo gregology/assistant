@@ -64,7 +64,7 @@ then:
 
 `{{ field }}` references in `inputs` are rendered as Jinja2 templates against the automation context at evaluate time, same as script inputs. Filters, conditionals, and dot-access (e.g. `{{ classification.human }}`) are supported via `SandboxedEnvironment`.
 
-**Result routing**: Service handlers return data (e.g., research text + sources). The worker captures this return value and routes it via `on_result` descriptors in the task payload. By default, `enqueue_actions()` sets `on_result: [{"type": "note"}]` for all service tasks. This saves the output as a markdown note under `{notes_dir}/services/{domain}/{service_name}/` and writes a human log breadcrumb. Automations can override the default routing:
+**Result routing**: Service handlers return data (e.g., research text + sources). The worker first stores the return value in the completed task YAML, then routes it via `on_result` descriptors in the task payload. By default, `enqueue_actions()` sets `on_result: [{"type": "note"}]` for all service tasks. This saves the output as a markdown note under `{notes_dir}/services/{domain}/{service_name}/` and writes a human log breadcrumb. Automations can override the default routing:
 
 ```yaml
 then:

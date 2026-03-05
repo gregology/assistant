@@ -59,8 +59,6 @@ def main() -> None:
         log.info("Dequeued task %s", task["id"])
         try:
             result = handle(task)
-            if result is not None:
-                route_results(result, task)
             queue.complete(task["id"], result=result)
             log.info("Completed task %s", task["id"])
         except Exception as exc:
@@ -69,6 +67,17 @@ def main() -> None:
                 queue.fail(task["id"], str(exc))
             except Exception:
                 log.exception("Failed to record failure for task %s", task["id"])
+            continue
+
+        if result is not None:
+            try:
+                route_results(result, task)
+            except Exception:
+                log.exception(
+                    "Task %s completed but result routing failed; "
+                    "result preserved in done/",
+                    task["id"],
+                )
 
     log.info("Worker shut down gracefully")
 

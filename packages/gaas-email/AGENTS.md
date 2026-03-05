@@ -27,7 +27,7 @@ src/gaas_email/
 
 ## Safety constants (`const.py`)
 
-- **DETERMINISTIC_SOURCES**: `authentication`, `calendar`, `domain`, `from_address`, `has_attachments`, `is_answered`, `is_calendar_event`, `is_forward`, `is_noreply`, `is_read`, `is_reply`, `is_starred`, `is_unsubscribable`
+- **DETERMINISTIC_SOURCES**: `authentication`, `calendar`, `domain`, `from_address`, `has_attachments`, `is_answered`, `is_calendar_event`, `is_forward`, `is_noreply`, `is_read`, `is_reply`, `is_starred`, `is_unsubscribable`, `root_domain`
 - **IRREVERSIBLE_ACTIONS**: `unsubscribe`
 - **SIMPLE_ACTIONS**: `archive`, `spam`, `trash`, `unsubscribe` -- the allowlist. Unknown actions are skipped, never executed. This set must not grow without reversibility review.
 

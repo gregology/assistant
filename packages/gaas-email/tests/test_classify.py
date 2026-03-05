@@ -40,6 +40,12 @@ class _MockEmail:
         return d.lower()
 
     @property
+    def root_domain(self):
+        import tldextract
+        extracted = tldextract.extract(self.domain)
+        return f"{extracted.domain}.{extracted.suffix}".lower()
+
+    @property
     def is_noreply(self):
         import re
         return bool(re.match(
@@ -266,6 +272,12 @@ class TestConditionsMatch:
 
         human = _MockEmail(from_address="alice@example.com")
         assert conditions_match({"is_noreply": True}, _make_email_resolver(human), {}, CLASSIFICATIONS) is False
+
+    def test_root_domain_condition(self):
+        email = _MockEmail(from_address="noreply@mail.company.com")
+        resolver = _make_email_resolver(email)
+        assert conditions_match({"root_domain": "company.com"}, resolver, {}, CLASSIFICATIONS) is True
+        assert conditions_match({"root_domain": "other.com"}, resolver, {}, CLASSIFICATIONS) is False
 
     def test_mixed_deterministic_and_classification(self):
         email = _MockEmail(from_address="user@work.com")

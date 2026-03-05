@@ -87,6 +87,7 @@ module = [
     "ruamel.*",
     "complexipy.*",
     "bs4.*",
+    "tldextract.*",
 ]
 ignore_missing_imports = true
 

@@ -14,6 +14,7 @@ from gaas_email.mail import (
 
 def _make_email(
     subject: str = "Hello",
+    from_address: str = "sender@example.com",
     in_reply_to: str = "",
     list_unsubscribe: str = "",
     list_unsubscribe_post: str = "",
@@ -32,7 +33,7 @@ def _make_email(
         "list-unsubscribe": (list_unsubscribe,) if list_unsubscribe else (),
         "list-unsubscribe-post": (list_unsubscribe_post,) if list_unsubscribe_post else (),
     }
-    msg.from_ = "sender@example.com"
+    msg.from_ = from_address
     msg.from_values = None
     msg.to = ["recipient@example.com"]
     msg.subject = subject
@@ -505,3 +506,22 @@ class TestHasAttachments:
             self._att("application/pdf"),
         ])
         assert email.has_attachments is True
+
+
+# ---------------------------------------------------------------------------
+# Email.root_domain
+# ---------------------------------------------------------------------------
+
+
+class TestRootDomain:
+    def test_simple_domain(self):
+        email = _make_email(from_address="user@example.com")
+        assert email.root_domain == "example.com"
+
+    def test_subdomain(self):
+        email = _make_email(from_address="user@mail.company.com")
+        assert email.root_domain == "company.com"
+
+    def test_multi_part_tld(self):
+        email = _make_email(from_address="no-reply@mail.company.co.uk")
+        assert email.root_domain == "company.co.uk"

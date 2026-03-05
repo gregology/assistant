@@ -129,6 +129,7 @@ class EmailStore:
             received_at=email.date.isoformat(),
             authentication=email.authentication,
             domain=email.domain,
+            root_domain=email.root_domain,
             is_noreply=email.is_noreply,
             is_calendar_event=email.is_calendar_event,
             is_reply=email.is_reply,

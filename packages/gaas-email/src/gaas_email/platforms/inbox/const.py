@@ -34,6 +34,7 @@ DETERMINISTIC_SOURCES: frozenset[str] = frozenset({
     "is_noreply",
     "is_read",
     "is_reply",
+    "root_domain",
     "is_starred",
     "is_unsubscribable",
 })

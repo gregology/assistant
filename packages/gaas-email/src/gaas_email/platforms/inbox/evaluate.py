@@ -30,6 +30,7 @@ class EmailSnapshot:
 
     from_address: str
     domain: str
+    root_domain: str
     is_noreply: bool
     is_calendar_event: bool
     is_reply: bool
@@ -47,6 +48,7 @@ def _snapshot_from_frontmatter(meta: dict) -> EmailSnapshot:
     return EmailSnapshot(
         from_address=meta.get("from_address", ""),
         domain=meta.get("domain", ""),
+        root_domain=meta.get("root_domain", ""),
         is_noreply=meta.get("is_noreply", False),
         is_calendar_event=meta.get("is_calendar_event", False),
         is_reply=meta.get("is_reply", False),

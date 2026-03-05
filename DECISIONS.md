@@ -360,6 +360,16 @@ The line: if it operates on core config types and is identical across all platfo
 
 This was originally "everything stays in the integration" but was refined when three-way duplication of the evaluation engine across platforms created a maintenance burden. The evaluation engine is the safety-critical dispatch boundary -- having a single authoritative copy reduces the risk of divergence in safety-critical code. Integrations import from `gaas_sdk.evaluate` and `gaas_sdk.classify`.
 
+### Pipeline handler duplication is accepted — extract when a fourth integration lands
+
+The evaluate, classify, and check handlers across email/inbox, github/issues, and github/pull_requests are 80-93% structurally identical (snapshot construction, resolver closures, the evaluate-resolve-enqueue flow, the classify skip-check). This is known duplication, not accidental.
+
+Why not extract now: three platforms is not enough signal that the pattern is stable. The email resolver's nested dict lookups (`authentication.*`, `calendar.*`) don't fit neatly into a generic resolver, which suggests the abstraction boundary isn't obvious yet. Premature extraction creates coupling between the SDK and platform handler structure, making it harder to write a handler that breaks the mold. The cost of the current duplication is manageable — it's ~300 lines per platform of well-tested, straightforward code.
+
+When to revisit: when a fourth integration (e.g., Linear, Slack) is added. At that point there will be enough examples to see which parts of the orchestration flow are truly universal and which are platform-specific. The extraction should target the orchestration layer (load note, build snapshot, evaluate, resolve provenance, enqueue) while keeping snapshot definitions, resolver hooks, and prompt rendering in the integration. Start with evaluate handlers (highest duplication at 93%) as a pilot.
+
+Until then, when fixing a bug in the evaluation flow, grep for the same pattern across all three platforms and apply the fix to each. This is the cost of isolation.
+
 ### `const.py` loaded via `spec_from_file_location`, not `import_module`
 
 Platform const modules are loaded using `importlib.util.spec_from_file_location` for both builtin and custom modules. This bypasses the package `__init__.py`, avoiding circular imports when `const.py` is loaded during config validation (which happens at module import time, before the full integration packages are initialized).

@@ -111,6 +111,56 @@ With complete-then-route, the `done/` task file (which includes the full result 
 
 ---
 
+## Queue Policy System
+
+### Policy layer above raw enqueue
+
+`queue_policy.policy_enqueue()` wraps `queue.enqueue()` with config-driven dedup and rate limiting. The raw `enqueue()` still exists and is used directly by manual API triggers (`POST /integrations/.../run`). Scheduled tasks and `runtime.enqueue()` (automation-driven code) go through `policy_enqueue()`.
+
+Why two entry points: if a user manually triggers a run via the API, they want it to happen now regardless of whether a similar task is pending or the rate limit has been hit. Policies exist to prevent runaway automation, not to block intentional human actions.
+
+The risk of having two entry points is that a contributor might call `queue.enqueue()` directly in new automation code, bypassing policies. The naming convention makes the intent clear: `policy_enqueue` is the default for automated paths, raw `enqueue` is the exception for manual triggers.
+
+### Policy inheritance via `model_fields_set`
+
+Per-task-type overrides merge with defaults using Pydantic's `model_fields_set` to distinguish explicitly-set values from Pydantic-filled defaults. When a user writes `overrides: { "email.inbox.check": { rate_limit: { max: 5, per: "1h" } } }`, only `rate_limit` is in `model_fields_set`. The override inherits `deduplicate_pending` from defaults rather than clobbering it with the model's default value.
+
+Why: naive `dict.update()` or `model.model_dump()` merging treats Pydantic defaults as user intent. If the default for `deduplicate_pending` is `true` and the user only wants to set a rate limit, a naive merge would still "set" `deduplicate_pending=true` — which happens to be correct by coincidence. But if the global default were later changed to `false`, the override would silently keep the old behavior. `model_fields_set` makes the merge correct regardless of what defaults are.
+
+### Zero-YAML-parsing policy checks
+
+Both dedup and rate limiting operate on filenames only, never parsing YAML. Dedup globs for `*--{fingerprint}--{task_type}.yaml` in `pending/`. Rate limiting globs for `*--*--{task_type}.yaml` across all directories and filters by timestamp extracted from the filename.
+
+This is why the task ID format includes `--`-separated fingerprint and task type suffixes. The format was designed to support policy checks without the I/O cost of reading and parsing every task file. For a queue with dozens of pending tasks, this is the difference between a glob and dozens of YAML loads.
+
+---
+
+## Result Routing
+
+### Route results after completion, not before
+
+The worker completes a task before routing its results. See "Complete before route: task state is the source of truth" in the Task Queue Design section for the full rationale. This ordering means the `done/` task file (with the full result dict) is always the recovery point if routing fails.
+
+### `on_result` in task payload, not in config
+
+Result routing is configured per-task via an `on_result` field in the task payload, not per-integration in `config.yaml`. Service actions set `on_result` at enqueue time based on the manifest and automation config.
+
+Why: the same service might be called from different automations with different routing needs. One automation might want results saved as notes, another might want a webhook notification (future). Putting routing in the task payload rather than global config keeps this flexible without adding conditional logic to the router.
+
+### Default-to-note for service tasks
+
+Service tasks that lack explicit `on_result` config fall back to the `note` route. Non-service tasks (platform handlers like `email.inbox.classify`) with no `on_result` produce no routing — their results are platform-internal.
+
+Why: service handlers exist to produce output (research results, summaries, etc.). Silently discarding that output is always wrong. The `note` fallback ensures service output is persisted even if the user hasn't configured explicit routing. Platform handlers, by contrast, drive pipelines (check → collect → classify → evaluate → act) where the "result" is the next task in the chain, not user-facing output.
+
+### Extensibility via route type dispatch
+
+New route types (e.g., `chat_reply`, `webhook`) are added by implementing a handler function and adding a branch to the dispatcher in `route_results()`. Each route type is independent — a single task can have multiple routes, and a failure in one doesn't affect others.
+
+The current implementation only has `note`. The dispatch pattern was chosen over a registry or plugin system because the number of route types will remain small (likely under 5) and a simple `if/elif` is easier to audit than dynamic dispatch for a system where routing failures should be obvious, not hidden behind abstraction layers.
+
+---
+
 ## Provenance System
 
 ### Namespaces as provenance

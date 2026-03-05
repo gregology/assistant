@@ -12,11 +12,12 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-import app.human_log  # noqa: F401 — registers log.human()
+import app.human_log  # noqa: F401 — registers HumanMarkdownHandler
 from app.config import config
+from gaas_sdk.logging import get_logger
 from gaas_sdk.task import TaskRecord
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 # Bash preamble injected before every script. Provides log_human, log_info,
 # log_warn helper functions that write LEVEL\tMESSAGE\x1e records to $GAAS_LOG.
@@ -152,7 +153,7 @@ def handle(task: TaskRecord) -> None:
 
     if output is not None:
         if script_def.on_output == "human_log":
-            script_log = logging.getLogger(f"script.{script_name}")
-            script_log.human(output)  # type: ignore[attr-defined]
+            script_log = get_logger(f"script.{script_name}")
+            script_log.human(output)
         else:
             log.info("Script %s output: %s", script_name, output)

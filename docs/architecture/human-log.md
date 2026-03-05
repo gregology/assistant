@@ -4,7 +4,7 @@ GaaS writes a daily markdown log of everything it does. This is the Principle of
 
 ## How it works
 
-The logging system (`app/human_log.py`) adds a custom `log.human()` method to Python's standard logger. It sits at level 25, between INFO (20) and WARNING (30). When you call `log.human("some message")`, two things happen: the message goes to the normal log output like any other log line, and it also gets appended to a daily markdown file.
+The `log.human()` method sits at level 25, between INFO (20) and WARNING (30). It comes from `AuditLogger`, a lightweight wrapper around Python's standard logger that lives in `gaas_sdk.logging`. When you call `log.human("some message")`, two things happen: the message goes to the normal log output like any other log line, and `HumanMarkdownHandler` (registered by `app/human_log.py`) appends it to a daily markdown file.
 
 Log files live at `logs/YYYY-MM-DD DayOfWeek.md`. Each entry is a timestamped bullet point:
 
@@ -70,6 +70,8 @@ Because the format is markdown, these files also work well with note-taking tool
 
 ## Implementation details
 
-The handler is registered globally at import time. Both `app/main.py` and `app/worker.py` import `app.human_log` to ensure the handler is active in both processes. A filter ensures only `HUMAN`-level messages hit the file handler, so `log.info()` calls don't clutter the daily log.
+The `HumanMarkdownHandler` is registered globally at import time. Both `app/main.py` and `app/worker.py` import `app.human_log` to ensure the handler is active in both processes. A filter ensures only `HUMAN`-level messages hit the file handler, so `log.info()` calls don't clutter the daily log.
+
+All modules use `from gaas_sdk.logging import get_logger` to get an `AuditLogger` instance. This lives in the SDK so integration packages can call `log.human()` without depending on `app.*`.
 
 Timestamps use local time via `datetime.now().astimezone()`, so the log reads naturally for wherever the server is running.

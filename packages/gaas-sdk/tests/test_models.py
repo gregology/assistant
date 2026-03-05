@@ -8,8 +8,10 @@ from gaas_sdk.models import (
     BaseIntegrationConfig,
     BasePlatformConfig,
     ClassificationConfig,
+    DictAction,
     ScriptConfig,
     ScheduleConfig,
+    SimpleAction,
     YoloAction,
 )
 
@@ -90,15 +92,15 @@ class TestClassificationConfig:
 class TestAutomationConfig:
     def test_single_string_then_normalizes_to_list(self):
         a = AutomationConfig(when={"domain": "x"}, then="archive")
-        assert a.then == ["archive"]
+        assert a.then == [SimpleAction(action="archive")]
 
     def test_single_dict_then_normalizes_to_list(self):
         a = AutomationConfig(when={"domain": "x"}, then={"draft_reply": "hi"})
-        assert a.then == [{"draft_reply": "hi"}]
+        assert a.then == [DictAction(data={"draft_reply": "hi"})]
 
     def test_list_then_preserved(self):
         a = AutomationConfig(when={"domain": "x"}, then=["archive", "spam"])
-        assert a.then == ["archive", "spam"]
+        assert a.then == [SimpleAction(action="archive"), SimpleAction(action="spam")]
 
     def test_yolo_action_in_then(self):
         y = YoloAction("unsubscribe")

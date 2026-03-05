@@ -76,7 +76,9 @@ Platform-specific stores (`EmailStore`, `PullRequestStore`, `IssueStore`) wrap `
 
 ### Human Log (`human_log.py`)
 
-Adds a custom `log.human()` method (level 25, between INFO and WARNING) that appends to daily markdown files at `logs/YYYY-MM-DD DayOfWeek.md`. Uses `O_APPEND` mode for concurrent-safe writes. This is the audit trail.
+Registers the `HumanMarkdownHandler` that appends `log.human()` calls (level 25, between INFO and WARNING) to daily markdown files at `logs/YYYY-MM-DD DayOfWeek.md`. Uses `O_APPEND` mode for concurrent-safe writes. This is the audit trail.
+
+The `log.human()` method itself comes from `AuditLogger` in `gaas_sdk.logging`. All modules that need audit logging use `from gaas_sdk.logging import get_logger` instead of `logging.getLogger`. Both `main.py` and `worker.py` import `app.human_log` to ensure the file handler is registered.
 
 ### Shared Action Layer (`actions/` - partially re-exported)
 
@@ -97,7 +99,7 @@ Script actions become individual `script.run` queue tasks. Service actions becom
 - Discriminated union on integration `type` field
 - `get_integration(integration_id)` and `get_platform(integration_id, platform_name)` both take the composite ID
 - Classification shorthand (`"human": "prompt text"`) is normalized to full `ClassificationConfig` via `model_validator`
-- Automation `then` values are normalized from single string or dict to list
+- Automation `then` values are normalized from single string or dict to a list of typed action models (`SimpleAction`, `ScriptAction`, `ServiceAction`, `DictAction`)
 - `ScriptConfig` model for user-defined shell scripts (`description`, `inputs`, `timeout`, `shell`, `output`, `on_output`, `reversible`)
 - `scripts: dict[str, ScriptConfig]` in `AppConfig`
 - `YoloAction` accepts `str | dict`, and `!yolo` works on both scalar and mapping YAML nodes
@@ -127,8 +129,8 @@ Integrations are discovered through three channels: the builtin `app/integration
 
 ## Conventions
 
-- Type hints throughout
-- `logging.getLogger(__name__)` in every module
+- Type hints throughout, mypy strict on the SDK, graduated for `app/`
+- `get_logger(__name__)` from `gaas_sdk.logging` in every module (not `logging.getLogger`)
 - Pydantic `BaseModel` for all config/data structures
 - `log.human()` for audit-visible actions, `log.info()` for operational details
 - Context managers for IMAP connections (`with Mailbox(...) as mb:`)

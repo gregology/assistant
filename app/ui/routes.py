@@ -2,7 +2,7 @@ import logging
 import os
 from pathlib import Path
 
-from fastapi import APIRouter, Form, Request
+from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from jinja2 import Environment, FileSystemLoader
 
@@ -15,7 +15,6 @@ from app.ui.presenters import (
     log_detail_context,
     log_list_context,
     queue_context,
-    raw_yaml_context,
     scripts_list_context,
 )
 from app.config import reload_config

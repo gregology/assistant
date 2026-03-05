@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any
 
 import frontmatter
 
@@ -13,7 +14,7 @@ class NoteStore:
         self._path = path
         self._archive = path / "archive"
 
-    def all(self) -> list[dict]:
+    def all(self) -> list[dict[str, Any]]:
         if not self._path.is_dir():
             return []
         items = []
@@ -29,7 +30,7 @@ class NoteStore:
         path = self._path / filename
         return path if path.exists() else None
 
-    def save(self, filename: str, content: str = "", **fields) -> Path:
+    def save(self, filename: str, content: str = "", **fields: Any) -> Path:
         self._path.mkdir(parents=True, exist_ok=True)
         filepath = self._path / filename
         post = frontmatter.Post(content, **fields)
@@ -37,7 +38,7 @@ class NoteStore:
         log.info("Saved %s", filepath)
         return filepath
 
-    def update(self, filename: str, **fields) -> Path | None:
+    def update(self, filename: str, **fields: Any) -> Path | None:
         filepath = self.find(filename)
         if filepath is None:
             log.error("No file found: %s", filename)
@@ -49,7 +50,7 @@ class NoteStore:
         log.info("Updated %s", filepath)
         return filepath
 
-    def archive(self, filename: str, **fields) -> Path | None:
+    def archive(self, filename: str, **fields: Any) -> Path | None:
         filepath = self.find(filename)
         if filepath is None:
             log.error("No file found to archive: %s", filename)

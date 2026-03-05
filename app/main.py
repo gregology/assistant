@@ -1,16 +1,15 @@
-import logging
-
 from fastapi import FastAPI, HTTPException
 
-import app.human_log  # noqa: F401 — registers log.human()
+import app.human_log
 from app import queue
 from app.config import config, safety_warnings
 from app.runtime_init import register_runtime
 from app.loader import load_all_modules
 from app.integrations import ENTRY_TASKS, register_all
 from app.ui import router as ui_router
+from gaas_sdk.logging import get_logger
 
-_log = logging.getLogger(__name__)
+_log = get_logger(__name__)
 
 # Register SDK runtime before loading integration modules
 register_runtime()

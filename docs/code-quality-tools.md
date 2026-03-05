@@ -39,7 +39,9 @@ uv run pytest --cov=app --cov-report=term-missing -v
 
 **What it catches:** Type mismatches, unchecked dict access, missing return types, wrong function signatures, `Any` leaking through your code.
 
-**When to run it:** Before any refactor that touches function signatures or data flow. Also useful as a periodic sweep to find places where types have drifted from reality. The `--ignore-missing-imports` flag is needed because some third-party packages don't ship type stubs.
+**Config:** `pyproject.toml` under `[tool.mypy]`. Strict mode is on globally. The SDK (`gaas_sdk.*`) enforces full strict. `app.*` has `disallow_untyped_defs = false` for now (tighten later). Tests skip `no-untyped-def`. The Pydantic mypy plugin is enabled.
+
+**When to run it:** Before any refactor that touches function signatures or data flow. The SDK should stay at zero mypy errors. The `--ignore-missing-imports` flag is needed because some third-party packages don't ship type stubs.
 
 **What to ignore:** Third-party library complaints. Focus on `app/` and `packages/`.
 
@@ -115,7 +117,9 @@ The `-q` flag suppresses the per-file noise and shows only findings.
 
 **What it catches:** Broad linting. Covers most of what flake8 and pylint catch but runs in under a second. Import ordering, unused imports, f-string issues, exception handling anti-patterns, type annotation issues.
 
-**When to run it:** On every PR if you want, it's fast enough. Or periodically as a sweep. Ruff is configurable via `pyproject.toml` under `[tool.ruff]` if you want to enable or disable specific rule sets.
+**Config:** `pyproject.toml` under `[tool.ruff]`. Line length is 100. Rule sets: `E, F, W, ANN, UP, RUF, B, SIM`. `ANN401` (disallowing `Any`) and `ANN204` (missing `__init__` return type) are globally ignored because they flag too many legitimate uses in Pydantic validators and protocol definitions. Tests are exempt from all `ANN` rules. `app/` and integration packages are exempt from function-level annotation rules (`ANN001-003`, `ANN201-202`) to match the graduated mypy strictness.
+
+**When to run it:** On every PR if you want, it's fast enough. Or periodically as a sweep.
 
 ### pytest-cov
 

@@ -11,7 +11,7 @@ they display the state of the running system.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
@@ -20,6 +20,10 @@ from app.config import (
     SECRETS_PATH,
     BaseIntegrationConfig,
     BasePlatformConfig,
+    DictAction,
+    ScriptAction,
+    ServiceAction,
+    SimpleAction,
     YoloAction,
     config,
     load_config,
@@ -27,7 +31,6 @@ from app.config import (
     resolve_provenance,
     safety_warnings,
 )
-from app.loader import get_manifests
 from app import queue as _queue
 
 log = logging.getLogger(__name__)
@@ -201,14 +204,15 @@ def _present_classification(name: str, cls_cfg) -> ClassificationView:
 
 def _format_action(action) -> str:
     if isinstance(action, YoloAction):
-        inner = action.value
-        if isinstance(inner, str):
-            return f"!yolo {inner}"
-        return f"!yolo {inner}"
-    if isinstance(action, str):
-        return action
-    if isinstance(action, dict):
-        return str(action)
+        return f"!yolo {action.value}"
+    if isinstance(action, SimpleAction):
+        return action.action
+    if isinstance(action, ScriptAction):
+        return str({"script": action.script})
+    if isinstance(action, ServiceAction):
+        return str({"service": action.service})
+    if isinstance(action, DictAction):
+        return str(action.data)
     return str(action)
 
 

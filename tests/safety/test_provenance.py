@@ -10,11 +10,12 @@ from unittest.mock import MagicMock
 from app.config import (
     AutomationConfig,
     ScriptConfig,
+    SimpleAction,
     YoloAction,
     _validate_automation_safety,
     resolve_provenance,
 )
-from gaas_email.platforms.inbox.const import DETERMINISTIC_SOURCES, IRREVERSIBLE_ACTIONS
+from gaas_email.platforms.inbox.const import DETERMINISTIC_SOURCES
 
 
 # ---------------------------------------------------------------------------
@@ -186,7 +187,7 @@ class TestSafetyValidation:
         warnings = _validate_automation_safety([integration])
         assert len(warnings) == 1
         assert len(platform.automations) == 1
-        assert platform.automations[0].then == ["archive"]
+        assert platform.automations[0].then == [SimpleAction(action="archive")]
 
     def test_mixed_actions_with_one_irreversible(self):
         """An automation with both reversible and irreversible actions is blocked
@@ -216,7 +217,7 @@ class TestSafetyValidation:
                 then=["unsubscribe"],
             ),
         ]
-        integration, platform = _make_integration("personal", automations)
+        integration, _platform = _make_integration("personal", automations)
         warnings = _validate_automation_safety([integration])
         assert "personal" in warnings[0]
         assert "unsubscribe" in warnings[0]

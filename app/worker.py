@@ -1,30 +1,32 @@
-import logging
 import signal
 import time
+from types import FrameType
+from typing import Any
 
-import app.human_log  # noqa: F401 — registers log.human()
+import app.human_log  # noqa: F401 — registers HumanMarkdownHandler
 from app import queue
 from app.actions.script import handle as script_run_handle
 from app.result_routes import route_results
 from app.runtime_init import register_runtime
 from app.loader import load_all_modules
 from app.integrations import HANDLERS, register_all
+from gaas_sdk.logging import get_logger
 from gaas_sdk.task import TaskRecord
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 POLL_INTERVAL = 1  # seconds
 
 _shutting_down = False
 
 
-def _shutdown_handler(signum, frame):
+def _shutdown_handler(signum: int, frame: FrameType | None) -> None:
     global _shutting_down
     _shutting_down = True
     log.info("Received signal %s, shutting down gracefully…", signum)
 
 
-def handle(task: TaskRecord):
+def handle(task: TaskRecord) -> dict[str, Any] | None:
     task_type = task["payload"].get("type")
     handler = HANDLERS.get(task_type)
     if handler is None:
@@ -32,7 +34,7 @@ def handle(task: TaskRecord):
     return handler(task)
 
 
-def main():
+def main() -> None:
     signal.signal(signal.SIGTERM, _shutdown_handler)
     signal.signal(signal.SIGINT, _shutdown_handler)
 

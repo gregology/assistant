@@ -55,3 +55,55 @@ gaas-gemini = { path = "packages/gaas-gemini", editable = true }
 testpaths = ["tests", "packages/gaas-email/tests", "packages/gaas-gemini/tests", "packages/gaas-github/tests", "packages/gaas-sdk/tests"]
 pythonpath = ["."]
 addopts = "--import-mode=importlib"
+
+[tool.mypy]
+strict = true
+plugins = ["pydantic.mypy"]
+warn_return_any = true
+warn_unused_configs = true
+exclude = ["packages/gaas-gemini/"]
+explicit_package_bases = true
+mypy_path = ["packages/gaas-sdk/src", "packages/gaas-email/src"]
+
+[[tool.mypy.overrides]]
+module = "gaas_sdk.*"
+strict = true
+
+[[tool.mypy.overrides]]
+module = "app.*"
+disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disable_error_code = ["no-untyped-def"]
+
+[[tool.mypy.overrides]]
+module = [
+    "imap_tools.*",
+    "icalendar.*",
+    "frontmatter.*",
+    "fastapi_crons.*",
+    "ruamel.*",
+    "complexipy.*",
+    "bs4.*",
+]
+ignore_missing_imports = true
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "ANN", "UP", "RUF", "B", "SIM"]
+ignore = ["ANN401", "ANN204"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["ANN"]
+"packages/*/tests/**/*.py" = ["ANN"]
+"app/**/*.py" = ["ANN001", "ANN002", "ANN003", "ANN201", "ANN202"]
+"packages/gaas-email/**/*.py" = ["ANN001", "ANN002", "ANN003", "ANN201", "ANN202"]
+"packages/gaas-github/**/*.py" = ["ANN001", "ANN002", "ANN003", "ANN201", "ANN202"]
+"packages/gaas-gemini/**/*.py" = ["ANN001", "ANN002", "ANN003", "ANN201", "ANN202"]
+
+[tool.ruff.lint.flake8-type-checking]
+runtime-evaluated-base-classes = ["pydantic.BaseModel"]

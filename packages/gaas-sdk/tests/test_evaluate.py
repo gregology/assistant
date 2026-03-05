@@ -14,7 +14,13 @@ from gaas_sdk.evaluate import (
     resolve_action_provenance,
     unwrap_actions,
 )
-from gaas_sdk.models import AutomationConfig, ClassificationConfig, YoloAction
+from gaas_sdk.models import (
+    AutomationConfig,
+    ClassificationConfig,
+    ScriptAction,
+    SimpleAction,
+    YoloAction,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -252,7 +258,8 @@ class TestEvaluateAutomations:
         resolver = _make_resolver()
         autos = [AutomationConfig(when={"classification.score": 0.5}, then=["log"])]
         result = {"score": 0.9}
-        assert evaluate_automations(autos, resolver, result, CLASSIFICATIONS) == ["log"]
+        actions = evaluate_automations(autos, resolver, result, CLASSIFICATIONS)
+        assert actions == [SimpleAction(action="log")]
 
     def test_non_matching_returns_empty(self):
         resolver = _make_resolver()
@@ -268,8 +275,8 @@ class TestEvaluateAutomations:
         ]
         result = {"score": 0.9, "flag": True}
         actions = evaluate_automations(autos, resolver, result, CLASSIFICATIONS)
-        assert "a" in actions
-        assert "b" in actions
+        assert SimpleAction(action="a") in actions
+        assert SimpleAction(action="b") in actions
 
     def test_duplicate_string_actions_deduplicated(self):
         """Two rules both producing 'archive' yield a single 'archive' action."""
@@ -280,7 +287,7 @@ class TestEvaluateAutomations:
         ]
         result = {"score": 0.9, "flag": True}
         actions = evaluate_automations(autos, resolver, result, CLASSIFICATIONS)
-        assert actions == ["archive"]
+        assert actions == [SimpleAction(action="archive")]
 
     def test_duplicate_string_across_rules_preserves_order(self):
         """Dedup keeps first occurrence; non-duplicate actions pass through."""
@@ -291,7 +298,11 @@ class TestEvaluateAutomations:
         ]
         result = {"score": 0.9, "flag": True}
         actions = evaluate_automations(autos, resolver, result, CLASSIFICATIONS)
-        assert actions == ["archive", "log", "alert"]
+        assert actions == [
+            SimpleAction(action="archive"),
+            SimpleAction(action="log"),
+            SimpleAction(action="alert"),
+        ]
 
     def test_dict_actions_not_deduplicated(self):
         """Dict actions (service, script) are never deduplicated."""
@@ -323,7 +334,8 @@ class TestEvaluateAutomations:
     def test_deterministic_automation(self):
         resolver = _make_resolver(org="myorg")
         autos = [AutomationConfig(when={"org": "myorg"}, then=["log"])]
-        assert evaluate_automations(autos, resolver, {}, CLASSIFICATIONS) == ["log"]
+        actions = evaluate_automations(autos, resolver, {}, CLASSIFICATIONS)
+        assert actions == [SimpleAction(action="log")]
 
 
 # ---------------------------------------------------------------------------
@@ -392,16 +404,21 @@ class TestResolveActionProvenance:
 
 class TestUnwrapActions:
     def test_plain_actions_unchanged(self):
-        assert unwrap_actions(["a", "b"]) == ["a", "b"]
+        actions = [SimpleAction(action="a"), SimpleAction(action="b")]
+        assert unwrap_actions(actions) == [SimpleAction(action="a"), SimpleAction(action="b")]
 
     def test_yolo_unwrapped(self):
-        actions = [YoloAction("unsubscribe"), "archive"]
-        assert unwrap_actions(actions) == ["unsubscribe", "archive"]
+        actions = [YoloAction("unsubscribe"), SimpleAction(action="archive")]
+        result = unwrap_actions(actions)
+        assert result == [SimpleAction(action="unsubscribe"), SimpleAction(action="archive")]
 
     def test_yolo_dict_unwrapped(self):
         d = {"script": {"name": "nuke"}}
         actions = [YoloAction(d)]
-        assert unwrap_actions(actions) == [d]
+        result = unwrap_actions(actions)
+        assert len(result) == 1
+        assert isinstance(result[0], ScriptAction)
+        assert result[0].script == {"name": "nuke"}
 
     def test_empty(self):
         assert unwrap_actions([]) == []

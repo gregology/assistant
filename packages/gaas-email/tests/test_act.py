@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 
 from gaas_email.platforms.inbox.act import _execute_action
 from gaas_email.platforms.inbox.const import SIMPLE_ACTIONS
@@ -67,4 +67,4 @@ class TestExecuteAction:
     def test_simple_actions_set_is_bounded(self):
         """The set of simple actions is explicitly defined and should not grow
         without deliberate review of reversibility tiers."""
-        assert SIMPLE_ACTIONS == {"archive", "spam", "trash", "unsubscribe"}
+        assert {"archive", "spam", "trash", "unsubscribe"} == SIMPLE_ACTIONS

@@ -101,7 +101,7 @@ def validate_proposed(data: CommentedMap, config_path: Path = _DEFAULT_CONFIG_PA
     from app.config import load_config
 
     tmp_dir = config_path.parent
-    fd, tmp_path_str = tempfile.mkstemp(suffix=".yaml", dir=tmp_dir)
+    _fd, tmp_path_str = tempfile.mkstemp(suffix=".yaml", dir=tmp_dir)
     tmp_path = Path(tmp_path_str)
     try:
         with tmp_path.open("w") as f:

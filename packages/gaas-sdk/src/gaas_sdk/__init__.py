@@ -1,12 +1,17 @@
 """GaaS SDK - Contracts and utilities for GaaS integrations."""
 
 from gaas_sdk.models import (  # noqa: F401
+    ActionType,
     AutomationConfig,
     BaseIntegrationConfig,
     BasePlatformConfig,
     ClassificationConfig,
+    DictAction,
+    ScriptAction,
     ScriptConfig,
     ScheduleConfig,
+    ServiceAction,
+    SimpleAction,
     YoloAction,
 )
 from gaas_sdk.provenance import resolve_provenance  # noqa: F401
@@ -29,10 +34,18 @@ from gaas_sdk.manifest import (  # noqa: F401
     ServiceManifest,
 )
 from gaas_sdk.actions import (  # noqa: F401
+    ScriptActionDict,
+    ServiceActionDict,
     enqueue_actions,
     is_script_action,
     is_service_action,
     resolve_inputs,
 )
 from gaas_sdk.task import TaskPayload, TaskRecord  # noqa: F401
+from gaas_sdk.protocols import (  # noqa: F401
+    EnqueueFn,
+    ResolveValue,
+    TaskHandler,
+)
+from gaas_sdk.logging import AuditLogger, get_logger  # noqa: F401
 from gaas_sdk import runtime  # noqa: F401

@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-import logging
 import re
-from datetime import date, datetime, timezone
+from datetime import date, datetime, UTC
 from email.message import EmailMessage
 from email.policy import EmailPolicy
 from email.utils import parsedate_to_datetime
@@ -12,7 +11,9 @@ from bs4 import BeautifulSoup
 from icalendar import Calendar
 from imap_tools import AND, MailBox as IMAPToolsMailBox, MailMessage
 
-log = logging.getLogger(__name__)
+from gaas_sdk.logging import get_logger
+
+log = get_logger(__name__)
 
 _NOREPLY_RE = re.compile(
     r"^(no-?reply|do-?not-?reply|mailer-daemon|postmaster)@",
@@ -34,7 +35,7 @@ class Email:
         self.to_address: str = msg.to[0] if msg.to else ""
         self.subject: str = msg.subject
         self.date: datetime = _parse_received_date(msg.headers) or (
-            msg.date if msg.date.tzinfo else msg.date.replace(tzinfo=timezone.utc)
+            msg.date if msg.date.tzinfo else msg.date.replace(tzinfo=UTC)
         )
 
         self.contents: str = msg.text or msg.html or ""
@@ -245,7 +246,7 @@ class Mailbox:
         self._conn.append(
             msg_bytes,
             folder=folder,
-            dt=datetime.now(timezone.utc),
+            dt=datetime.now(UTC),
             flag_set="\\Draft",
         )
 
@@ -294,7 +295,7 @@ def _parse_received_date(headers: dict) -> datetime | None:
         return None
     try:
         dt = parsedate_to_datetime(date_str)
-        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+        return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
     except Exception:
         log.warning("Failed to parse Received header date: %s", date_str)
         return None

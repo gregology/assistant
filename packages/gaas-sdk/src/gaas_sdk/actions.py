@@ -8,13 +8,29 @@ out at evaluate time and enqueued as independent queue tasks.
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, TypedDict, TypeGuard
 
 from jinja2 import ChainableUndefined, meta
 from jinja2.sandbox import SandboxedEnvironment
 
 from gaas_sdk import runtime
 from gaas_sdk.evaluate import MISSING
+from gaas_sdk.models import (
+    ActionType,
+    DictAction,
+    ScriptAction,
+    ServiceAction,
+    SimpleAction,
+)
+from gaas_sdk.protocols import ResolveValue
+
+
+class ScriptActionDict(TypedDict):
+    script: str | dict[str, Any]
+
+
+class ServiceActionDict(TypedDict):
+    service: dict[str, Any]
 
 log = logging.getLogger(__name__)
 
@@ -25,8 +41,8 @@ _JINJA_MARKERS = ("{{", "{%", "{#")
 
 def _build_context(
     template_source: str,
-    resolve_value,
-    classification: dict,
+    resolve_value: ResolveValue,
+    classification: dict[str, Any],
 ) -> dict[str, Any]:
     """Build a template context dict by resolving referenced variables.
 
@@ -46,20 +62,20 @@ def _build_context(
     return ctx
 
 
-def is_script_action(action: Any) -> bool:
+def is_script_action(action: str | dict[str, Any]) -> TypeGuard[ScriptActionDict]:
     """Check if an action is a script action (dict with 'script' key)."""
     return isinstance(action, dict) and "script" in action
 
 
-def is_service_action(action: Any) -> bool:
+def is_service_action(action: str | dict[str, Any]) -> TypeGuard[ServiceActionDict]:
     """Check if an action is a service action (dict with 'service' key)."""
     return isinstance(action, dict) and "service" in action
 
 
 def _render_template(
     template_str: str,
-    resolve_value,
-    classification: dict,
+    resolve_value: ResolveValue,
+    classification: dict[str, Any],
     extra: dict[str, Any] | None = None,
 ) -> str:
     """Render a single Jinja2 template string against the automation context.
@@ -77,8 +93,8 @@ def _render_template(
 
 def resolve_inputs(
     raw_inputs: dict[str, str],
-    resolve_value,
-    classification: dict,
+    resolve_value: ResolveValue,
+    classification: dict[str, Any],
 ) -> dict[str, str]:
     """Resolve ``{{ field }}`` Jinja2 templates in script/service inputs.
 
@@ -102,11 +118,24 @@ def resolve_inputs(
     return resolved
 
 
+def _action_to_dict(action: ActionType) -> str | dict[str, Any]:
+    """Convert an action model back to its raw dict/string form for payloads."""
+    if isinstance(action, SimpleAction):
+        return action.action
+    if isinstance(action, ScriptAction):
+        return {"script": action.script}
+    if isinstance(action, ServiceAction):
+        return {"service": action.service}
+    if isinstance(action, DictAction):
+        return action.data
+    return action
+
+
 def enqueue_actions(
-    actions: list,
-    platform_payload: dict,
-    resolve_value,
-    classification: dict,
+    actions: list[ActionType],
+    platform_payload: dict[str, Any],
+    resolve_value: ResolveValue,
+    classification: dict[str, Any],
     provenance: str,
     priority: int = 7,
 ) -> None:
@@ -116,10 +145,10 @@ def enqueue_actions(
     Service actions become individual service.* queue tasks.
     Remaining platform actions are bundled into a single platform act task.
     """
-    platform_actions = []
+    platform_actions: list[str | dict[str, Any]] = []
     for action in actions:
-        if is_script_action(action):
-            script_ref = action["script"]
+        if isinstance(action, ScriptAction):
+            script_ref = action.script
             script_name = script_ref.get("name", "") if isinstance(script_ref, dict) else script_ref
             raw_inputs = script_ref.get("inputs", {}) if isinstance(script_ref, dict) else {}
             resolved_inputs = resolve_inputs(raw_inputs, resolve_value, classification)
@@ -129,8 +158,8 @@ def enqueue_actions(
                 "inputs": resolved_inputs,
             }, priority=priority, provenance=provenance)
             log.info("Enqueued script.run for script=%s inputs=%s", script_name, resolved_inputs)
-        elif is_service_action(action):
-            service_ref = action["service"]
+        elif isinstance(action, ServiceAction):
+            service_ref = action.service
             call = service_ref.get("call", "")
             raw_inputs = service_ref.get("inputs", {})
             resolved_inputs = resolve_inputs(raw_inputs, resolve_value, classification)
@@ -139,7 +168,7 @@ def enqueue_actions(
             if len(parts) == 3:
                 svc_type, svc_name, service_name = parts
                 on_result = service_ref.get("on_result", [{"type": "note"}])
-                payload = {
+                payload: dict[str, Any] = {
                     "type": f"service.{svc_type}.{service_name}",
                     "integration": f"{svc_type}.{svc_name}",
                     "inputs": resolved_inputs,
@@ -158,7 +187,7 @@ def enqueue_actions(
             else:
                 log.warning("Invalid service call format: %r (expected type.name.service)", call)
         else:
-            platform_actions.append(action)
+            platform_actions.append(_action_to_dict(action))
 
     if platform_actions:
         platform_payload["actions"] = platform_actions

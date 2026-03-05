@@ -1,4 +1,3 @@
-import hashlib
 import os
 import tempfile
 from pathlib import Path
@@ -80,7 +79,7 @@ class TestQueueLifecycle:
         assert failed_task["error"] == "something broke"
 
     def test_task_conservation(self, queue_dir):
-        ids = [queue.enqueue({"type": f"test_{i}"}) for i in range(5)]
+        [queue.enqueue({"type": f"test_{i}"}) for i in range(5)]
         assert snapshot_tree(queue_dir)["total"] == 5
 
         tasks = [queue.dequeue() for _ in range(3)]
@@ -265,7 +264,7 @@ class TestDequeueCorruptedFiles:
         corrupted.write_text("{{{{not valid yaml: [")
 
         # Enqueue a valid task (default priority 5, so sorts after)
-        valid_id = queue.enqueue({"type": "good"})
+        queue.enqueue({"type": "good"})
 
         task = queue.dequeue()
         assert task is not None

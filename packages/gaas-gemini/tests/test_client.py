@@ -75,7 +75,7 @@ class TestGroundedSearch:
             client_instance.models.generate_content.return_value = response
 
             gemini = GeminiClient(api_key="test-key")
-            text, sources = gemini.grounded_search("test query")
+            _text, sources = gemini.grounded_search("test query")
 
             assert len(sources) == 3
             assert sources[2]["title"] == "Source 2"

@@ -1,10 +1,8 @@
 """Tests for service result routing."""
 
-from pathlib import Path
 from unittest.mock import patch
 
 import frontmatter
-import yaml
 
 from app.result_routes import route_results, _route_note
 
@@ -192,7 +190,7 @@ class TestRouteNote:
 
         with patch("app.result_routes.runtime.get_notes_dir", return_value=notes_dir):
             with patch("app.result_routes.log") as mock_log:
-                filepath = _route_note(result, task, route_config)
+                _route_note(result, task, route_config)
 
         # The human log call should use the custom message
         mock_log.human.assert_called_once()
@@ -207,7 +205,7 @@ class TestRouteNote:
 
         with patch("app.result_routes.runtime.get_notes_dir", return_value=notes_dir):
             with patch("app.result_routes.log") as mock_log:
-                filepath = _route_note(result, task, route_config)
+                _route_note(result, task, route_config)
 
         mock_log.human.assert_called_once()
         call_args = mock_log.human.call_args[0]

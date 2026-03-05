@@ -9,6 +9,7 @@ from hypothesis import given, settings, strategies as st
 
 from app.config import AutomationConfig, ClassificationConfig
 from app.evaluate import MISSING, evaluate_automations
+from gaas_sdk.models import DictAction, ScriptAction, ServiceAction, SimpleAction
 
 # ---------------------------------------------------------------------------
 # Classification configs matching the default set
@@ -110,13 +111,17 @@ classification_result = st.fixed_dictionaries(
 
 
 def _extract_action_names(actions: list) -> set[str]:
-    """Extract the action name from both string and dict actions."""
+    """Extract the action name from action model instances."""
     names = set()
     for action in actions:
-        if isinstance(action, str):
-            names.add(action)
-        elif isinstance(action, dict):
-            names.update(action.keys())
+        if isinstance(action, SimpleAction):
+            names.add(action.action)
+        elif isinstance(action, ScriptAction):
+            names.add("script")
+        elif isinstance(action, ServiceAction):
+            names.add("service")
+        elif isinstance(action, DictAction):
+            names.update(action.data.keys())
     return names
 
 

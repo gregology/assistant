@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -36,7 +36,7 @@ def _make_email(
     msg.from_values = None
     msg.to = ["recipient@example.com"]
     msg.subject = subject
-    msg.date = datetime.now(timezone.utc)
+    msg.date = datetime.now(UTC)
     msg.text = ""
     msg.html = ""
     msg.flags = flags

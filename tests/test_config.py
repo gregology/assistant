@@ -9,6 +9,7 @@ from app.config import (
     _Loader,
 )
 from app.evaluate import unwrap_actions
+from gaas_sdk.models import ScriptAction
 
 
 class TestYoloTag:
@@ -46,12 +47,13 @@ class TestYoloTag:
         )
         assert isinstance(raw["action"], YoloAction)
         assert isinstance(raw["action"].value, dict)
-        assert raw["action"].value == {"script": {"name": "test", "inputs": {"domain": "{{ domain }}"}}}
+        expected = {"script": {"name": "test", "inputs": {"domain": "{{ domain }}"}}}
+        assert raw["action"].value == expected
 
     def test_yolo_on_mapping_unwrap(self):
         action = YoloAction({"script": {"name": "test"}})
         result = unwrap_actions([action])
-        assert result == [{"script": {"name": "test"}}]
+        assert result == [ScriptAction(script={"name": "test"})]
 
     def test_yolo_mapping_equality(self):
         a = YoloAction({"script": {"name": "test"}})

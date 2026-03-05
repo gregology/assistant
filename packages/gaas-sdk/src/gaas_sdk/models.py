@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, model_validator
 
 
 class YoloAction:
@@ -18,7 +18,7 @@ class YoloAction:
     running this irreversible action with non-deterministic provenance.
     """
 
-    def __init__(self, value: str | dict):
+    def __init__(self, value: str | dict[str, Any]):
         self.value = value
 
     def __repr__(self) -> str:
@@ -62,11 +62,72 @@ class ClassificationConfig(BaseModel):
         return self
 
 
+class SimpleAction(BaseModel):
+    """A plain string action like 'archive', 'spam', 'trash'."""
+
+    action: str
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, SimpleAction):
+            return self.action == other.action
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        return hash(("simple", self.action))
+
+
+class ScriptAction(BaseModel):
+    """A script action: ``{script: {name: ..., inputs: ...}}``."""
+
+    script: str | dict[str, Any]
+
+
+class ServiceAction(BaseModel):
+    """A service action: ``{service: {call: ..., inputs: ...}}``."""
+
+    service: dict[str, Any]
+
+
+class DictAction(BaseModel):
+    """A platform-specific dict action like ``{draft_reply: ...}``."""
+
+    model_config = ConfigDict(extra="allow")
+
+    data: dict[str, Any]
+
+
+ActionType = SimpleAction | ScriptAction | ServiceAction | DictAction
+
+
+def _normalize_action(action: Any) -> Any:
+    """Convert raw action values to action model instances.
+
+    - Bare strings → SimpleAction
+    - Dicts with 'script' → ScriptAction
+    - Dicts with 'service' → ServiceAction
+    - Other dicts → DictAction (platform-specific like draft_reply, move_to)
+    - YoloAction wrappers are preserved
+    """
+    if isinstance(action, (SimpleAction, ScriptAction, ServiceAction, DictAction)):
+        return action
+    if isinstance(action, YoloAction):
+        return action
+    if isinstance(action, str):
+        return SimpleAction(action=action)
+    if isinstance(action, dict):
+        if "script" in action:
+            return ScriptAction(script=action["script"])
+        if "service" in action:
+            return ServiceAction(service=action["service"])
+        return DictAction(data=action)
+    return action
+
+
 class AutomationConfig(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     when: dict[str, Any]
-    then: list[str | dict[str, Any] | YoloAction]
+    then: list[ActionType | YoloAction]
 
     @model_validator(mode="before")
     @classmethod
@@ -76,6 +137,8 @@ class AutomationConfig(BaseModel):
         then = data.get("then")
         if isinstance(then, (str, dict, YoloAction)):
             data["then"] = [then]
+        if isinstance(data.get("then"), list):
+            data["then"] = [_normalize_action(a) for a in data["then"]]
         return data
 
 

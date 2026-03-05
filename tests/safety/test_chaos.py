@@ -5,11 +5,11 @@ inject chaotic classification results and assert that safety boundaries
 still hold. The dispatch layer must be robust to garbage input.
 """
 
-import pytest
 from hypothesis import given, settings, strategies as st
 
 from app.config import AutomationConfig, ClassificationConfig
-from app.evaluate import MISSING, check_condition, conditions_match, evaluate_automations
+from app.evaluate import MISSING, evaluate_automations
+from gaas_sdk.models import DictAction, ScriptAction, ServiceAction, SimpleAction
 
 # ---------------------------------------------------------------------------
 # Shared configs
@@ -94,10 +94,14 @@ _DEFAULT_RESOLVER = _make_email_resolver(_DEFAULT_EMAIL)
 def _extract_action_names(actions: list) -> set[str]:
     names = set()
     for action in actions:
-        if isinstance(action, str):
-            names.add(action)
-        elif isinstance(action, dict):
-            names.update(action.keys())
+        if isinstance(action, SimpleAction):
+            names.add(action.action)
+        elif isinstance(action, ScriptAction):
+            names.add("script")
+        elif isinstance(action, ServiceAction):
+            names.add("service")
+        elif isinstance(action, DictAction):
+            names.update(action.data.keys())
     return names
 
 

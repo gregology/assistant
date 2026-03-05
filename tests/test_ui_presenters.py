@@ -1,4 +1,4 @@
-from app.config import AutomationConfig, ClassificationConfig, YoloAction
+from app.config import AutomationConfig, ClassificationConfig, DictAction, SimpleAction, YoloAction
 from app.ui.presenters import (
     QueueCounts,
     _format_action,
@@ -87,10 +87,10 @@ class TestPresentAutomation:
 
 class TestFormatAction:
     def test_string_action(self):
-        assert _format_action("archive") == "archive"
+        assert _format_action(SimpleAction(action="archive")) == "archive"
 
     def test_dict_action(self):
-        result = _format_action({"draft_reply": "hi"})
+        result = _format_action(DictAction(data={"draft_reply": "hi"}))
         assert "draft_reply" in result
 
     def test_yolo_string(self):

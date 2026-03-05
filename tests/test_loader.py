@@ -2,14 +2,12 @@
 dynamic model construction, and module loading."""
 
 from pathlib import Path
-from typing import get_args, get_origin
-from unittest.mock import patch
+from typing import get_origin
 
 import pytest
 import yaml
 
 from app.loader import (
-    IntegrationManifest,
     _load_manifest,
     check_dependencies,
     discover_integrations,
@@ -392,7 +390,7 @@ class TestLoadConfig:
             "    username: user@test.com\n"
             "    password: secret\n"
         )
-        cfg, warnings = load_config(config_path)
+        cfg, _warnings = load_config(config_path)
         assert len(cfg.integrations) == 1
         assert cfg.integrations[0].type == "email"
         assert cfg.integrations[0].imap_server == "imap.test.com"
@@ -466,7 +464,7 @@ class TestLoadConfig:
             "    name: my_ext\n"
             "    api_url: https://example.com\n"
         )
-        cfg, warnings = load_config(config_path)
+        cfg, _warnings = load_config(config_path)
         assert len(cfg.integrations) == 1
         assert cfg.integrations[0].type == "test_ext"
         assert cfg.integrations[0].api_url == "https://example.com"

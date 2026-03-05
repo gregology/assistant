@@ -1,5 +1,5 @@
 from gaas_sdk.classify import build_schema
-from gaas_sdk.models import AutomationConfig, ClassificationConfig
+from gaas_sdk.models import AutomationConfig, ClassificationConfig, DictAction, SimpleAction
 from gaas_sdk.evaluate import (
     MISSING,
     check_condition,
@@ -32,7 +32,7 @@ class _MockEmail:
         self.authentication = kwargs.get("authentication", {
             "dkim_pass": True, "dmarc_pass": True, "spf_pass": True,
         })
-        self.calendar = kwargs.get("calendar", None)
+        self.calendar = kwargs.get("calendar")
 
     @property
     def domain(self):
@@ -323,7 +323,7 @@ class TestEvaluateAutomations:
         ]
         result = {"human": 0.9, "requires_response": False, "priority": "low"}
         actions = evaluate_automations(automations, _make_email_resolver(email), result, CLASSIFICATIONS)
-        assert actions == ["archive"]
+        assert actions == [SimpleAction(action="archive")]
 
     def test_non_matching_automation_returns_empty(self):
         email = _MockEmail()
@@ -345,8 +345,8 @@ class TestEvaluateAutomations:
         ]
         result = {"human": 0.9, "requires_response": True, "priority": "low"}
         actions = evaluate_automations(automations, _make_email_resolver(email), result, CLASSIFICATIONS)
-        assert "archive" in actions
-        assert {"draft_reply": "noted"} in actions
+        assert SimpleAction(action="archive") in actions
+        assert DictAction(data={"draft_reply": "noted"}) in actions
 
     def test_no_automations_returns_empty(self):
         email = _MockEmail()
@@ -360,7 +360,7 @@ class TestEvaluateAutomations:
             AutomationConfig(when={"is_noreply": True}, then=["archive"]),
         ]
         actions = evaluate_automations(automations, _make_email_resolver(email), {}, CLASSIFICATIONS)
-        assert actions == ["archive"]
+        assert actions == [SimpleAction(action="archive")]
 
 
 # ---------------------------------------------------------------------------

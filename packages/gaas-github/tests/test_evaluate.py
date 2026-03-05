@@ -6,7 +6,7 @@ involved — these test the decision boundary per the testing philosophy.
 """
 
 from gaas_sdk.evaluate import MISSING, evaluate_automations
-from gaas_sdk.models import AutomationConfig, ClassificationConfig
+from gaas_sdk.models import AutomationConfig, SimpleAction
 from gaas_github.platforms.pull_requests.evaluate import (
     PRSnapshot,
     _make_resolver as pr_make_resolver,
@@ -184,7 +184,7 @@ class TestPRAutomationEvaluation:
             AutomationConfig(when={"author": "dependabot"}, then=["log"]),
         ]
         actions = evaluate_automations(autos, resolver, {}, PR_CLASSIFICATIONS)
-        assert actions == ["log"]
+        assert actions == [SimpleAction(action="log")]
 
     def test_deterministic_author_miss(self):
         snap = PRSnapshot(
@@ -214,7 +214,7 @@ class TestPRAutomationEvaluation:
             ),
         ]
         actions = evaluate_automations(autos, resolver, classification, PR_CLASSIFICATIONS)
-        assert actions == ["needs_review"]
+        assert actions == [SimpleAction(action="needs_review")]
 
     def test_missing_classification_safe_default(self):
         snap = PRSnapshot(
@@ -247,7 +247,7 @@ class TestPRAutomationEvaluation:
             ),
         ]
         actions = evaluate_automations(autos, resolver, classification, PR_CLASSIFICATIONS)
-        assert actions == ["auto_approve"]
+        assert actions == [SimpleAction(action="auto_approve")]
 
     def test_mixed_deterministic_and_classification(self):
         snap = PRSnapshot(
@@ -264,7 +264,7 @@ class TestPRAutomationEvaluation:
             ),
         ]
         actions = evaluate_automations(autos, resolver, classification, PR_CLASSIFICATIONS)
-        assert actions == ["auto_merge"]
+        assert actions == [SimpleAction(action="auto_merge")]
 
 
 # ---------------------------------------------------------------------------
@@ -288,7 +288,7 @@ class TestIssueAutomationEvaluation:
             ),
         ]
         actions = evaluate_automations(autos, resolver, {}, ISSUE_CLASSIFICATIONS)
-        assert actions == ["triage"]
+        assert actions == [SimpleAction(action="triage")]
 
     def test_state_match(self):
         snap = IssueSnapshot(
@@ -300,7 +300,7 @@ class TestIssueAutomationEvaluation:
             AutomationConfig(when={"state": "open"}, then=["process"]),
         ]
         actions = evaluate_automations(autos, resolver, {}, ISSUE_CLASSIFICATIONS)
-        assert actions == ["process"]
+        assert actions == [SimpleAction(action="process")]
 
     def test_urgency_classification(self):
         snap = IssueSnapshot(
@@ -316,7 +316,7 @@ class TestIssueAutomationEvaluation:
             ),
         ]
         actions = evaluate_automations(autos, resolver, classification, ISSUE_CLASSIFICATIONS)
-        assert actions == ["alert"]
+        assert actions == [SimpleAction(action="alert")]
 
     def test_actionable_boolean(self):
         snap = IssueSnapshot(
@@ -332,7 +332,7 @@ class TestIssueAutomationEvaluation:
             ),
         ]
         actions = evaluate_automations(autos, resolver, classification, ISSUE_CLASSIFICATIONS)
-        assert actions == ["add_to_board"]
+        assert actions == [SimpleAction(action="add_to_board")]
 
     def test_no_automations_empty(self):
         snap = IssueSnapshot(

@@ -15,7 +15,6 @@ Usage (direct):
 
 import argparse
 import importlib.metadata
-import logging
 import os
 import shutil
 import subprocess

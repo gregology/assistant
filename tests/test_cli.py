@@ -1,8 +1,6 @@
 """Tests for the GaaS CLI, setup wizard, and doctor."""
 
 import subprocess
-import sys
-import textwrap
 from pathlib import Path
 from unittest.mock import patch
 
@@ -346,7 +344,6 @@ class TestInstallScript:
         assert (PROJECT_ROOT / "install.sh").exists()
 
     def test_install_script_is_executable(self):
-        import os
 
         mode = (PROJECT_ROOT / "install.sh").stat().st_mode
         assert mode & 0o111, "install.sh should be executable"

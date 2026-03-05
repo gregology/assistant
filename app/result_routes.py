@@ -11,16 +11,16 @@ Route types:
 
 from __future__ import annotations
 
-import logging
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 
-import app.human_log  # noqa: F401 — registers log.human()
+import app.human_log  # noqa: F401 — registers HumanMarkdownHandler
 from gaas_sdk import runtime
+from gaas_sdk.logging import get_logger
 from gaas_sdk.store import NoteStore
 from gaas_sdk.task import TaskRecord
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 def route_results(result: dict, task: TaskRecord) -> None:
@@ -78,7 +78,7 @@ def _route_note(result: dict, task: TaskRecord, route_config: dict) -> Path:
     store = NoteStore(target_dir)
 
     # Build filename: timestamp + short task ID
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     timestamp = now.strftime("%Y_%m_%d__%H_%M_%S")
     task_id = task.get("id", "unknown")
     prefix = task_id.split("--")[0] if "--" in task_id else task_id
@@ -106,10 +106,10 @@ def _route_note(result: dict, task: TaskRecord, route_config: dict) -> Path:
         rel_path = filepath
     human_log_msg = payload.get("human_log")
     if human_log_msg:
-        log.human("%s → %s", human_log_msg, rel_path)  # type: ignore[attr-defined]
+        log.human("%s → %s", human_log_msg, rel_path)
     else:
         text_len = len(text)
-        log.human(  # type: ignore[attr-defined]
+        log.human(
             "%s: result saved (%s chars) → %s", task_type, f"{text_len:,}", rel_path,
         )
 

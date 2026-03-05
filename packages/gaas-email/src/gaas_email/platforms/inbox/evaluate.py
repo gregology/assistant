@@ -8,7 +8,6 @@ from gaas_sdk.actions import enqueue_actions
 from gaas_sdk.evaluate import (
     MISSING,
     evaluate_automations,
-    eval_now_operator,
     resolve_action_provenance,
     unwrap_actions,
 )

@@ -111,7 +111,7 @@ class TestHasPendingDuplicate:
         """Duplicate check only looks at pending, not active."""
         payload = {"type": "email.inbox.check", "integration": "email.personal"}
         queue.enqueue(payload)
-        task = queue.dequeue()  # moves to active
+        queue.dequeue()  # moves to active
         fp = queue.fingerprint(payload)
         assert queue.has_pending_duplicate(fp, "email.inbox.check") is False
 

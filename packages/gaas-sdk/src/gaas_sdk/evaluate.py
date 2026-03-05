@@ -14,14 +14,17 @@ from __future__ import annotations
 import logging
 import operator
 import re
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from typing import Any
 
 from gaas_sdk.models import (
+    ActionType,
     AutomationConfig,
     ClassificationConfig,
+    SimpleAction,
     YoloAction,
 )
+from gaas_sdk.protocols import ResolveValue
 from gaas_sdk.provenance import resolve_provenance
 
 log = logging.getLogger(__name__)
@@ -47,7 +50,7 @@ def eval_operator(value: float, expr: str) -> bool:
         return False
     op_fn = _OPS[match.group(1)]
     threshold = float(match.group(2))
-    return op_fn(value, threshold)
+    return bool(op_fn(value, threshold))
 
 
 def eval_now_operator(value: str, expr: str) -> bool:
@@ -63,11 +66,11 @@ def eval_now_operator(value: str, expr: str) -> bool:
     try:
         dt = datetime.fromisoformat(str(value))
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
+            dt = dt.replace(tzinfo=UTC)
     except (ValueError, TypeError):
         log.warning("Cannot parse datetime for now() comparison: %r", value)
         return False
-    return op_fn(dt, datetime.now(timezone.utc))
+    return bool(op_fn(dt, datetime.now(UTC)))
 
 
 def check_condition(value: Any, condition: Any, cls_config: ClassificationConfig) -> bool:
@@ -76,15 +79,15 @@ def check_condition(value: Any, condition: Any, cls_config: ClassificationConfig
 
     if cls_config.type == "confidence":
         if isinstance(condition, (int, float)):
-            return value >= condition
+            return bool(value >= condition)
         if isinstance(condition, str):
             return eval_operator(value, condition)
         return False
 
     if cls_config.type == "enum":
         if isinstance(condition, list):
-            return value in condition
-        return value == condition
+            return bool(value in condition)
+        return bool(value == condition)
 
     return False
 
@@ -95,14 +98,14 @@ def check_deterministic_condition(value: Any, condition: Any) -> bool:
     if isinstance(condition, bool):
         return value is condition
     if isinstance(condition, list):
-        return value in condition
-    return value == condition
+        return bool(value in condition)
+    return bool(value == condition)
 
 
 def conditions_match(
-    when: dict,
-    resolve_value,
-    classification: dict,
+    when: dict[str, Any],
+    resolve_value: ResolveValue,
+    classification: dict[str, Any],
     classifications: dict[str, ClassificationConfig],
 ) -> bool:
     """Evaluate whether all conditions in a when dict match.
@@ -130,32 +133,32 @@ def conditions_match(
 
 def evaluate_automations(
     automations: list[AutomationConfig],
-    resolve_value,
-    classification: dict,
+    resolve_value: ResolveValue,
+    classification: dict[str, Any],
     classifications: dict[str, ClassificationConfig],
-) -> list:
+) -> list[ActionType | YoloAction]:
     """Evaluate all automations and return the list of triggered actions.
 
     resolve_value is a callable (key, classification) -> value that handles
     platform-specific value resolution.
     """
-    actions = []
+    actions: list[ActionType | YoloAction] = []
     seen_strings: set[str] = set()
     for automation in automations:
         if conditions_match(automation.when, resolve_value, classification, classifications):
             for action in automation.then:
-                if isinstance(action, str):
-                    if action in seen_strings:
+                if isinstance(action, SimpleAction):
+                    if action.action in seen_strings:
                         continue
-                    seen_strings.add(action)
+                    seen_strings.add(action.action)
                 actions.append(action)
     return actions
 
 
 def resolve_action_provenance(
     automations: list[AutomationConfig],
-    resolve_value,
-    classification: dict,
+    resolve_value: ResolveValue,
+    classification: dict[str, Any],
     classifications: dict[str, ClassificationConfig],
     deterministic_sources: frozenset[str],
 ) -> str:
@@ -169,6 +172,18 @@ def resolve_action_provenance(
     return "rule"
 
 
-def unwrap_actions(actions: list) -> list:
-    """Unwrap YoloAction wrappers, returning plain action values."""
-    return [a.value if isinstance(a, YoloAction) else a for a in actions]
+def unwrap_actions(actions: list[ActionType | YoloAction]) -> list[ActionType]:
+    """Unwrap YoloAction wrappers, returning plain action values.
+
+    YoloAction wraps raw values (str or dict). These are normalized
+    back to proper action models.
+    """
+    from gaas_sdk.models import _normalize_action
+
+    result: list[ActionType] = []
+    for a in actions:
+        if isinstance(a, YoloAction):
+            result.append(_normalize_action(a.value))
+        else:
+            result.append(a)
+    return result

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 
 @dataclass
@@ -14,7 +15,7 @@ class ServiceManifest:
     description: str
     handler: str
     reversible: bool = False
-    input_schema: dict = field(default_factory=dict)
+    input_schema: dict[str, Any] = field(default_factory=dict)
     human_log: str | None = None
 
 
@@ -24,7 +25,7 @@ class PlatformManifest:
 
     name: str
     entry_task: str
-    config_schema: dict
+    config_schema: dict[str, Any]
     handlers: dict[str, str] = field(default_factory=dict)
 
 
@@ -37,7 +38,7 @@ class IntegrationManifest:
     version: str
     entry_task: str
     dependencies: list[str]
-    config_schema: dict
+    config_schema: dict[str, Any]
     platforms: dict[str, PlatformManifest]
     path: Path
     builtin: bool

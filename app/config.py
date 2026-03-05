@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import importlib
 import logging
 from pathlib import Path
 from typing import Annotated, Any, Literal, Union
 
 import yaml
 
-from pydantic import BaseModel, ConfigDict, Field, create_model, model_validator
+from pydantic import BaseModel, Field, create_model, model_validator
 
 # Re-export models from gaas_sdk so existing imports work unchanged
 from gaas_sdk.models import (  # noqa: F401
@@ -18,8 +17,12 @@ from gaas_sdk.models import (  # noqa: F401
     AutomationConfig,
     BasePlatformConfig,
     BaseIntegrationConfig,
+    SimpleAction,
+    ScriptAction,
+    ServiceAction,
+    DictAction,
 )
-from gaas_sdk.provenance import resolve_provenance  # noqa: F401
+from gaas_sdk.provenance import resolve_provenance
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 _CONFIG_PATH = _PROJECT_ROOT / "config.yaml"
@@ -174,7 +177,9 @@ def _build_platform_model(
     for prop_name, prop_def in properties.items():
         fields[prop_name] = _json_schema_to_field(prop_name, prop_def, required_fields)
 
-    model_name = f"{domain.title().replace('_', '')}{platform_name.title().replace('_', '')}PlatformConfig"
+    domain_part = domain.title().replace('_', '')
+    platform_part = platform_name.title().replace('_', '')
+    model_name = f"{domain_part}{platform_part}PlatformConfig"
 
     return create_model(
         model_name,
@@ -251,11 +256,11 @@ def _find_unsafe_actions(
     for action in automation.then:
         if isinstance(action, YoloAction):
             continue
-        if isinstance(action, str):
-            if action in irreversible_actions:
-                unsafe.append(action)
-        elif isinstance(action, dict) and "script" in action:
-            script_ref = action["script"]
+        if isinstance(action, SimpleAction):
+            if action.action in irreversible_actions:
+                unsafe.append(action.action)
+        elif isinstance(action, ScriptAction):
+            script_ref = action.script
             script_name = script_ref.get("name", "") if isinstance(script_ref, dict) else script_ref
             if scripts is None:
                 unsafe.append(f"script:{script_name}")
@@ -263,8 +268,8 @@ def _find_unsafe_actions(
                 script_def = scripts.get(script_name)
                 if script_def is None or not script_def.reversible:
                     unsafe.append(f"script:{script_name}")
-        elif isinstance(action, dict) and "service" in action:
-            service_ref = action["service"]
+        elif isinstance(action, ServiceAction):
+            service_ref = action.service
             call = service_ref.get("call", "")
             parts = call.rsplit(".", 2)
             if len(parts) == 3:
@@ -280,8 +285,8 @@ def _find_unsafe_actions(
                     unsafe.append(f"service:{call}")
             else:
                 unsafe.append(f"service:{call}")
-        elif isinstance(action, dict):
-            name = next(iter(action), "")
+        elif isinstance(action, DictAction):
+            name = next(iter(action.data), "")
             if name in irreversible_actions:
                 unsafe.append(name)
     return unsafe
@@ -371,10 +376,16 @@ def _validate_script_references(
                 continue
             for automation in platform.automations:
                 for action in automation.then:
-                    raw = action.value if isinstance(action, YoloAction) else action
-                    if isinstance(raw, dict) and "script" in raw:
-                        script_ref = raw["script"]
-                        name = script_ref.get("name", "") if isinstance(script_ref, dict) else script_ref
+                    raw = action
+                    if isinstance(raw, YoloAction):
+                        from gaas_sdk.models import _normalize_action
+                        raw = _normalize_action(raw.value)
+                    if isinstance(raw, ScriptAction):
+                        script_ref = raw.script
+                        if isinstance(script_ref, dict):
+                            name = script_ref.get("name", "")
+                        else:
+                            name = script_ref
                         if name not in scripts:
                             warnings.append(
                                 f"Automation in '{integration.name}.{platform_name}' "
@@ -405,9 +416,12 @@ def _validate_service_references(
                 continue
             for automation in platform.automations:
                 for action in automation.then:
-                    raw = action.value if isinstance(action, YoloAction) else action
-                    if isinstance(raw, dict) and "service" in raw:
-                        service_ref = raw["service"]
+                    raw = action
+                    if isinstance(raw, YoloAction):
+                        from gaas_sdk.models import _normalize_action
+                        raw = _normalize_action(raw.value)
+                    if isinstance(raw, ServiceAction):
+                        service_ref = raw.service
                         call = service_ref.get("call", "")
                         parts = call.rsplit(".", 2)
                         if len(parts) == 3:

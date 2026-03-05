@@ -9,6 +9,7 @@ from gaas_sdk.actions import (
     resolve_inputs,
 )
 from gaas_sdk.evaluate import MISSING
+from gaas_sdk.models import ScriptAction, ServiceAction, SimpleAction
 
 
 def _make_resolver(**fields):
@@ -102,7 +103,7 @@ class TestEnqueueActions:
         with patch("gaas_sdk.runtime._enqueue") as mock:
             mock.return_value = "t1"
             enqueue_actions(
-                actions=["archive", "log"],
+                actions=[SimpleAction(action="archive"), SimpleAction(action="log")],
                 platform_payload={"type": "test.act", "id": "1"},
                 resolve_value=resolver,
                 classification={},
@@ -118,7 +119,7 @@ class TestEnqueueActions:
         with patch("gaas_sdk.runtime._enqueue") as mock:
             mock.return_value = "t1"
             enqueue_actions(
-                actions=[{"script": {"name": "research", "inputs": {"d": "{{ domain }}"}}}],
+                actions=[ScriptAction(script={"name": "research", "inputs": {"d": "{{ domain }}"}})],
                 platform_payload={"type": "test.act", "id": "1"},
                 resolve_value=resolver,
                 classification={},
@@ -135,7 +136,7 @@ class TestEnqueueActions:
         with patch("gaas_sdk.runtime._enqueue") as mock:
             mock.return_value = "t1"
             enqueue_actions(
-                actions=[{"service": {"call": "gemini.research.web_search", "inputs": {}}}],
+                actions=[ServiceAction(service={"call": "gemini.research.web_search", "inputs": {}})],
                 platform_payload={"type": "test.act", "id": "1"},
                 resolve_value=resolver,
                 classification={},
@@ -152,9 +153,9 @@ class TestEnqueueActions:
             mock.return_value = "t1"
             enqueue_actions(
                 actions=[
-                    "archive",
-                    {"script": {"name": "s1"}},
-                    {"service": {"call": "a.b.c", "inputs": {}}},
+                    SimpleAction(action="archive"),
+                    ScriptAction(script={"name": "s1"}),
+                    ServiceAction(service={"call": "a.b.c", "inputs": {}}),
                 ],
                 platform_payload={"type": "test.act", "id": "1"},
                 resolve_value=resolver,
@@ -180,7 +181,7 @@ class TestEnqueueActions:
         with patch("gaas_sdk.runtime._enqueue") as mock:
             mock.return_value = "t1"
             enqueue_actions(
-                actions=["log"],
+                actions=[SimpleAction(action="log")],
                 platform_payload={"type": "test.act", "id": "1"},
                 resolve_value=resolver,
                 classification={},

@@ -9,14 +9,15 @@ import logging
 
 from app.loader import get_manifests, get_modules
 from gaas_sdk import runtime
+from gaas_sdk.protocols import TaskHandler
 
 log = logging.getLogger(__name__)
 
-HANDLERS: dict[str, callable] = {}
+HANDLERS: dict[str, TaskHandler] = {}
 ENTRY_TASKS: dict[str, str] = {}
 
 
-def _load_handler(module_name: str, handler_path: str):
+def _load_handler(module_name: str, handler_path: str) -> TaskHandler | None:
     """Load a handler function from a module path string.
 
     If handler_path starts with '.', it is relative to module_name.

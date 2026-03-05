@@ -7,7 +7,6 @@ gaas_sdk.runtime functions.
 from __future__ import annotations
 
 import gaas_sdk.runtime
-from app import queue
 from app.config import config
 from app.llm import LLMConversation
 from app.queue_policy import policy_enqueue

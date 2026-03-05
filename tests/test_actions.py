@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from app.actions import enqueue_actions, is_script_action, resolve_inputs
 from gaas_sdk.actions import _render_template
+from gaas_sdk.models import ScriptAction, SimpleAction
 from app.evaluate import MISSING
 
 
@@ -196,7 +197,7 @@ class TestEnqueueActions:
         with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
             mock_enqueue.return_value = "task_1"
             enqueue_actions(
-                actions=["archive", "spam"],
+                actions=[SimpleAction(action="archive"), SimpleAction(action="spam")],
                 platform_payload={"type": "email.inbox.act", "uid": "123"},
                 resolve_value=resolver,
                 classification={},
@@ -213,7 +214,9 @@ class TestEnqueueActions:
         with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
             mock_enqueue.return_value = "task_1"
             enqueue_actions(
-                actions=[{"script": {"name": "research", "inputs": {"domain": "{{ domain }}"}}}],
+                actions=[ScriptAction(script={
+                    "name": "research", "inputs": {"domain": "{{ domain }}"},
+                })],
                 platform_payload={"type": "email.inbox.act", "uid": "123"},
                 resolve_value=resolver,
                 classification={},
@@ -232,8 +235,8 @@ class TestEnqueueActions:
             mock_enqueue.return_value = "task_1"
             enqueue_actions(
                 actions=[
-                    "archive",
-                    {"script": {"name": "research", "inputs": {"domain": "{{ domain }}"}}},
+                    SimpleAction(action="archive"),
+                    ScriptAction(script={"name": "research", "inputs": {"domain": "{{ domain }}"}}),
                 ],
                 platform_payload={"type": "email.inbox.act", "uid": "123"},
                 resolve_value=resolver,
@@ -266,7 +269,7 @@ class TestEnqueueActions:
         with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
             mock_enqueue.return_value = "task_1"
             enqueue_actions(
-                actions=["archive"],
+                actions=[SimpleAction(action="archive")],
                 platform_payload={"type": "email.inbox.act", "uid": "123"},
                 resolve_value=resolver,
                 classification={},

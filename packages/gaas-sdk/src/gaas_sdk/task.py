@@ -41,6 +41,6 @@ class TaskRecord(TypedDict):
     payload: dict[str, Any]
     provenance: NotRequired[str]
     completed_at: NotRequired[str]
-    result: NotRequired[dict]
+    result: NotRequired[dict[str, Any]]
     failed_at: NotRequired[str]
     error: NotRequired[str]

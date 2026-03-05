@@ -1,4 +1,3 @@
-import pytest
 
 from gaas_email.platforms.inbox.store import EmailStore, _sanitize_message_id
 from gaas_sdk.store import NoteStore

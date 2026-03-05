@@ -4,7 +4,7 @@ import json
 import logging
 import subprocess
 import time
-from typing import Callable
+from collections.abc import Callable
 
 log = logging.getLogger(__name__)
 

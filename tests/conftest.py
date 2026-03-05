@@ -18,8 +18,8 @@ if not _config_path.exists():
         "    model: test-model\n"
     )
 
-from app import queue  # noqa: E402
-from app.runtime_init import register_runtime  # noqa: E402
+from app import queue
+from app.runtime_init import register_runtime
 
 register_runtime()
 

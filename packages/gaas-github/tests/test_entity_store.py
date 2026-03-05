@@ -9,7 +9,6 @@ testing philosophy.
 import frontmatter
 
 from gaas_github.entity_store import GitHubEntityStore
-from gaas_sdk.store import NoteStore
 
 
 class ConcreteStore(GitHubEntityStore):

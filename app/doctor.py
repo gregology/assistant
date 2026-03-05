@@ -366,7 +366,7 @@ def run_doctor() -> int:
         failures += 1
     if not check_git():
         failures += 1
-    gh_installed, gh_authed = check_gh()
+    gh_installed, _gh_authed = check_gh()
     if not gh_installed:
         warnings += 1
 

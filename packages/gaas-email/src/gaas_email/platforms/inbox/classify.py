@@ -1,6 +1,6 @@
 import logging
 import secrets
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 
 import frontmatter
@@ -80,7 +80,7 @@ def handle(task: TaskRecord):
         classified_by = {
             "model": llm_config.model,
             "profile": integration.llm,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
         store.update(message_id, classification=classification, classified_by=classified_by)
 

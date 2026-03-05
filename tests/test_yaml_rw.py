@@ -9,15 +9,12 @@ import pytest
 
 from app.ui.yaml_rw import (
     ConfigValidationError,
-    _config_dirty,
     delete_llm_profile,
     delete_script,
     is_dirty,
-    mark_dirty,
     read_config,
     save_raw_yaml,
     update_directories,
-    update_integration_settings,
     update_llm_profile,
     update_script,
     write_config,

@@ -5,7 +5,7 @@ import logging
 import os
 import tempfile
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 
 import yaml
@@ -25,7 +25,7 @@ def init():
 
 
 def _now():
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _atomic_write(path: Path, content: str) -> None:
@@ -104,7 +104,7 @@ def count_recent(task_type: str, seconds: int) -> int:
                 continue
             try:
                 ts = datetime.strptime(parsed["timestamp"], "%Y%m%dT%H%M%SZ").replace(
-                    tzinfo=timezone.utc
+                    tzinfo=UTC
                 )
                 if ts.timestamp() >= cutoff:
                     count += 1

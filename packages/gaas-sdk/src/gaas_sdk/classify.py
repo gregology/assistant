@@ -8,6 +8,7 @@ handle() logic stays in each platform's classify.py.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from jinja2 import Environment, FileSystemLoader
 
@@ -20,11 +21,11 @@ _TYPE_TO_SCHEMA = {
 }
 
 
-def build_schema(classifications: dict[str, ClassificationConfig]) -> dict:
+def build_schema(classifications: dict[str, ClassificationConfig]) -> dict[str, Any]:
     """Convert classification configs to a JSON schema for the LLM."""
     properties = {}
     for name, cls in classifications.items():
-        properties[name] = _TYPE_TO_SCHEMA[cls.type](cls)
+        properties[name] = _TYPE_TO_SCHEMA[cls.type](cls)  # type: ignore[no-untyped-call]
     return {
         "properties": properties,
         "required": list(classifications.keys()),

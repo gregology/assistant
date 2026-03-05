@@ -20,7 +20,7 @@ def _make_script(**kwargs) -> ScriptConfig:
 
 class TestExecute:
     def test_successful_execution(self):
-        script = _make_script(shell="echo hello", output="OUTPUT")
+        _make_script(shell="echo hello", output="OUTPUT")
         # The script itself must set OUTPUT and it must be captured via env
         script_with_output = _make_script(
             shell='OUTPUT="result_value"',

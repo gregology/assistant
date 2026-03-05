@@ -1,7 +1,6 @@
 """Tests for service support: manifest parsing, handler registration,
 action detection, and enqueue_actions with service actions."""
 
-from pathlib import Path
 from unittest.mock import patch
 
 import yaml
@@ -10,6 +9,7 @@ from app.loader import _load_manifest
 from gaas_sdk.actions import is_service_action, enqueue_actions
 from gaas_sdk.evaluate import MISSING
 from gaas_sdk.manifest import ServiceManifest
+from gaas_sdk.models import ServiceAction, SimpleAction
 
 
 def _make_resolver(**fields):
@@ -118,12 +118,10 @@ class TestEnqueueServiceActions:
         with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
             mock_enqueue.return_value = "task_1"
             enqueue_actions(
-                actions=[{
-                    "service": {
-                        "call": "gemini.default.web_research",
-                        "inputs": {"prompt": "research {{ domain }}"},
-                    },
-                }],
+                actions=[ServiceAction(service={
+                    "call": "gemini.default.web_research",
+                    "inputs": {"prompt": "research {{ domain }}"},
+                })],
                 platform_payload={"type": "email.inbox.act", "uid": "123"},
                 resolve_value=resolver,
                 classification={},
@@ -141,12 +139,10 @@ class TestEnqueueServiceActions:
         with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
             mock_enqueue.return_value = "task_1"
             enqueue_actions(
-                actions=[{
-                    "service": {
-                        "call": "gemini.default.web_research",
-                        "inputs": {"prompt": "{{ domain }}"},
-                    },
-                }],
+                actions=[ServiceAction(service={
+                    "call": "gemini.default.web_research",
+                    "inputs": {"prompt": "{{ domain }}"},
+                })],
                 platform_payload={"type": "email.inbox.act", "uid": "123"},
                 resolve_value=resolver,
                 classification={},
@@ -160,7 +156,7 @@ class TestEnqueueServiceActions:
         resolver = _make_resolver()
         with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
             enqueue_actions(
-                actions=[{"service": {"call": "invalid"}}],
+                actions=[ServiceAction(service={"call": "invalid"})],
                 platform_payload={"type": "email.inbox.act", "uid": "123"},
                 resolve_value=resolver,
                 classification={},
@@ -175,8 +171,8 @@ class TestEnqueueServiceActions:
             mock_enqueue.return_value = "task_1"
             enqueue_actions(
                 actions=[
-                    "archive",
-                    {"service": {"call": "gemini.default.web_research", "inputs": {}}},
+                    SimpleAction(action="archive"),
+                    ServiceAction(service={"call": "gemini.default.web_research", "inputs": {}}),
                 ],
                 platform_payload={"type": "email.inbox.act", "uid": "123"},
                 resolve_value=resolver,
@@ -194,12 +190,10 @@ class TestEnqueueServiceActions:
         with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
             mock_enqueue.return_value = "task_1"
             enqueue_actions(
-                actions=[{
-                    "service": {
-                        "call": "gemini.default.web_research",
-                        "inputs": {"prompt": "test"},
-                    },
-                }],
+                actions=[ServiceAction(service={
+                    "call": "gemini.default.web_research",
+                    "inputs": {"prompt": "test"},
+                })],
                 platform_payload={"type": "email.inbox.act", "uid": "123"},
                 resolve_value=resolver,
                 classification={},
@@ -215,13 +209,11 @@ class TestEnqueueServiceActions:
         with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
             mock_enqueue.return_value = "task_1"
             enqueue_actions(
-                actions=[{
-                    "service": {
-                        "call": "gemini.default.web_research",
-                        "inputs": {"prompt": "test"},
-                        "on_result": custom_routes,
-                    },
-                }],
+                actions=[ServiceAction(service={
+                    "call": "gemini.default.web_research",
+                    "inputs": {"prompt": "test"},
+                    "on_result": custom_routes,
+                })],
                 platform_payload={"type": "email.inbox.act", "uid": "123"},
                 resolve_value=resolver,
                 classification={},
@@ -238,13 +230,11 @@ class TestServiceHumanLog:
         with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
             mock_enqueue.return_value = "task_1"
             enqueue_actions(
-                actions=[{
-                    "service": {
-                        "call": "gemini.default.web_research",
-                        "inputs": {"prompt": "test"},
-                        "human_log": "Privacy Policy update for {{ domain }}",
-                    },
-                }],
+                actions=[ServiceAction(service={
+                    "call": "gemini.default.web_research",
+                    "inputs": {"prompt": "test"},
+                    "human_log": "Privacy Policy update for {{ domain }}",
+                })],
                 platform_payload={"type": "email.inbox.act", "uid": "123"},
                 resolve_value=resolver,
                 classification={},
@@ -265,12 +255,10 @@ class TestServiceHumanLog:
             with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
                 mock_enqueue.return_value = "task_1"
                 enqueue_actions(
-                    actions=[{
-                        "service": {
-                            "call": "gemini.default.web_research",
-                            "inputs": {"prompt": "research something important"},
-                        },
-                    }],
+                    actions=[ServiceAction(service={
+                        "call": "gemini.default.web_research",
+                        "inputs": {"prompt": "research something important"},
+                    })],
                     platform_payload={"type": "email.inbox.act", "uid": "123"},
                     resolve_value=resolver,
                     classification={},
@@ -293,13 +281,11 @@ class TestServiceHumanLog:
             with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
                 mock_enqueue.return_value = "task_1"
                 enqueue_actions(
-                    actions=[{
-                        "service": {
-                            "call": "gemini.default.web_research",
-                            "inputs": {"prompt": "test"},
-                            "human_log": "Custom: {{ domain }}",
-                        },
-                    }],
+                    actions=[ServiceAction(service={
+                        "call": "gemini.default.web_research",
+                        "inputs": {"prompt": "test"},
+                        "human_log": "Custom: {{ domain }}",
+                    })],
                     platform_payload={"type": "email.inbox.act", "uid": "123"},
                     resolve_value=resolver,
                     classification={},
@@ -316,12 +302,10 @@ class TestServiceHumanLog:
         with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
             mock_enqueue.return_value = "task_1"
             enqueue_actions(
-                actions=[{
-                    "service": {
-                        "call": "gemini.default.web_research",
-                        "inputs": {"prompt": "test"},
-                    },
-                }],
+                actions=[ServiceAction(service={
+                    "call": "gemini.default.web_research",
+                    "inputs": {"prompt": "test"},
+                })],
                 platform_payload={"type": "email.inbox.act", "uid": "123"},
                 resolve_value=resolver,
                 classification={},

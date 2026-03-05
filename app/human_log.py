@@ -5,6 +5,7 @@ from datetime import datetime
 from pathlib import Path
 
 from app.config import config
+from gaas_sdk.logging import HUMAN, get_logger  # noqa: F401 — re-export get_logger
 
 _log_dir: Path = Path(config.directories.logs)
 
@@ -12,9 +13,6 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s",
 )
-
-HUMAN = 25  # between INFO (20) and WARNING (30)
-logging.addLevelName(HUMAN, "HUMAN")
 
 
 class HumanMarkdownHandler(logging.Handler):
@@ -39,13 +37,6 @@ class HumanMarkdownHandler(logging.Handler):
         except Exception:
             self.handleError(record)
 
-
-def _human(self: logging.Logger, msg: str, *args: object, **kwargs) -> None:
-    if self.isEnabledFor(HUMAN):
-        self._log(HUMAN, msg, args, **kwargs)
-
-
-logging.Logger.human = _human  # type: ignore[attr-defined]
 
 _handler = HumanMarkdownHandler()
 _handler.setLevel(HUMAN)

@@ -243,6 +243,10 @@ runtime.create_llm_conversation(model="default", system="...")
 
 # Action partitioning
 from gaas_sdk.actions import enqueue_actions
+
+# Logging (use this instead of logging.getLogger)
+from gaas_sdk.logging import get_logger
+log = get_logger(__name__)
 ```
 
 ## Adding a New Integration

@@ -15,7 +15,6 @@ import importlib.metadata
 import importlib.util
 import logging
 import sys
-from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml

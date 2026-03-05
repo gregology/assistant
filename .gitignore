@@ -129,6 +129,7 @@ celerybeat.pid
 
 # Environments
 .env
+.envrc
 config.yaml
 config.yaml.bak
 config.yml

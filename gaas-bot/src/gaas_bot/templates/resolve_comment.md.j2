@@ -1,0 +1,40 @@
+{% if triage.decision == "ask" %}
+# Draft Clarifying Questions
+
+Based on your triage of issue #{{ issue_number }}, you determined that clarification is needed.
+
+Your reasoning: {{ triage.reasoning }}
+
+## Instructions
+
+Draft a clear, concise GitHub comment that:
+
+1. Acknowledges the issue
+2. Asks specific, actionable questions that would unblock implementation
+3. If applicable, mentions what you've already investigated and what remains unclear
+
+Keep the tone collaborative and helpful. Do not ask more than 3-4 questions — focus on what actually blocks progress.
+{% else %}
+# Draft Solution Proposal
+
+Based on your triage of issue #{{ issue_number }}, you determined that solutions should be proposed for discussion.
+
+Your reasoning: {{ triage.reasoning }}
+
+## Instructions
+
+Draft a GitHub comment that proposes possible solutions. For each approach:
+
+1. Give it a clear name
+2. Describe what it involves (2-3 sentences)
+3. List concrete pros and cons
+4. Note the implementation complexity (low/medium/high)
+
+End with a recommendation for which approach you'd suggest and why.
+
+Keep the tone collaborative. Use markdown formatting suitable for a GitHub comment.
+{% endif %}
+
+{% include "_personality.md.j2" %}
+
+Your structured output `comment` field must contain the **full markdown text** of the comment to post. Do not return a URL, reference, or summary — return the complete comment body ready to be posted verbatim.

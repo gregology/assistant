@@ -49,46 +49,30 @@ Review each decision in `DECISIONS.md` and flag any that meet these criteria:
 - New information (library updates, ecosystem changes, scale changes) invalidates the reasoning.
 - The decision was made speculatively ("we'll revisit when X") and X has happened.
 
-If any decisions are stale, include a recommendation to update `DECISIONS.md` as a standalone refactoring item.
+If any decisions are stale, include a recommendation to update `DECISIONS.md` as a standalone finding.
 
-## Output Format
+{% include "_labels.md.j2" %}
 
-If there are no meaningful refactoring opportunities, respond with:
+## Output format
 
-> Nothing of consequence requires refactoring.
+Return your findings as structured output. Each finding becomes a GitHub issue.
 
-Otherwise, return a numbered list of refactoring opportunities, ordered by impact (highest first). Each item must include:
+For each finding:
+- `title`: A concise issue title (under 80 characters)
+- `body`: The full issue body in markdown. Include:
+  - **Summary**: 2-3 sentences describing what would change and why
+  - **Pros**: concrete benefits
+  - **Cons**: concrete costs or risks
+  - **Extensibility**: how the change affects adding new features
+  - **Maintainability**: how the change affects understanding and modifying the code
+  - **Complexity to implement**: Low / Medium / High with explanation
+  - **Risk of introducing bugs**: Low / Medium / High with mitigation
+  - **DECISIONS.md update needed**: Yes/No with details
+- `labels`: 1-3 labels from the list above
 
-### [Title — a concise name for the refactor]
+If there are no meaningful refactoring opportunities, return an empty findings list.
 
-**Summary**: 2-3 sentences describing what would change and why.
-
-**Pros**:
-- [concrete benefit]
-
-**Cons**:
-- [concrete cost or risk]
-
-**Extensibility**: [How does this change affect the ease of adding new features, integrations, or capabilities? "No change" is a valid answer.]
-
-**Maintainability**: [How does this change affect the ease of understanding, modifying, and debugging the code? "No change" is a valid answer.]
-
-**Complexity to implement**: [Low / Medium / High — with a brief explanation of what's involved.]
-
-**Risk of introducing bugs**: [Low / Medium / High — with a note on what could go wrong and how to mitigate it.]
-
-**DECISIONS.md update needed**: [Yes/No — if Yes, briefly describe what should be added or changed.]
-
----
-
-## Guidelines
-
-- Limit your output to **at most 5** refactoring opportunities. If you find more, keep only the highest-impact ones. Quality over quantity.
-- Do not recommend refactors that are purely cosmetic (renaming for style, reordering imports, adding docstrings to stable code).
-- Do not recommend adding features disguised as refactors. A refactor changes structure, not behavior.
-- Do not recommend refactors that would require changing the project's core principles. If a principle seems wrong, flag it as a DECISIONS.md review item instead.
-- Be specific. "Improve error handling" is not actionable. "Add cleanup logic to `worker.py:handle()` so that a failed `route_results()` call doesn't leave the task in `active/` indefinitely" is.
-- Consider the project's testing philosophy. If the project uses property-based testing for safety invariants, a refactor that makes those tests harder to write is a significant con.
+Limit to **at most {{ max_findings }}** findings. Quality over quantity. Do not recommend purely cosmetic changes.
 
 ---
 
@@ -98,14 +82,4 @@ The following output was collected from static analysis tools. Use it as additio
 
 {{ tool_output }}
 
----
-
-# Output Instructions
-
-Create refactoring opportunity issue files:
-- `to_review/01-<slug>.md`
-- `to_review/02-<slug>.md`
-- `to_review/03-<slug>.md`
-etc...
-
-Each file should contain one refactoring opportunity using the output format from the prompt above. The slug should be a short, kebab-case summary of the refactor.
+{% include "_personality.md.j2" %}

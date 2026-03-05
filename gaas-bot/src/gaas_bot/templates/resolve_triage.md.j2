@@ -1,0 +1,54 @@
+# Issue Triage
+
+You are triaging a GitHub issue for the **{{ owner }}/{{ repo }}** repository.
+
+## Issue #{{ issue_number }}: {{ issue_title }}
+
+**Author:** {{ issue_author }}
+**State:** {{ issue_state }}
+**Labels:** {{ issue_labels | join(", ") or "none" }}
+
+### Body
+
+{{ issue_body or "*No description provided.*" }}
+
+{% if comments %}
+### Comments ({{ comments | length }})
+
+{% for comment in comments %}
+---
+**{{ comment.author }}** ({{ comment.created_at }}):
+
+{{ comment.body }}
+
+{% endfor %}
+{% endif %}
+
+## Instructions
+
+Investigate this issue thoroughly:
+
+1. Read the project documentation (`CLAUDE.md`, `DECISIONS.md`, any relevant `AGENTS.md` files)
+2. Explore the codebase to understand the areas of code related to this issue
+3. Determine what the issue is asking for and whether it is actionable
+
+Then choose exactly **one** of the following decisions:
+
+### `ask`
+Choose this if the issue is ambiguous, underspecified, or you need clarification from the author before proceeding. You should draft the clarifying questions you would ask.
+
+### `propose`
+Choose this if the issue is complex enough that multiple approaches exist and the tradeoffs should be discussed before implementation. You should draft a proposal outlining possible approaches with pros and cons for each.
+
+### `action_proposed`
+Choose this if a solution has already been proposed and agreed upon in the comments and is ready to implement. You should summarize which proposed solution to implement.
+
+### `action_direct`
+Choose this if the issue is straightforward enough to implement directly without discussion. You should outline the implementation plan.
+
+## Decision criteria
+
+- If this is the first time seeing this issue and it has no comments with proposals, you should almost never choose `action_proposed`.
+- Prefer `action_direct` only for genuinely trivial changes (typo fixes, small config changes, obvious bug fixes with clear cause).
+- Prefer `propose` when there are meaningful architectural or design choices to make.
+- Prefer `ask` when you cannot confidently determine what the author wants.

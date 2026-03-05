@@ -1,0 +1,36 @@
+# Evaluate Implementation
+
+You are reviewing changes made to resolve issue #{{ issue_number }}: **{{ issue_title }}**
+
+## What was requested
+
+{{ issue_body or "*No description provided.*" }}
+
+## Implementation plan
+
+{{ triage.detail }}
+
+## Changes made (git diff)
+
+```diff
+{{ diff }}
+```
+
+## Instructions
+
+Evaluate whether this implementation actually resolves the issue. Consider:
+
+1. Does the code change address what the issue asked for?
+2. Is this an elegant and maintainable solution? Are there obvious improvements?
+3. Are there edge cases or failure modes that weren't handled?
+4. Is there additional context required from the issue creator that would change the approach?
+
+Choose one of:
+
+### `pass`
+The implementation resolves the issue. It may not be perfect, but it's correct and the remaining improvements (if any) are minor enough to address in review.
+
+### `needs_context`
+The implementation revealed ambiguity or questions that need to be answered by the issue creator before this can be considered complete. Draft your concerns in the `feedback` field.
+
+Prefer `pass` unless there is a genuine blocker. Minor style or optimization suggestions are not blockers.

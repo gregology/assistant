@@ -1,0 +1,39 @@
+# Craft a Pull Request
+
+You just implemented changes to resolve issue #{{ issue_number }} in **{{ owner }}/{{ repo }}**.
+
+## Issue: {{ issue_title }}
+
+{{ issue_body or "*No description provided.*" }}
+
+{% if comments %}
+### Discussion
+
+{% for comment in comments %}
+---
+**{{ comment.author }}** ({{ comment.created_at }}):
+
+{{ comment.body }}
+
+{% endfor %}
+{% endif %}
+
+## Triage context
+
+{{ triage.reasoning }}
+
+{{ triage.detail }}
+
+## Instructions
+
+Review the changes you just made. Craft a pull request for them.
+
+The PR description should focus on the _why_ of the change. Do not include details that can easily be derived from the git diff (lines changed, number of tests added, list of files modified, etc). The git diff is for the _what_, the PR description is for the _why_.
+
+Include details of alternative approaches you considered and why this approach was chosen.
+
+For the branch name, use a short descriptive kebab-case name (e.g. `add-root-domain-to-email`). Do not include the issue number in the branch name.
+
+For the commit message, write a concise one-liner that describes the change. Do not include the issue number.
+
+{% include "_personality.md.j2" %}

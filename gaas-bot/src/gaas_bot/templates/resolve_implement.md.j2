@@ -1,0 +1,34 @@
+# Implement Solution
+
+You are implementing a fix for issue #{{ issue_number }} in **{{ owner }}/{{ repo }}**.
+
+## Issue: {{ issue_title }}
+
+{{ issue_body or "*No description provided.*" }}
+
+{% if comments %}
+### Relevant comments
+
+{% for comment in comments %}
+---
+**{{ comment.author }}** ({{ comment.created_at }}):
+
+{{ comment.body }}
+
+{% endfor %}
+{% endif %}
+
+## Implementation context
+
+{{ triage.detail }}
+
+## Instructions
+
+Implement the changes needed to resolve this issue. Follow the project's existing patterns and conventions as documented in `CLAUDE.md` and `DECISIONS.md`.
+
+- Write clean, minimal code that solves the issue without over-engineering
+- Add or update tests as appropriate for the changes
+- Do not modify files unrelated to the issue
+- Do not add unnecessary comments, docstrings, or type annotations to code you didn't change
+
+When you are finished, make sure all new and modified files are saved.

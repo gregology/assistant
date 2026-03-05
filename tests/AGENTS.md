@@ -129,6 +129,7 @@ tests/
   test_script_execution.py              # Script executor, preamble logging, output capture
   test_services.py                      # Service manifest parsing, enqueue with on_result
   test_store.py                         # NoteStore CRUD + archive
+  test_worker.py                        # Worker dispatch, lifecycle (happy/fail/routing), stale recovery, signals
   safety/
     test_automation_invariants.py        # Property tests: all possible classifications
     test_chaos.py                        # Chaos tests: garbage LLM output

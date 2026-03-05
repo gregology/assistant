@@ -51,5 +51,5 @@ curl -fsSL https://gho.st/install.sh | bash
   - [Philosophy](docs/testing/philosophy.md) - Why we test the way we do
   - [Guide](docs/testing/guide.md) - Practical testing reference
 - Integration user guides
-  - [Email](app/integrations/email/README.md) - Configuration, automations, condition keys
-  - [GitHub](app/integrations/github/README.md) - PR and issue tracking, classification
+  - [Email](packages/gaas-email/README.md) - Configuration, automations, condition keys
+  - [GitHub](packages/gaas-github/README.md) - PR and issue tracking, classification

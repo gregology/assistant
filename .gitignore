@@ -197,7 +197,6 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 .claude/
-*CLAUDE.md
 
 # Task queue data
 queue/

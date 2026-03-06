@@ -5,7 +5,8 @@ are deterministic (rule), non-deterministic (llm), or mixed (hybrid).
 This is safety-critical because it gates irreversible actions.
 """
 
-from unittest.mock import MagicMock
+import logging
+from unittest.mock import MagicMock, patch
 
 from app.config import (
     AutomationConfig,
@@ -472,3 +473,87 @@ class TestSafetyValidation:
         warnings = _validate_automation_safety([integration])
         assert warnings == []
         assert len(platform.automations) == 1
+
+
+# ---------------------------------------------------------------------------
+# Missing const.py fail-safe (issue #74)
+# ---------------------------------------------------------------------------
+
+
+class TestMissingConstFailSafe:
+    """When a platform's const.py is absent, all actions are treated as
+    irreversible (fail-safe) and a warning is logged."""
+
+    def test_warning_logged_when_const_missing(self, caplog):
+        """A warning is logged when load_platform_const returns None."""
+        automations = [
+            AutomationConfig(
+                when={"classification.human": "> 0.8"},
+                then=["archive"],
+            ),
+        ]
+        integration, _platform = _make_integration("test", automations)
+        with (
+            patch("app.config.load_platform_const", return_value=None),
+            caplog.at_level(logging.WARNING, logger="app.config"),
+        ):
+            _validate_automation_safety([integration])
+        assert any(
+            "Safety constants unavailable for email.inbox" in msg
+            for msg in caplog.messages
+        )
+
+    def test_simple_action_from_llm_blocked_when_const_missing(self):
+        """With missing const.py, all SimpleActions from LLM provenance are
+        treated as irreversible and blocked."""
+        automations = [
+            AutomationConfig(
+                when={"classification.human": "> 0.8"},
+                then=["archive"],
+            ),
+        ]
+        integration, platform = _make_integration("test", automations)
+        with patch("app.config.load_platform_const", return_value=None):
+            warnings = _validate_automation_safety([integration])
+        assert len(warnings) == 1
+        assert "archive" in warnings[0]
+        assert "disabled" in warnings[0]
+        assert len(platform.automations) == 0
+
+    def test_deterministic_automation_passes_when_const_missing(self):
+        """Unconditional automations (empty when = rule provenance) still
+        pass when const.py is missing, because rule-provenance actions are
+        not subject to the irreversibility gate.
+
+        Note: with missing DETERMINISTIC_SOURCES, conditions like ``domain``
+        are NOT recognized as deterministic — everything becomes LLM provenance.
+        Only truly unconditional automations retain rule provenance.
+        """
+        automations = [
+            AutomationConfig(
+                when={},
+                then=["archive"],
+            ),
+        ]
+        integration, platform = _make_integration("test", automations)
+        with patch("app.config.load_platform_const", return_value=None):
+            warnings = _validate_automation_safety([integration])
+        assert warnings == []
+        assert len(platform.automations) == 1
+
+    def test_normally_deterministic_condition_blocked_when_const_missing(self):
+        """A condition that would be deterministic with const.py (e.g. domain)
+        is treated as LLM provenance when const is missing, triggering the
+        fail-safe block on all actions."""
+        automations = [
+            AutomationConfig(
+                when={"domain": "example.com"},
+                then=["archive"],
+            ),
+        ]
+        integration, platform = _make_integration("test", automations)
+        with patch("app.config.load_platform_const", return_value=None):
+            warnings = _validate_automation_safety([integration])
+        assert len(warnings) == 1
+        assert "archive" in warnings[0]
+        assert len(platform.automations) == 0

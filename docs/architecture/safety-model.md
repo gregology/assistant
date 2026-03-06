@@ -37,6 +37,8 @@ The logic is straightforward. If a condition was evaluated by deterministic code
 
 Each platform defines its own `DETERMINISTIC_SOURCES` and `IRREVERSIBLE_ACTIONS` sets in `const.py`. The provenance check at startup iterates all integrations, then all platforms within each integration, loading the relevant constants and validating each automation rule.
 
+If a platform's `const.py` is missing or fails to load, the system applies a fail-safe default: all conditions are treated as non-deterministic (LLM provenance) and all actions are treated as irreversible. This blocks any automation with conditions and actions from firing. A warning is logged so integration authors can diagnose the issue. This matches the existing pattern where scripts and services default to irreversible.
+
 Script actions are also subject to provenance gating. Scripts are **irreversible by default** because the system can't statically verify what shell code does. A script definition can opt in to reversibility with `reversible: true`, which allows it to fire from `llm`/`hybrid` provenance without `!yolo`. Without that flag, script actions follow the same rules as `unsubscribe`: blocked from non-deterministic provenance unless explicitly overridden.
 
 Service actions follow the same pattern. Services declared in an integration's `manifest.yaml` are irreversible by default. The manifest can declare `reversible: true` for services that are both read-only **and** do not transmit data beyond the system boundary (e.g., a local file search or a localhost-only API call). Irreversible services from LLM provenance are blocked unless wrapped in `!yolo`.

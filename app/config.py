@@ -248,9 +248,21 @@ def build_integration_union(manifests: dict) -> type:
 # ---------------------------------------------------------------------------
 
 
+class _UniversalSet:
+    """Sentinel set whose ``__contains__`` always returns True.
+
+    Used as a fail-safe fallback for IRREVERSIBLE_ACTIONS when a platform's
+    const.py is missing — every action name is treated as irreversible until
+    proven otherwise.
+    """
+
+    def __contains__(self, item: object) -> bool:
+        return True
+
+
 def _find_unsafe_actions(
     automation: AutomationConfig,
-    irreversible_actions: frozenset[str],
+    irreversible_actions: frozenset[str] | _UniversalSet,
     scripts: dict[str, ScriptConfig] | None = None,
 ) -> list[str]:
     """Return irreversible action names that lack a !yolo override."""
@@ -302,7 +314,7 @@ def _filter_platform_automations(
     integration_name: str,
     platform_name: str,
     deterministic_sources: frozenset[str],
-    irreversible_actions: frozenset[str],
+    irreversible_actions: frozenset[str] | _UniversalSet,
     scripts: dict[str, ScriptConfig] | None = None,
 ) -> list[str]:
     """Remove unsafe automations from a platform, returning warning messages."""
@@ -351,8 +363,17 @@ def _validate_automation_safety(
                 continue
 
             const = load_platform_const(integration.type, platform_name)
+            if const is None:
+                log.warning(
+                    "Safety constants unavailable for %s.%s, "
+                    "treating all actions as irreversible",
+                    integration.type,
+                    platform_name,
+                )
             deterministic_sources = getattr(const, "DETERMINISTIC_SOURCES", frozenset())
-            irreversible_actions = getattr(const, "IRREVERSIBLE_ACTIONS", frozenset())
+            irreversible_actions = getattr(
+                const, "IRREVERSIBLE_ACTIONS", _UniversalSet()
+            )
             warnings.extend(_filter_platform_automations(
                 platform, integration.name, platform_name,
                 deterministic_sources, irreversible_actions,

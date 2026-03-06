@@ -90,7 +90,7 @@ my_integration/
     __init__.py
     my_platform/
       __init__.py    # Exports platform HANDLERS dict
-      const.py       # Safety constants (DETERMINISTIC_SOURCES, etc.)
+      const.py       # Safety constants (DETERMINISTIC_SOURCES, etc.) — see note below
       check.py       # Entry task handler
       collect.py     # Data collection handler
       classify.py    # LLM classification handler
@@ -102,6 +102,14 @@ my_integration/
     __init__.py
     my_service.py    # Service handler function
 ```
+
+### `const.py` and Safety Validation
+
+Each platform's `const.py` must export `DETERMINISTIC_SOURCES` (frozenset of condition keys that come from deterministic sources like domain checks or authentication results) and `IRREVERSIBLE_ACTIONS` (frozenset of action names that cannot be undone, e.g. `"unsubscribe"`).
+
+If `const.py` is missing or fails to load, safety validation applies a **fail-safe default**: all actions are treated as irreversible. This means any automation with LLM or hybrid provenance will be disabled at config load time. A warning is logged: `"Safety constants unavailable for {type}.{platform}, treating all actions as irreversible"`.
+
+This is consistent with how scripts and services default to irreversible. If your platform has only reversible actions, you still need a `const.py` with `IRREVERSIBLE_ACTIONS = frozenset()` to avoid false blocks.
 
 ### manifest.yaml
 

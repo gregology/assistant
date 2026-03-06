@@ -400,6 +400,14 @@ Safety constants (`DETERMINISTIC_SOURCES`, `IRREVERSIBLE_ACTIONS`) are loaded at
 
 Why: config validation happens in both the server and the worker. Loading the full module in the server (which only does scheduling) would pull in unnecessary dependencies. The lighter-weight `const.py` path avoids this.
 
+### Missing `const.py` defaults to all-actions-irreversible (fail-safe)
+
+When `load_platform_const()` returns `None` — because `const.py` doesn't exist, fails to import, or the manifest isn't found — the safety validation treats all SimpleAction/DictAction types as irreversible and all conditions as non-deterministic. A warning is logged. The net effect: any automation with conditions and actions is blocked from firing when platform safety constants are unavailable.
+
+Four approaches were considered: (1) warning only, (2) fail-safe only, (3) config validation error, (4) warning + fail-safe. Approach 4 was chosen because it combines observability with enforcement. The warning tells custom integration authors what's missing. The fail-safe prevents accidental bypass of safety checks while they fix it.
+
+This is consistent with the existing pattern: scripts default to irreversible, services default to irreversible, unknown action types default to irreversible. Missing `const.py` follows the same "guilty until proven innocent" approach.
+
 ### Custom integrations use `gaas_ext.{domain}` namespace
 
 Custom integration packages are loaded into `gaas_ext.*` via `importlib.util.spec_from_file_location()`. A synthetic namespace package is created in `sys.modules`.

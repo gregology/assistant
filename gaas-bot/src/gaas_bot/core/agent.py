@@ -38,6 +38,7 @@ async def run_agent(
     output_model: type[BaseModel] | None = None,
     resume: str | None = None,
     fork_session: bool = False,
+    disallowed_tools: list[str] | None = None,
 ) -> tuple[dict[str, Any] | None, str | None]:
     """Run a Claude agent session and return (structured_output, session_id).
 
@@ -62,6 +63,8 @@ async def run_agent(
         options.resume = resume
     if fork_session:
         options.fork_session = True
+    if disallowed_tools:
+        options.disallowed_tools = disallowed_tools
 
     session_id = None
     result = None

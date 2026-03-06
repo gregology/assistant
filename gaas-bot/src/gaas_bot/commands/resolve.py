@@ -39,6 +39,7 @@ class Stage:
     tools: list[str]
     max_turns: int
     route: Callable[[dict], str | None]
+    disallowed_tools: list[str] | None = None
     pre: Callable[[dict, Path], None] | None = None
     post: Callable[[str, dict, GitHubContext, Path], None] | None = None
 
@@ -166,6 +167,7 @@ STAGES: dict[str, Stage] = {
         tools=["Read", "Glob", "Grep"],
         max_turns=15,
         route=lambda ctx: None,
+        disallowed_tools=["Bash", "Write", "Edit"],
         post=post_pr_action,
     ),
 }
@@ -212,6 +214,7 @@ async def run_stage(
         output_model=stage.output,
         resume=resume_id,
         fork_session=fork,
+        disallowed_tools=stage.disallowed_tools,
     )
 
     click.echo(f"\n--- {name}: complete ---")

@@ -228,6 +228,12 @@ If a condition key refers to a classification field that doesn't exist in the re
 
 Why: the safe default is inaction. An automation that fires on missing data is worse than one that doesn't fire when it should have.
 
+### None values fail safe, same as missing keys
+
+`check_condition` returns `False` for any `None` value, regardless of classification type. The MISSING sentinel still distinguishes "key absent" from "key present with value None" at the resolver level, but at the condition-matching level both result in the automation not firing.
+
+Why: a `None` confidence value (e.g. from a failed LLM parse) previously raised `TypeError` on `None >= 0.8`, which propagated out of `evaluate_automations` and aborted the entire automation loop. This meant a single broken classification field could prevent all automations from evaluating — including purely deterministic ones that had nothing to do with the broken field. The safe default is per-automation false, not global crash. The same guard applies to non-numeric values in confidence fields (e.g. a string `"low"` where a float was expected).
+
 ### Boolean conditions use `is`, not `==`
 
 `value is condition` means a string `"yes"` returned by a confused LLM does not match `True`. Identity comparison, not equality.

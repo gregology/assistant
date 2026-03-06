@@ -74,10 +74,15 @@ def eval_now_operator(value: str, expr: str) -> bool:
 
 
 def check_condition(value: Any, condition: Any, cls_config: ClassificationConfig) -> bool:
+    if value is None:
+        return False
+
     if cls_config.type == "boolean":
         return value is condition
 
     if cls_config.type == "confidence":
+        if not isinstance(value, (int, float)):
+            return False
         if isinstance(condition, (int, float)):
             return bool(value >= condition)
         if isinstance(condition, str):
@@ -93,6 +98,8 @@ def check_condition(value: Any, condition: Any, cls_config: ClassificationConfig
 
 
 def check_deterministic_condition(value: Any, condition: Any) -> bool:
+    if value is None:
+        return False
     if isinstance(condition, str) and _NOW_RE.match(condition):
         return eval_now_operator(value, condition)
     if isinstance(condition, bool):

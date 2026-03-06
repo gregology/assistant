@@ -226,23 +226,42 @@ class TestChaosGarbageInput:
         actions = evaluate_automations(AUTOMATIONS, _DEFAULT_RESOLVER, {}, CLASSIFICATIONS)
         assert actions == []
 
-    def test_none_values_do_not_crash(self):
+    def test_none_confidence_does_not_block_boolean_automation(self):
+        """A None confidence value must not prevent a boolean automation
+        from firing. Per-automation false, not global crash."""
         result = {
             "human": None,
-            "user_agreement_update": None,
+            "user_agreement_update": True,
+            "requires_response": True,
+            "priority": "high",
+        }
+        actions = evaluate_automations(AUTOMATIONS, _DEFAULT_RESOLVER, result, CLASSIFICATIONS)
+        produced = _extract_action_names(actions)
+        assert produced <= ALLOWED_ACTIONS
+        # Boolean automation fires despite None confidence
+        assert "archive" in produced
+        # Confidence-gated automations do not fire
+        assert "spam" not in produced
+        assert "unsubscribe" not in produced
+
+    def test_none_values_do_not_crash(self):
+        """None-valued fields must not block unrelated automations.
+
+        A None classification should behave like a missing key: the
+        automation referencing it doesn't fire, but other automations
+        still evaluate normally.
+        """
+        result = {
+            "human": None,
+            "user_agreement_update": True,
             "requires_response": None,
             "priority": None,
         }
-        # Should not raise, may or may not produce actions depending on
-        # how None compares, but must never crash
-        try:
-            actions = evaluate_automations(AUTOMATIONS, _DEFAULT_RESOLVER, result, CLASSIFICATIONS)
-            produced = _extract_action_names(actions)
-            assert produced <= ALLOWED_ACTIONS
-        except TypeError:
-            # A TypeError from None comparison is acceptable behavior
-            # as long as the system doesn't produce unsafe actions
-            pass
+        actions = evaluate_automations(AUTOMATIONS, _DEFAULT_RESOLVER, result, CLASSIFICATIONS)
+        produced = _extract_action_names(actions)
+        assert produced <= ALLOWED_ACTIONS
+        # The user_agreement_update automation should still fire
+        assert "archive" in produced
 
 
 # ---------------------------------------------------------------------------
@@ -275,13 +294,7 @@ def test_dispatch_never_crashes_on_garbage(result):
     """The dispatch layer must handle any input from a confused LLM
     without raising an unhandled exception, and must only ever produce
     actions from the allowed set."""
-    try:
-        actions = evaluate_automations(AUTOMATIONS, _DEFAULT_RESOLVER, result, CLASSIFICATIONS)
-    except TypeError:
-        # TypeError from comparison operations (e.g. None >= 0.8) is
-        # acceptable as a rejection of garbage input
-        return
-
+    actions = evaluate_automations(AUTOMATIONS, _DEFAULT_RESOLVER, result, CLASSIFICATIONS)
     produced = _extract_action_names(actions)
     assert produced <= ALLOWED_ACTIONS, (
         f"Unknown actions {produced - ALLOWED_ACTIONS} from chaotic result={result}"

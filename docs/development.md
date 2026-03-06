@@ -13,12 +13,6 @@ Install all dependencies (core packages are installed as editable):
 uv sync
 ```
 
-To include the optional Gemini integration:
-
-```bash
-uv sync --extra gemini
-```
-
 ## Running the dev server
 
 The supervisor manages both the FastAPI server and the task worker in a single terminal:

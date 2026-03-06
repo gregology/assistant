@@ -8,10 +8,10 @@ Web research using Google's Gemini API with Google Search grounding. Unlike emai
 
 ## Installation
 
-Gemini is an optional dependency:
+Gemini is included when you install GaaS:
 
 ```bash
-uv sync --extra gemini
+uv sync
 ```
 
 ## Config

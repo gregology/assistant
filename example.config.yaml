@@ -62,7 +62,7 @@ integrations:
                     - type: note
                       path: research/privacy_policy_updates/
 
-  # Gemini web research service used for privacy policy updates (requires `uv sync --extra gemini`)
+  # Gemini web research service used for privacy policy updates
   - type: gemini
     name: default
     api_key: !secret gemini_api_key

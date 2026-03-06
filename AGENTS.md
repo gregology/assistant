@@ -129,11 +129,11 @@ app/
   actions/         # Re-exports from gaas_sdk.actions + script executor
   integrations/    # Handler registry, entry-point loader, custom integration support
   ui/              # Web UI: routes, presenters, YAML editor, Jinja2 templates
-tests/
-  test_cli.py      # CLI, setup wizard, and doctor tests
-  test_ui_routes.py      # Web UI route handler tests
+tests/                 # 18 test files + safety/ (see docs/testing/guide.md for full listing)
+  test_cli.py          # CLI, setup wizard, and doctor tests
+  test_ui_routes.py    # Web UI route handler tests
   test_ui_presenters.py  # Web UI presenter tests
-  safety/          # Property-based and chaos tests for safety invariants
+  safety/              # Property-based, chaos, provenance, and reference validation tests
 ```
 
 Integrations ship as installable packages under `packages/` and are discovered via Python entry points at startup. Custom integrations live in a user-configurable directory (set via `directories.custom_integrations` in `config.yaml`). See `app/integrations/AGENTS.md` for the integration package contract.

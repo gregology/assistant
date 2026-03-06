@@ -9,6 +9,8 @@ uv run pytest -v                           # All tests (core + packages)
 uv run pytest tests/safety                 # Safety tests only
 uv run pytest packages/gaas-email/tests/   # Email tests in isolation (no app config)
 uv run pytest packages/gaas-gemini/tests/  # Gemini tests in isolation
+uv run pytest packages/gaas-github/tests/  # GitHub tests in isolation
+uv run pytest packages/gaas-sdk/tests/     # SDK tests in isolation
 ```
 
 CI runs on GitHub Actions (`.github/workflows/test.yml`): checkout, setup uv, sync, pytest.
@@ -18,29 +20,59 @@ CI runs on GitHub Actions (`.github/workflows/test.yml`): checkout, setup uv, sy
 ```
 tests/
   conftest.py                           # Shared fixtures
-  test_actions.py                       # Shared action partitioning, input resolution
-  test_config.py                        # YoloAction tag handling, ScriptConfig
+  test_actions.py                       # Shared action partitioning, input resolution, template rendering
+  test_cli.py                           # CLI parser routing, setup wizard, doctor subcommands
+  test_config.py                        # YoloAction tag parsing, ScriptConfig, QueuePolicyConfig models
+  test_llm.py                           # LLM conversation, schema validation, structured output retry
+  test_loader.py                        # Integration discovery, manifest parsing, dynamic model construction
   test_queue.py                         # Queue lifecycle + stateful property tests
-  test_llm.py                           # LLM conversation, schema validation
-  test_loader.py                        # Manifest parsing, discovery, dynamic models
-  test_scheduler.py                     # interval_to_cron conversion
-  test_script_execution.py              # Script executor, preamble logging, output capture
+  test_queue_policy.py                  # Dedup, rate limiting, fingerprint, policy resolution
+  test_result_routes.py                 # Service result routing (note persistence, custom paths, fallbacks)
+  test_scheduler.py                     # interval_to_cron conversion and range validation
+  test_script_execution.py              # Script executor, output capture, input injection, timeout handling
+  test_sdk.py                           # SDK public API imports, ServiceManifest defaults, runtime registration
+  test_services.py                      # Service manifest parsing, handler registration, enqueue with on_result
   test_store.py                         # NoteStore CRUD + archive
+  test_supervisor.py                    # Process supervisor lifecycle, sentinel file, restart endpoint
+  test_ui_presenters.py                 # UI presenters: secret masking, classification/automation formatting
+  test_ui_routes.py                     # Web UI route handlers, secret masking in rendered pages
+  test_worker.py                        # Worker dispatch, lifecycle (happy/fail/routing), stale recovery
+  test_yaml_rw.py                       # YAML config round-trip read/write, comment preservation
   safety/
     test_automation_invariants.py        # Property tests: all possible classifications
     test_chaos.py                        # Chaos tests: garbage LLM output
     test_provenance.py                   # Provenance derivation + safety validation
+    test_reference_validation.py         # Script/service reference existence warnings
 
 packages/gaas-email/tests/
-  test_classify.py                       # Condition matching, operators, schema building
-  test_evaluate.py                       # Snapshot construction, resolver, automation evaluation
   test_act.py                            # Action execution, allowlist enforcement
-  test_email_store.py                    # EmailStore CRUD, move, dedup
+  test_check.py                          # Window parsing, inbox fetch ordering, IMAP criteria
+  test_classify.py                       # Condition matching, operators, schema building
+  test_email_store.py                    # EmailStore message-ID sanitization, dedup across subdirs
+  test_evaluate.py                       # Snapshot construction, resolver patterns, automation evaluation
   test_mail_parsing.py                   # Header parsing (auth, unsubscribe, dates, calendar)
 
 packages/gaas-gemini/tests/
   test_client.py                         # GeminiClient two-pass flow (mocked)
   test_web_research.py                   # Service handler with/without output_schema
+
+packages/gaas-github/tests/
+  test_client.py                         # GitHub API client parsing, search dedup, PR status derivation
+  test_entity_store.py                   # GitHubEntityStore: save, find, find_anywhere, move_to_synced
+  test_evaluate.py                       # PR/Issue snapshot construction, resolver, automation evaluation
+  test_issue_store.py                    # IssueStore save, field mappings, URL generation, defaults
+  test_pr_store.py                       # PullRequestStore save, field mappings, URL generation
+
+packages/gaas-sdk/tests/
+  test_action_partitioning.py            # Action detection, input resolution, script/service partitioning
+  test_classify.py                       # Schema building (confidence/boolean/enum), Jinja2 environment
+  test_evaluate.py                       # Automation evaluation engine: conditions, operators, dedup
+  test_manifest.py                       # Manifest dataclasses (Service, Platform, Integration)
+  test_models.py                         # Pydantic config models: YoloAction, ClassificationConfig
+  test_note_store.py                     # NoteStore CRUD, archive, directory creation
+  test_provenance.py                     # Provenance resolution from condition keys (rule/llm/hybrid)
+  test_runtime.py                        # Runtime registration pattern and RuntimeNotRegistered guards
+  test_task.py                           # TaskPayload and TaskRecord TypedDict smoke tests
 ```
 
 Package tests import from `gaas_sdk.*` directly. They run without loading the app config singleton, which means they can be executed in isolation.

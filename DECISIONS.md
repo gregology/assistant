@@ -280,6 +280,12 @@ Originally named `LlamaCppBackend`, which was just wrong. It implied a specific 
 
 Why: structural typing over nominal typing. Makes testing simpler and avoids the diamond inheritance problem if someone wanted to compose backends.
 
+### One backend per LLM profile, not per conversation
+
+`runtime_init.py` creates a single `ChatCompletionsBackend` per configured LLM profile at startup and captures them in the `create_llm_conversation` lambda closure. Every `LLMConversation` on the same profile shares the same `httpx.Client`.
+
+Why: creating a new `httpx.Client` per conversation leaks socket file descriptors under sustained load (hundreds of classification tasks). Sharing the client fixes the leak and gets TCP connection reuse for free. The client is thread-safe and the backend has no mutable conversation state, so sharing is safe.
+
 ### Retry with conversation state cleanup
 
 `_send_structured()` retries up to 3 times on schema validation failure. If all retries fail, it removes the dangling user message from the conversation history.

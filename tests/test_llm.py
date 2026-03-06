@@ -2,6 +2,7 @@ import json
 
 import pytest
 
+import gaas_sdk.runtime
 from app.llm import (
     LLMConversation,
     LLMResponse,
@@ -183,3 +184,33 @@ class TestLLMConversation:
         # The user message should have been removed
         if len(conv.messages) > 0:
             assert conv.messages.last().role != Role.USER
+
+    def test_shared_backend_is_reused(self):
+        """Multiple conversations sharing a backend use the same instance."""
+        backend = FakeLLMBackend(["resp1", "resp2"])
+        conv1 = LLMConversation.__new__(LLMConversation)
+        conv1.model = "test"
+        conv1._parameters = {}
+        conv1.messages = MessageList()
+        conv1._backend = backend
+
+        conv2 = LLMConversation.__new__(LLMConversation)
+        conv2.model = "test"
+        conv2._parameters = {}
+        conv2.messages = MessageList()
+        conv2._backend = backend
+
+        assert conv1._backend is conv2._backend
+
+
+# ---------------------------------------------------------------------------
+# Shared backend via runtime registration
+# ---------------------------------------------------------------------------
+
+
+class TestSharedBackendViaRuntime:
+    def test_runtime_conversations_share_backend(self):
+        """Conversations created via runtime.create_llm_conversation share a backend."""
+        conv1 = gaas_sdk.runtime.create_llm_conversation(model="default")
+        conv2 = gaas_sdk.runtime.create_llm_conversation(model="default")
+        assert conv1._backend is conv2._backend

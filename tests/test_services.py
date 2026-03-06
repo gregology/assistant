@@ -1,6 +1,7 @@
 """Tests for service support: manifest parsing, handler registration,
 action detection, and enqueue_actions with service actions."""
 
+import logging
 from unittest.mock import patch
 
 import yaml
@@ -151,18 +152,35 @@ class TestEnqueueServiceActions:
             payload = mock_enqueue.call_args[0][0]
             assert payload["inputs"] == {"prompt": "test.com"}
 
-    def test_invalid_service_call_format(self):
+    def test_invalid_service_call_format(self, caplog):
         """Invalid call format (not 3 parts) logs warning and doesn't enqueue."""
         resolver = _make_resolver()
         with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
-            enqueue_actions(
-                actions=[ServiceAction(service={"call": "invalid"})],
-                platform_payload={"type": "email.inbox.act", "uid": "123"},
-                resolve_value=resolver,
-                classification={},
-                provenance="rule",
-            )
+            with caplog.at_level(logging.WARNING):
+                enqueue_actions(
+                    actions=[ServiceAction(service={"call": "invalid"})],
+                    platform_payload={"type": "email.inbox.act", "uid": "123"},
+                    resolve_value=resolver,
+                    classification={},
+                    provenance="rule",
+                )
             mock_enqueue.assert_not_called()
+            assert "Invalid service call format: 'invalid'" in caplog.text
+
+    def test_service_malformed_call_two_parts(self, caplog):
+        """Two-part call format (missing service name) logs warning and doesn't enqueue."""
+        resolver = _make_resolver()
+        with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
+            with caplog.at_level(logging.WARNING):
+                enqueue_actions(
+                    actions=[ServiceAction(service={"call": "only.two_parts"})],
+                    platform_payload={"type": "email.inbox.act", "uid": "123"},
+                    resolve_value=resolver,
+                    classification={},
+                    provenance="rule",
+                )
+            mock_enqueue.assert_not_called()
+            assert "Invalid service call format: 'only.two_parts'" in caplog.text
 
     def test_mixed_service_and_platform(self):
         """Service + platform actions produce separate tasks."""

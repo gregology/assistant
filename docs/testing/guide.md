@@ -33,6 +33,7 @@ tests/
 
 packages/gaas-email/tests/
   test_classify.py                       # Condition matching, operators, schema building
+  test_evaluate.py                       # Snapshot construction, resolver, automation evaluation
   test_act.py                            # Action execution, allowlist enforcement
   test_email_store.py                    # EmailStore CRUD, move, dedup
   test_mail_parsing.py                   # Header parsing (auth, unsubscribe, dates, calendar)

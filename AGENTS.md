@@ -131,8 +131,11 @@ app/
   human_log.py     # Human-readable daily markdown logs
   actions/         # Re-exports from gaas_sdk.actions + script executor
   integrations/    # Handler registry, entry-point loader, custom integration support
+  ui/              # Web UI: routes, presenters, YAML editor, Jinja2 templates
 tests/
   test_cli.py      # CLI, setup wizard, and doctor tests
+  test_ui_routes.py      # Web UI route handler tests
+  test_ui_presenters.py  # Web UI presenter tests
   safety/          # Property-based and chaos tests for safety invariants
 ```
 

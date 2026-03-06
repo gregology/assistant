@@ -9,6 +9,30 @@ import tempfile
 from pathlib import Path
 
 
+class GitError(RuntimeError):
+    """A git command failed with a meaningful error message."""
+
+
+def _run_git(
+    cmd: list[str],
+    *,
+    cwd: Path | None = None,
+    env: dict[str, str] | None = None,
+    secrets: list[str] | None = None,
+) -> subprocess.CompletedProcess[str]:
+    """Run a git command, raising GitError with redacted stderr on failure."""
+    result = subprocess.run(
+        cmd, cwd=cwd, capture_output=True, text=True, env=env,
+    )
+    if result.returncode != 0:
+        stderr = result.stderr
+        for secret in secrets or []:
+            if secret:
+                stderr = stderr.replace(secret, "***")
+        raise GitError(f"Command {cmd[0:2]} failed (exit {result.returncode}): {stderr.strip()}")
+    return result
+
+
 def repo_root() -> Path:
     """Return the root of the git repository containing this package."""
     result = subprocess.run(
@@ -117,10 +141,7 @@ def commit_and_push(
         print("No changes to commit.")
         return False
 
-    subprocess.run(
-        ["git", "add", "-A"],
-        cwd=worktree_dir, check=True, capture_output=True,
-    )
+    _run_git(["git", "add", "-A"], cwd=worktree_dir)
 
     env = {
         **os.environ,
@@ -129,15 +150,15 @@ def commit_and_push(
         "GIT_COMMITTER_NAME": bot_name,
         "GIT_COMMITTER_EMAIL": bot_email,
     }
-    subprocess.run(
+    _run_git(
         ["git", "commit", "-m", commit_message],
-        cwd=worktree_dir, check=True, capture_output=True, env=env,
+        cwd=worktree_dir, env=env,
     )
 
     push_url = f"https://x-access-token:{token}@github.com/{owner}/{repo}.git"
-    subprocess.run(
+    _run_git(
         ["git", "push", push_url, f"HEAD:{branch}", "--force"],
-        cwd=worktree_dir, check=True, capture_output=True,
+        cwd=worktree_dir, secrets=[token],
     )
     print(f"Pushed branch {branch}")
     return True

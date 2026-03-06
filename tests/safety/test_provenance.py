@@ -280,6 +280,60 @@ class TestSafetyValidation:
         assert warnings == []
         assert len(platform.automations) == 1
 
+    def test_dict_action_irreversible_from_llm_blocked(self):
+        """Irreversible DictAction from LLM provenance is blocked."""
+        automations = [
+            AutomationConfig(
+                when={"classification.human": "> 0.8"},
+                then=[{"unsubscribe": True}],
+            ),
+        ]
+        integration, platform = _make_integration("test", automations)
+        warnings = _validate_automation_safety([integration])
+        assert len(warnings) == 1
+        assert "unsubscribe" in warnings[0]
+        assert "disabled" in warnings[0]
+        assert len(platform.automations) == 0
+
+    def test_dict_action_irreversible_from_rule_allowed(self):
+        """Irreversible DictAction from deterministic provenance loads fine."""
+        automations = [
+            AutomationConfig(
+                when={"domain": "spam.com"},
+                then=[{"unsubscribe": True}],
+            ),
+        ]
+        integration, platform = _make_integration("test", automations)
+        warnings = _validate_automation_safety([integration])
+        assert warnings == []
+        assert len(platform.automations) == 1
+
+    def test_dict_action_reversible_from_llm_allowed(self):
+        """Reversible DictAction from LLM provenance is allowed."""
+        automations = [
+            AutomationConfig(
+                when={"classification.human": "> 0.8"},
+                then=[{"draft_reply": "I'll get back to you."}],
+            ),
+        ]
+        integration, platform = _make_integration("test", automations)
+        warnings = _validate_automation_safety([integration])
+        assert warnings == []
+        assert len(platform.automations) == 1
+
+    def test_dict_action_irreversible_yolo_from_llm_allowed(self):
+        """YoloAction wrapping irreversible DictAction + LLM provenance is allowed."""
+        automations = [
+            AutomationConfig(
+                when={"classification.human": "> 0.8"},
+                then=[YoloAction({"unsubscribe": True})],
+            ),
+        ]
+        integration, platform = _make_integration("test", automations)
+        warnings = _validate_automation_safety([integration])
+        assert warnings == []
+        assert len(platform.automations) == 1
+
     def test_service_from_llm_provenance_blocked(self):
         """Non-reversible service action + LLM provenance is blocked."""
         automations = [

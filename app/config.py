@@ -24,6 +24,8 @@ from gaas_sdk.models import (  # noqa: F401
 )
 from gaas_sdk.provenance import resolve_provenance
 
+log = logging.getLogger(__name__)
+
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 _CONFIG_PATH = _PROJECT_ROOT / "config.yaml"
 SECRETS_PATH = _PROJECT_ROOT / "secrets.yaml"
@@ -289,6 +291,9 @@ def _find_unsafe_actions(
             name = next(iter(action.data), "")
             if name in irreversible_actions:
                 unsafe.append(name)
+        else:
+            log.warning("Unrecognized action type %s treated as irreversible", type(action).__name__)
+            unsafe.append(f"unknown:{type(action).__name__}")
     return unsafe
 
 

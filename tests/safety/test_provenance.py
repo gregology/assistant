@@ -12,6 +12,7 @@ from app.config import (
     ScriptConfig,
     SimpleAction,
     YoloAction,
+    _find_unsafe_actions,
     _validate_automation_safety,
     resolve_provenance,
 )
@@ -404,5 +405,70 @@ class TestSafetyValidation:
         integration, platform = _make_integration("test", automations)
         with patch("app.loader.get_manifests", return_value={"tools": mock_manifest}):
             warnings = _validate_automation_safety([integration])
+        assert warnings == []
+        assert len(platform.automations) == 1
+
+    def test_unknown_action_type_treated_as_irreversible(self):
+        """Unrecognized action types are treated as irreversible by _find_unsafe_actions."""
+
+        class FutureAction:
+            """A hypothetical new action type not in the isinstance chain."""
+            pass
+
+        action = FutureAction()
+        automation = AutomationConfig(
+            when={"classification.human": "> 0.8"},
+            then=["archive"],  # placeholder, we'll test _find_unsafe_actions directly
+        )
+        # Inject the unknown action into the parsed 'then' list
+        automation.then = [action]
+
+        unsafe = _find_unsafe_actions(automation, frozenset())
+        assert len(unsafe) == 1
+        assert "unknown:FutureAction" in unsafe[0]
+
+    def test_unknown_action_type_from_llm_blocked(self):
+        """Unknown action type + LLM provenance is blocked by safety validation."""
+
+        class FutureAction:
+            pass
+
+        automations = [
+            AutomationConfig(
+                when={"classification.human": "> 0.8"},
+                then=["archive"],
+            ),
+        ]
+        # Inject unknown action type after parsing
+        automations[0].then = [FutureAction()]
+
+        integration, platform = _make_integration("test", automations)
+        warnings = _validate_automation_safety([integration])
+        assert len(warnings) == 1
+        assert "unknown:FutureAction" in warnings[0]
+        assert "disabled" in warnings[0]
+        assert len(platform.automations) == 0
+
+    def test_unknown_action_type_from_deterministic_allowed(self):
+        """Unknown action type + deterministic provenance is allowed.
+
+        Safety validation only blocks non-deterministic provenance.
+        The unknown type is still flagged as irreversible by _find_unsafe_actions,
+        but rule-provenance automations are not subject to that check.
+        """
+
+        class FutureAction:
+            pass
+
+        automations = [
+            AutomationConfig(
+                when={"domain": "example.com"},
+                then=["archive"],
+            ),
+        ]
+        automations[0].then = [FutureAction()]
+
+        integration, platform = _make_integration("test", automations)
+        warnings = _validate_automation_safety([integration])
         assert warnings == []
         assert len(platform.automations) == 1

@@ -41,7 +41,7 @@ curl -fsSL https://gho.st/install.sh | bash
 ## Documentation
 
 - [Why GaaS exists](docs/why.md) - The motivation and use cases
-- [Design principles](docs/why.md) - WWHAD, zero trust, default to code, and the rest of the non-negotiables
+- [Design principles](docs/design.md) - WWHAD, zero trust, default to code, and the rest of the non-negotiables
 - [API reference](docs/api.md) - Endpoints and examples
 - Architecture
   - [System overview](docs/architecture/overview.md) - Components and data flow

@@ -52,6 +52,18 @@ Tests the provenance derivation (`resolve_provenance`) and safety validation (`_
 - Script actions are irreversible by default, blocked from LLM provenance without `!yolo`
 - Scripts with `reversible: true` are allowed from LLM provenance without `!yolo`
 
+### Reference Validation Tests (`test_reference_validation.py`)
+
+Tests that `_validate_script_references` and `_validate_service_references` warn about automations referencing nonexistent scripts or services. These produce warnings only (automations are NOT disabled), but the warnings are the only signal a user gets that their automation will silently do nothing at runtime.
+
+- Undefined script name → warning containing the name and integration path
+- Defined script name → no warning
+- `!yolo`-wrapped undefined script → still warns (yolo overrides safety, not existence)
+- Unknown service type or service name → warning
+- Malformed service `call` format (wrong number of dots) → warning
+- Valid known service → no warning
+- Integrations without platforms → no crash
+
 ## Filesystem Snapshot Assertions
 
 The filesystem is the database. Assert on the entire directory tree state, not individual files:
@@ -134,6 +146,7 @@ tests/
     test_automation_invariants.py        # Property tests: all possible classifications
     test_chaos.py                        # Chaos tests: garbage LLM output
     test_provenance.py                   # Provenance derivation + safety validation
+    test_reference_validation.py         # Script/service reference existence checks
 
 packages/gaas-email/tests/
   test_classify.py                       # Condition matching, operators, schema building

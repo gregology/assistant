@@ -188,6 +188,12 @@ Irreversible actions with `llm` or `hybrid` provenance are stripped from the aut
 
 Why: runtime gating is a bug waiting to happen. If the safety check is a conditional at execution time, a code path change could skip it. By stripping unsafe automations before the server starts, the worker physically cannot encounter them.
 
+### Reference validation warns but does not disable
+
+`_validate_script_references` and `_validate_service_references` warn about automations that reference nonexistent scripts or services. They do not disable the automations (unlike `_validate_automation_safety`, which strips unsafe automations entirely). Malformed service call formats (wrong number of dot-separated parts) also produce a warning rather than being silently skipped.
+
+Why: these are existence checks, not safety checks. A typo in a script name (`reserach_tos` instead of `research_tos`) is a misconfiguration bug, not a safety violation. The automation will harmlessly no-op at runtime. But the warning is the only signal the user gets — without it, they think they have automation coverage when they don't. `!yolo` does not suppress these warnings because yolo overrides provenance safety, not existence validation.
+
 ### `classified_by` separate from `classification`
 
 LLM metadata (model, profile, timestamp) lives in `classified_by`, not inside `classification`. The dispatch layer never reads `classified_by`. The audit log and human review tools do.

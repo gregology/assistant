@@ -424,7 +424,13 @@ def _validate_service_references(
                         service_ref = raw.service
                         call = service_ref.get("call", "")
                         parts = call.rsplit(".", 2)
-                        if len(parts) == 3:
+                        if len(parts) != 3:
+                            warnings.append(
+                                f"Automation in '{integration.name}.{platform_name}' "
+                                f"has malformed service call '{call}' "
+                                f"(expected 'type.instance.service')"
+                            )
+                        else:
                             svc_type, _svc_name, service_name = parts
                             manifest = manifests.get(svc_type)
                             if not manifest or service_name not in manifest.services:

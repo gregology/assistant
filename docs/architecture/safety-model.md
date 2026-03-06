@@ -39,7 +39,7 @@ Each platform defines its own `DETERMINISTIC_SOURCES` and `IRREVERSIBLE_ACTIONS`
 
 Script actions are also subject to provenance gating. Scripts are **irreversible by default** because the system can't statically verify what shell code does. A script definition can opt in to reversibility with `reversible: true`, which allows it to fire from `llm`/`hybrid` provenance without `!yolo`. Without that flag, script actions follow the same rules as `unsubscribe`: blocked from non-deterministic provenance unless explicitly overridden.
 
-Service actions follow the same pattern. Services declared in an integration's `manifest.yaml` are irreversible by default. The manifest can declare `reversible: true` for read-only services (like Gemini's web research). Irreversible services from LLM provenance are blocked unless wrapped in `!yolo`.
+Service actions follow the same pattern. Services declared in an integration's `manifest.yaml` are irreversible by default. The manifest can declare `reversible: true` for services that are both read-only **and** do not transmit data beyond the system boundary (e.g., a local file search or a localhost-only API call). Irreversible services from LLM provenance are blocked unless wrapped in `!yolo`.
 
 ### The `!yolo` override
 

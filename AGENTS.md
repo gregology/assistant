@@ -109,7 +109,7 @@ packages/
   gaas-sdk/        # Contracts layer: models, evaluate, classify, NoteStore, runtime
   gaas-email/      # Email integration (inbox platform, IMAP)
   gaas-github/     # GitHub integration (pull_requests + issues platforms)
-  gaas-gemini/     # Gemini integration (web_research service, optional)
+  gaas-gemini/     # Gemini integration (web_research service)
 app/
   cli.py           # CLI entry point: gaas start|setup|update|doctor|version|status|logs
   setup.py         # Guided setup wizard (generates config.yaml + secrets.yaml)

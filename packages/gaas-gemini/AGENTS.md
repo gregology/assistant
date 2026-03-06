@@ -2,7 +2,7 @@
 
 A service-only integration for grounded web research via Google's Gemini API. No platforms, no event-driven pipeline. Provides a callable service that other integrations can invoke from automation `then` clauses.
 
-Optional dependency: `pip install gaas[gemini]` or `uv add gaas-gemini`.
+Installed as a core dependency via `uv sync`.
 
 ## Structure
 

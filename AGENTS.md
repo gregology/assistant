@@ -33,7 +33,7 @@ When an action is triggered by LLM classification vs. deterministic rules (e.g. 
 
 ## Tech Stack
 
-- **Python 3.12+**, managed with `uv`
+- **Python 3.11+**, managed with `uv`
 - **FastAPI** with cron scheduling (`fastapi-crons`)
 - **Filesystem-based task queue** using YAML files in `pending/`, `active/`, `done/`, `failed/`
 - **Markdown + YAML frontmatter** for all persistent state (`python-frontmatter`)

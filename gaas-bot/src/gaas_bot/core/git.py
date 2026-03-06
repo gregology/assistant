@@ -92,7 +92,7 @@ def get_diff(worktree_dir: Path) -> str:
 def rename_branch(worktree_dir: Path, new_name: str) -> None:
     """Rename the current branch in a worktree."""
     subprocess.run(
-        ["git", "branch", "-m", new_name],
+        ["git", "branch", "-M", new_name],
         cwd=worktree_dir, check=True, capture_output=True,
     )
 

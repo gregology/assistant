@@ -43,14 +43,13 @@ uv run python -m app.worker    # Task worker
 uv run pytest -v
 ```
 
-This runs tests from six locations (configured in `pyproject.toml`):
+This runs tests from five locations (configured in `pyproject.toml`):
 
 - `tests/` - core app tests and safety tests
 - `packages/gaas-email/tests/` - email integration tests
 - `packages/gaas-gemini/tests/` - Gemini integration tests
 - `packages/gaas-github/tests/` - GitHub integration tests
 - `packages/gaas-sdk/tests/` - SDK tests (provenance, store, runtime)
-- `gaas-bot/tests/` - maintenance bot tests
 
 To run a subset:
 

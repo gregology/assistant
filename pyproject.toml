@@ -40,7 +40,6 @@ dev = [
     "import-linter>=2.0",
     "bandit>=1.7",
     "ruff>=0.4",
-    "gaas-bot",
 ]
 
 [tool.uv.sources]
@@ -48,10 +47,9 @@ gaas-sdk = { path = "packages/gaas-sdk", editable = true }
 gaas-email = { path = "packages/gaas-email", editable = true }
 gaas-github = { path = "packages/gaas-github", editable = true }
 gaas-gemini = { path = "packages/gaas-gemini", editable = true }
-gaas-bot = { path = "gaas-bot", editable = true }
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "packages/gaas-email/tests", "packages/gaas-gemini/tests", "packages/gaas-github/tests", "packages/gaas-sdk/tests", "gaas-bot/tests"]
+testpaths = ["tests", "packages/gaas-email/tests", "packages/gaas-gemini/tests", "packages/gaas-github/tests", "packages/gaas-sdk/tests"]
 pythonpath = ["."]
 addopts = "--import-mode=importlib"
 

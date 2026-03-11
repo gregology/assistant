@@ -167,7 +167,7 @@ Dev dependencies for spotting tech debt, dead code, complexity creep, and archit
 
 ```bash
 uv run mypy app/ packages/ --ignore-missing-imports   # Type checking
-uv run complexipy app/ packages/ --max-complexity 15   # Cognitive complexity
+uv run complexipy app/ packages/ --max-complexity-allowed 15   # Cognitive complexity
 uv run radon cc app/ -a -nc                            # Cyclomatic complexity (C+ only)
 uv run vulture app/ packages/ --min-confidence 80      # Dead code
 uv run deptry .                                        # Unused/missing deps

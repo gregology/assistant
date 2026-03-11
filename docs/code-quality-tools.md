@@ -11,7 +11,7 @@ These aren't meant to run on every commit. Run them periodically (monthly, or be
 uv run mypy app/ packages/ --ignore-missing-imports
 
 # Complexity (cognitive)
-uv run complexipy app/ packages/ --max-complexity 15
+uv run complexipy app/ packages/ --max-complexity-allowed 15
 
 # Complexity (cyclomatic + maintainability index)
 uv run radon cc app/ -a -nc        # cyclomatic, only show C+ (complex)

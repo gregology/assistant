@@ -1,3 +1,4 @@
+import contextlib
 from datetime import date
 from unittest.mock import MagicMock
 
@@ -112,3 +113,40 @@ class TestInboxMessageIds:
         result = mb.inbox_message_ids(limit=5)
 
         assert result == [("200", "")]
+
+
+# -- mark_seen=False -----------------------------------------------------------
+
+
+class TestMarkSeenFalse:
+    """All fetch calls must pass mark_seen=False to avoid marking emails as read."""
+
+    def test_inbox_message_ids_mark_seen_false(self):
+        mb = _make_mailbox()
+        mb._conn.fetch.return_value = []
+
+        mb.inbox_message_ids(limit=10)
+
+        _, kwargs = mb._conn.fetch.call_args
+        assert kwargs["mark_seen"] is False
+
+    def test_collect_emails_mark_seen_false(self):
+        mb = _make_mailbox()
+        mb._conn.fetch.return_value = []
+
+        mb.collect_emails(limit=10)
+
+        _, kwargs = mb._conn.fetch.call_args
+        assert kwargs["mark_seen"] is False
+
+    def test_get_email_mark_seen_false(self):
+        mb = _make_mailbox()
+        mb._conn.fetch.return_value = [MagicMock()]
+
+        # Email.__init__ will fail on the mock, but fetch is called before that.
+        # We only need to verify the fetch kwargs.
+        with contextlib.suppress(Exception):
+            mb.get_email("42")
+
+        _, kwargs = mb._conn.fetch.call_args
+        assert kwargs["mark_seen"] is False

@@ -218,7 +218,9 @@ class Mailbox:
         self._ensure_connected()
         assert self._conn is not None
         criteria = AND(date_gte=since) if since else "ALL"
-        messages = list(self._conn.fetch(criteria, headers_only=True, limit=limit, reverse=True))
+        messages = list(self._conn.fetch(
+            criteria, headers_only=True, limit=limit, reverse=True, mark_seen=False,
+        ))
         result = []
         for msg in messages:
             uid = msg.uid or ""
@@ -229,7 +231,7 @@ class Mailbox:
     def collect_emails(self, limit: int = 50) -> None:
         self._ensure_connected()
         assert self._conn is not None
-        messages = list(self._conn.fetch(limit=limit, reverse=True))
+        messages = list(self._conn.fetch(limit=limit, reverse=True, mark_seen=False))
         self.emails = sorted(
             [Email(msg, self) for msg in messages],
             key=lambda e: e.date,
@@ -240,7 +242,7 @@ class Mailbox:
     def get_email(self, uid: str) -> Email:
         self._ensure_connected()
         assert self._conn is not None
-        messages = list(self._conn.fetch(AND(uid=uid)))
+        messages = list(self._conn.fetch(AND(uid=uid), mark_seen=False))
         if not messages:
             raise ValueError(f"No email found with uid={uid}")
         return Email(messages[0], self)

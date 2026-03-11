@@ -10,7 +10,7 @@ from .store import PullRequestStore
 log = logging.getLogger(__name__)
 
 
-def handle(task: TaskRecord):
+def handle(task: TaskRecord) -> None:
     from ...client import GitHubClient
 
     integration_id = task["payload"]["integration"]
@@ -36,7 +36,10 @@ def handle(task: TaskRecord):
     stale = active_local - active_remote
     for org, repo, number in stale:
         store.move_to_synced(org, repo, number)
-        log.info("PR **%s/%s#%d** no longer requires attention — moved to synced/", org, repo, number)
+        log.info(
+            "PR **%s/%s#%d** no longer requires attention — moved to synced/",
+            org, repo, number,
+        )
 
     # Enqueue collect for every active PR (upsert: creates new or refreshes metadata).
     for pr in remote_prs:
@@ -49,6 +52,7 @@ def handle(task: TaskRecord):
         }, priority=3)
 
     log.info(
-        "github.pull_requests.check: %d active remotely, %d tracked locally, %d moved to synced/, %d collect tasks queued",
+        "github.pull_requests.check: %d active remotely, %d tracked locally, "
+        "%d moved to synced/, %d collect tasks queued",
         len(active_remote), len(active_local), len(stale), len(remote_prs),
     )

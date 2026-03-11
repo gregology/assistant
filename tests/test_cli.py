@@ -374,7 +374,7 @@ class TestInstallScript:
 
     def test_install_script_shellcheck(self):
         """Run shellcheck if available."""
-        if not subprocess.run(["which", "shellcheck"], capture_output=True).returncode == 0:
+        if subprocess.run(["which", "shellcheck"], capture_output=True).returncode != 0:
             pytest.skip("shellcheck not installed")
         result = subprocess.run(
             ["shellcheck", "-e", "SC2034", str(PROJECT_ROOT / "install.sh")],

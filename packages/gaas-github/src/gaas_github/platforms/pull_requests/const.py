@@ -7,13 +7,22 @@ from gaas_sdk.models import ClassificationConfig
 
 DEFAULT_CLASSIFICATIONS: dict[str, ClassificationConfig] = {
     "complexity": ClassificationConfig(
-        prompt="How complex is this pull request to review? 0 = trivial typo fix, 1 = major architectural change.",
+        prompt=(
+            "How complex is this pull request to review?"
+            " 0 = trivial typo fix, 1 = major architectural change."
+        ),
     ),
     "risk": ClassificationConfig(
-        prompt="How risky is this change to production systems? 0 = no risk, 1 = high risk of breaking things.",
+        prompt=(
+            "How risky is this change to production systems?"
+            " 0 = no risk, 1 = high risk of breaking things."
+        ),
     ),
     "documentation_only": ClassificationConfig(
-        prompt="Is this primarily a documentation or configuration change? 0 = code change, 1 = purely documentation.",
+        prompt=(
+            "Is this primarily a documentation or configuration change?"
+            " 0 = code change, 1 = purely documentation."
+        ),
         type="boolean",
     ),
 }

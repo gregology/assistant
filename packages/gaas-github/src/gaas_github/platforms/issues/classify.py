@@ -4,6 +4,7 @@ import logging
 import secrets
 from datetime import datetime, UTC
 from pathlib import Path
+from typing import Any
 
 import frontmatter
 
@@ -24,7 +25,7 @@ MAX_BODY_CHARS = 10_000
 
 
 def _render_prompt(
-    detail: dict,
+    detail: dict[str, Any],
     classifications: dict[str, ClassificationConfig],
 ) -> str:
     body = detail["body"]
@@ -42,7 +43,7 @@ def _render_prompt(
     )
 
 
-def handle(task: TaskRecord):
+def handle(task: TaskRecord) -> None:
     from ...client import GitHubClient
 
     integration_id = task["payload"]["integration"]

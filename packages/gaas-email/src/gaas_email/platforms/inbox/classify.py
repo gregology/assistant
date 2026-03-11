@@ -2,6 +2,7 @@ import logging
 import secrets
 from datetime import datetime, UTC
 from pathlib import Path
+from typing import Any
 
 import frontmatter
 
@@ -20,7 +21,7 @@ jinja_env = make_jinja_env(TEMPLATES_DIR)
 MAX_BODY_CHARS = 5_000
 
 
-def _render_prompt(email, classifications: dict[str, ClassificationConfig]) -> str:
+def _render_prompt(email: Any, classifications: dict[str, ClassificationConfig]) -> str:
     body = email.contents_clean
     if len(body) > MAX_BODY_CHARS:
         body = body[:MAX_BODY_CHARS] + "\n... (body truncated)"
@@ -33,7 +34,7 @@ def _render_prompt(email, classifications: dict[str, ClassificationConfig]) -> s
     )
 
 
-def handle(task: TaskRecord):
+def handle(task: TaskRecord) -> None:
     from ...mail import Mailbox
 
     integration_id = task["payload"]["integration"]
@@ -49,10 +50,10 @@ def handle(task: TaskRecord):
     store = EmailStore(path=notes_dir / "emails" / integration.name)
 
     with Mailbox(
-        imap_server=integration.imap_server,
-        imap_port=integration.imap_port,
-        username=integration.username,
-        password=integration.password,
+        imap_server=integration.imap_server,  # type: ignore[attr-defined]
+        imap_port=integration.imap_port,  # type: ignore[attr-defined]
+        username=integration.username,  # type: ignore[attr-defined]
+        password=integration.password,  # type: ignore[attr-defined]
     ) as mb:
         email = mb.get_email(uid)
 

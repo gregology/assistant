@@ -20,7 +20,7 @@ def _parse_window_days(window: str) -> int:
     return int(match.group(1))
 
 
-def handle(task: TaskRecord):
+def handle(task: TaskRecord) -> None:
     from ...mail import Mailbox
 
     integration_id = task["payload"]["integration"]
@@ -32,13 +32,14 @@ def handle(task: TaskRecord):
     store = EmailStore(path=notes_dir / "emails" / integration.name)
 
     with Mailbox(
-        imap_server=integration.imap_server,
-        imap_port=integration.imap_port,
-        username=integration.username,
-        password=integration.password,
+        imap_server=integration.imap_server,  # type: ignore[attr-defined]
+        imap_port=integration.imap_port,  # type: ignore[attr-defined]
+        username=integration.username,  # type: ignore[attr-defined]
+        password=integration.password,  # type: ignore[attr-defined]
     ) as mb:
-        limit = task["payload"].get("limit", platform.limit)
-        window = task["payload"].get("window", platform.window)
+        raw_limit = task["payload"].get("limit", platform.limit)  # type: ignore[attr-defined]
+        limit: int = int(raw_limit) if raw_limit is not None else 500
+        window = task["payload"].get("window", platform.window)  # type: ignore[attr-defined]
         since = date.today() - timedelta(days=_parse_window_days(window)) if window else None
         inbox_pairs = mb.inbox_message_ids(limit=limit, since=since)
 
@@ -59,7 +60,7 @@ def handle(task: TaskRecord):
         store.move_to_subdir(mid, "synced")
 
     # Enqueue collect for every inbox email (upsert: creates new or refreshes mutable fields).
-    for mid, uid in inbox_by_mid.items():
+    for _mid, uid in inbox_by_mid.items():
         runtime.enqueue({
             "type": "email.inbox.collect",
             "integration": integration_id,

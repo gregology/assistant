@@ -14,6 +14,7 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -87,7 +88,7 @@ def _prompt_yn(msg: str, default: bool = True) -> bool:
 # ─── Setup sections ──────────────────────────────────────────────────────────
 
 
-def setup_llm() -> tuple[dict, dict]:
+def setup_llm() -> tuple[dict[str, Any], dict[str, str]]:
     """Configure LLM backends. Returns (config_section, secrets_section)."""
     _heading("LLM Backend")
     _info("GaaS needs an LLM backend for classification tasks.")
@@ -99,8 +100,8 @@ def setup_llm() -> tuple[dict, dict]:
         default="Ollama (local)",
     )
 
-    config: dict = {}
-    secrets: dict = {}
+    config: dict[str, Any] = {}
+    secrets: dict[str, str] = {}
 
     if backend == "Skip for now":
         _warn("Skipping LLM setup. You'll need to configure this in config.yaml later.")
@@ -145,7 +146,7 @@ def setup_llm() -> tuple[dict, dict]:
         name = _prompt("Profile name", "fast")
         host = _prompt("API base URL", config["default"]["base_url"])
         model = _prompt("Model name")
-        profile: dict = {"base_url": host, "model": model}
+        profile: dict[str, Any] = {"base_url": host, "model": model}
         if host != config["default"].get("base_url") and "api" in host.lower():
             token = _prompt("API key (leave empty to reuse default)")
             if token:
@@ -157,15 +158,15 @@ def setup_llm() -> tuple[dict, dict]:
     return config, secrets
 
 
-def setup_email() -> tuple[list[dict], dict]:
+def setup_email() -> tuple[list[dict[str, Any]], dict[str, str]]:
     """Configure email integration. Returns (integrations_list, secrets_section)."""
     _heading("Email Integration")
 
     if not _prompt_yn("Set up email integration?", default=True):
         return [], {}
 
-    integrations = []
-    secrets: dict = {}
+    integrations: list[dict[str, Any]] = []
+    secrets: dict[str, str] = {}
 
     name = _prompt("Integration name", "personal")
     server = _prompt("IMAP server", "imap.fastmail.com")
@@ -178,7 +179,7 @@ def setup_email() -> tuple[list[dict], dict]:
 
     schedule = _prompt("Check frequency", "30m")
 
-    integration: dict = {
+    integration: dict[str, Any] = {
         "type": "email",
         "name": name,
         "imap_server": server,
@@ -202,7 +203,7 @@ def setup_email() -> tuple[list[dict], dict]:
     return integrations, secrets
 
 
-def setup_github() -> list[dict]:
+def setup_github() -> list[dict[str, Any]]:
     """Configure GitHub integration. Returns integrations list."""
     _heading("GitHub Integration")
 
@@ -233,11 +234,14 @@ def setup_github() -> list[dict]:
     pr_enabled = _prompt_yn("Monitor pull requests?", default=True)
     issues_enabled = _prompt_yn("Monitor issues?", default=True)
 
-    platforms: dict = {}
+    platforms: dict[str, Any] = {}
     if pr_enabled:
         platforms["pull_requests"] = {
             "classifications": {
-                "complexity": "how complex is this PR to review? 0 = trivial, 1 = major architectural change",
+                "complexity": (
+                    "how complex is this PR to review?"
+                    " 0 = trivial, 1 = major architectural change"
+                ),
                 "risk": "how risky is this change? 0 = no risk, 1 = high risk of breaking things",
             }
         }
@@ -255,7 +259,7 @@ def setup_github() -> list[dict]:
     if not platforms:
         return []
 
-    integration: dict = {
+    integration: dict[str, Any] = {
         "type": "github",
         "name": name,
         "schedule": {"every": schedule},
@@ -265,7 +269,7 @@ def setup_github() -> list[dict]:
     return [integration]
 
 
-def setup_directories() -> dict:
+def setup_directories() -> dict[str, str]:
     """Configure data directories. Returns directories config."""
     _heading("Data Directories")
     _info("GaaS stores notes, task queue data, and logs on the filesystem.")
@@ -295,7 +299,7 @@ def setup_directories() -> dict:
         dirs["logs"] = _prompt("Logs directory", dirs["logs"])
 
     # Create directories
-    for key, path in dirs.items():
+    for _key, path in dirs.items():
         Path(path).mkdir(parents=True, exist_ok=True)
     _success("Directories created")
 
@@ -306,9 +310,9 @@ def setup_directories() -> dict:
 
 
 def _build_config_yaml(
-    llm_config: dict,
-    integrations: list[dict],
-    directories: dict,
+    llm_config: dict[str, Any],
+    integrations: list[dict[str, Any]],
+    directories: dict[str, str],
 ) -> str:
     """Build config.yaml content as a string.
 
@@ -369,7 +373,7 @@ def _build_config_yaml(
     return "\n".join(lines)
 
 
-def _write_platform(lines: list[str], config: dict, indent: int) -> None:
+def _write_platform(lines: list[str], config: dict[str, Any], indent: int) -> None:
     """Recursively write platform config with proper indentation."""
     prefix = " " * indent
     for key, value in config.items():
@@ -384,7 +388,7 @@ def _write_platform(lines: list[str], config: dict, indent: int) -> None:
             lines.append(f"{prefix}{key}: {value}")
 
 
-def _build_secrets_yaml(secrets: dict) -> str:
+def _build_secrets_yaml(secrets: dict[str, str]) -> str:
     """Build secrets.yaml content."""
     lines = [
         "# GaaS secrets — referenced from config.yaml via !secret <key>",
@@ -477,10 +481,17 @@ def run_setup(reconfigure: bool = False) -> int:
     _success("Setup complete!")
     print()
     _info("Next steps:")
-    _info(f"  1. Review your config:  {BOLD}cat {config_path}{NC}" if _color() else f"  1. Review your config:  cat {config_path}")
-    _info(f"  2. Check your setup:    {BOLD}gaas doctor{NC}" if _color() else f"  2. Check your setup:    gaas doctor")
-    _info(f"  3. Start GaaS:          {BOLD}gaas start{NC}" if _color() else f"  3. Start GaaS:          gaas start")
-    _info(f"  Full config reference:  {BOLD}{PROJECT_ROOT / 'example.config.yaml'}{NC}" if _color() else f"  Full config reference:  {PROJECT_ROOT / 'example.config.yaml'}")
+    example = PROJECT_ROOT / "example.config.yaml"
+    if _color():
+        _info(f"  1. Review your config:  {BOLD}cat {config_path}{NC}")
+        _info(f"  2. Check your setup:    {BOLD}gaas doctor{NC}")
+        _info(f"  3. Start GaaS:          {BOLD}gaas start{NC}")
+        _info(f"  Full config reference:  {BOLD}{example}{NC}")
+    else:
+        _info(f"  1. Review your config:  cat {config_path}")
+        _info("  2. Check your setup:    gaas doctor")
+        _info("  3. Start GaaS:          gaas start")
+        _info(f"  Full config reference:  {example}")
     print()
 
     return 0

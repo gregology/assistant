@@ -20,7 +20,7 @@ class TestHandle:
     def test_unknown_task_type_raises(self):
         """Unknown task types raise ValueError so they move to failed/."""
         task = {"payload": {"type": "nonexistent.task.type"}}
-        with pytest.raises(ValueError, match="Unknown task type: nonexistent.task.type"):
+        with pytest.raises(ValueError, match=r"Unknown task type: nonexistent\.task\.type"):
             handle(task)
 
     def test_missing_task_type_raises(self):
@@ -86,7 +86,7 @@ class TestWorkerLoop:
             queue.enqueue({"type": "test.happy"})
             assert _snapshot(queue_dir) == {"pending": 1, "active": 0, "done": 0, "failed": 0}
 
-            task, result = self._run_one_task(queue_dir)
+            _task, result = self._run_one_task(queue_dir)
 
             assert result == {"output": "ok"}
             assert _snapshot(queue_dir) == {"pending": 0, "active": 0, "done": 1, "failed": 0}
@@ -104,7 +104,7 @@ class TestWorkerLoop:
         HANDLERS["test.none"] = lambda t: None
         try:
             queue.enqueue({"type": "test.none"})
-            task, result = self._run_one_task(queue_dir)
+            _task, result = self._run_one_task(queue_dir)
 
             assert result is None
             assert _snapshot(queue_dir) == {"pending": 0, "active": 0, "done": 1, "failed": 0}
@@ -121,7 +121,7 @@ class TestWorkerLoop:
         HANDLERS["test.boom"] = MagicMock(side_effect=RuntimeError("handler exploded"))
         try:
             queue.enqueue({"type": "test.boom"})
-            task, exc = self._run_one_task(queue_dir)
+            _task, exc = self._run_one_task(queue_dir)
 
             assert isinstance(exc, RuntimeError)
             assert _snapshot(queue_dir) == {"pending": 0, "active": 0, "done": 0, "failed": 1}
@@ -140,9 +140,11 @@ class TestWorkerLoop:
         try:
             queue.enqueue({"type": "test.route_fail"})
 
-            with patch("app.result_routes.route_results", side_effect=RuntimeError("routing boom")):
-                with caplog.at_level(logging.ERROR):
-                    task, result = self._run_one_task(queue_dir)
+            with (
+                patch("app.result_routes.route_results", side_effect=RuntimeError("routing boom")),
+                caplog.at_level(logging.ERROR),
+            ):
+                _task, result = self._run_one_task(queue_dir)
 
             # Task completed successfully despite routing failure
             assert result == {"text": "important data"}
@@ -158,9 +160,9 @@ class TestWorkerResilience:
         queue.enqueue({"type": "test"})
         task = queue.dequeue()
 
-        with caplog.at_level(logging.ERROR):
-            with patch("app.worker.handle", side_effect=RuntimeError("handler boom")):
-                with patch("app.queue.fail", side_effect=OSError("disk full")):
+        with caplog.at_level(logging.ERROR), \
+             patch("app.worker.handle", side_effect=RuntimeError("handler boom")), \
+             patch("app.queue.fail", side_effect=OSError("disk full")):
                     try:
                         handle(task)
                     except Exception as exc:
@@ -178,7 +180,7 @@ class TestRecoverStaleActive:
     def test_orphaned_active_moves_to_failed(self, queue_dir):
         """Tasks left in active/ at startup are recovered to failed/."""
         queue.enqueue({"type": "test.stale"})
-        task = queue.dequeue()
+        queue.dequeue()
         assert _snapshot(queue_dir) == {"pending": 0, "active": 1, "done": 0, "failed": 0}
 
         # Simulate crash: task stays in active/

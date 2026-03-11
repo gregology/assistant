@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any
 
 import frontmatter
 
@@ -30,7 +31,7 @@ class GitHubEntityStore:
     def _filename(org: str, repo: str, number: int) -> str:
         return f"{org}__{repo}__{number}.md"
 
-    def all(self) -> list[dict]:
+    def all(self) -> list[dict[str, Any]]:
         return self._store.all()
 
     def find(self, org: str, repo: str, number: int) -> Path | None:
@@ -61,10 +62,10 @@ class GitHubEntityStore:
                 log.warning("Failed to parse front matter: %s", f)
         return keys
 
-    def update(self, org: str, repo: str, number: int, **fields) -> Path | None:
+    def update(self, org: str, repo: str, number: int, **fields: Any) -> Path | None:
         return self._store.update(self._filename(org, repo, number), **fields)
 
-    def move_to_synced(self, org: str, repo: str, number: int, **fields) -> Path | None:
+    def move_to_synced(self, org: str, repo: str, number: int, **fields: Any) -> Path | None:
         filename = self._filename(org, repo, number)
         note_path = self._store.find(filename)
         if note_path is None:
@@ -89,5 +90,8 @@ class GitHubEntityStore:
         self._path.mkdir(parents=True, exist_ok=True)
         dest = self._path / self._filename(org, repo, number)
         synced_path.rename(dest)
-        log.info("Restored %s %s/%s#%d from synced/ to active", self._entity_type, org, repo, number)
+        log.info(
+            "Restored %s %s/%s#%d from synced/ to active",
+            self._entity_type, org, repo, number,
+        )
         return dest

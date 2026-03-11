@@ -37,7 +37,11 @@ FULL_FRONTMATTER = {
     "is_starred": False,
     "is_answered": True,
     "authentication": {"dkim_pass": True, "dmarc_pass": True, "spf_pass": False},
-    "calendar": {"summary": "Team standup", "start": "2026-03-05T09:00:00Z", "end": "2026-03-05T09:30:00Z"},
+    "calendar": {
+        "summary": "Team standup",
+        "start": "2026-03-05T09:00:00Z",
+        "end": "2026-03-05T09:30:00Z",
+    },
 }
 
 
@@ -65,7 +69,11 @@ class TestEmailSnapshot:
         assert snap.is_starred is False
         assert snap.is_answered is True
         assert snap.authentication == {"dkim_pass": True, "dmarc_pass": True, "spf_pass": False}
-        assert snap.calendar == {"summary": "Team standup", "start": "2026-03-05T09:00:00Z", "end": "2026-03-05T09:30:00Z"}
+        assert snap.calendar == {
+            "summary": "Team standup",
+            "start": "2026-03-05T09:00:00Z",
+            "end": "2026-03-05T09:30:00Z",
+        }
 
     def test_defaults_for_missing_keys(self):
         meta = {"from_address": "bob@test.com", "domain": "test.com"}
@@ -240,7 +248,10 @@ class TestEmailAutomationEvaluation:
     def test_classification_match(self):
         snap = _full_snapshot()
         resolver = _make_resolver(snap)
-        classification = {"human": 0.95, "user_agreement_update": False, "requires_response": True, "priority": "high"}
+        classification = {
+            "human": 0.95, "user_agreement_update": False,
+            "requires_response": True, "priority": "high",
+        }
         autos = [
             AutomationConfig(
                 when={"classification.human": ">0.8"},
@@ -253,7 +264,10 @@ class TestEmailAutomationEvaluation:
     def test_classification_boolean(self):
         snap = _full_snapshot()
         resolver = _make_resolver(snap)
-        classification = {"human": 0.5, "user_agreement_update": True, "requires_response": False, "priority": "low"}
+        classification = {
+            "human": 0.5, "user_agreement_update": True,
+            "requires_response": False, "priority": "low",
+        }
         autos = [
             AutomationConfig(
                 when={"classification.user_agreement_update": True},
@@ -267,7 +281,10 @@ class TestEmailAutomationEvaluation:
         meta = {**FULL_FRONTMATTER, "is_noreply": True}
         snap = _snapshot_from_frontmatter(meta)
         resolver = _make_resolver(snap)
-        classification = {"human": 0.1, "user_agreement_update": True, "requires_response": False, "priority": "low"}
+        classification = {
+            "human": 0.1, "user_agreement_update": True,
+            "requires_response": False, "priority": "low",
+        }
         autos = [
             AutomationConfig(
                 when={"is_noreply": True, "classification.user_agreement_update": True},
@@ -304,7 +321,12 @@ class TestEmailAutomationEvaluation:
         assert actions == [SimpleAction(action="log")]
 
     def test_authentication_miss(self):
-        meta = {**FULL_FRONTMATTER, "authentication": {"dkim_pass": False, "dmarc_pass": False, "spf_pass": False}}
+        meta = {
+            **FULL_FRONTMATTER,
+            "authentication": {
+                "dkim_pass": False, "dmarc_pass": False, "spf_pass": False,
+            },
+        }
         snap = _snapshot_from_frontmatter(meta)
         resolver = _make_resolver(snap)
         autos = [

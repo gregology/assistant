@@ -61,7 +61,7 @@ class TestMissingSentinel:
     def test_is_unique(self):
         assert MISSING is not None
         assert MISSING is not False
-        assert MISSING is not 0
+        assert MISSING != 0
         assert MISSING != ""
 
     def test_identity_check(self):

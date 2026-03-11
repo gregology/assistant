@@ -10,7 +10,7 @@ from .store import IssueStore
 log = logging.getLogger(__name__)
 
 
-def handle(task: TaskRecord):
+def handle(task: TaskRecord) -> None:
     from ...client import GitHubClient
 
     integration_id = task["payload"]["integration"]

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Callable
+from typing import Any
 
 from fastapi import FastAPI
 from fastapi_crons import Crons
@@ -61,17 +63,22 @@ def init_schedules(app: FastAPI) -> Crons:
             if platform is None:
                 continue
 
-            entry_task = ENTRY_TASKS.get(f"{integration.type}.{platform_name}")
-            if entry_task is None:
+            entry_task_name: str | None = ENTRY_TASKS.get(f"{integration.type}.{platform_name}")
+            if entry_task_name is None:
                 log.warning(
                     "No entry task for %s.%s", integration.type, platform_name
                 )
                 continue
 
             name = f"{integration.id}_{platform_name}"
+            _task_type: str = entry_task_name
 
-            def make_job(task_type=entry_task, int_entry=integration, plat_name=platform_name):
-                def job():
+            def make_job(
+                task_type: str = _task_type,
+                int_entry: Any = integration,
+                plat_name: str = platform_name,
+            ) -> Callable[[], None]:
+                def job() -> None:
                     payload = {
                         "type": task_type,
                         "integration": int_entry.id,

@@ -7,6 +7,7 @@ only -- but the warnings are the only signal a user gets that their
 automation will silently do nothing.
 """
 
+from typing import ClassVar
 from unittest.mock import MagicMock, patch
 
 from app.config import (
@@ -31,7 +32,7 @@ class _MockPlatform:
 
 
 class _MockPlatforms:
-    model_fields = {"inbox": None}
+    model_fields: ClassVar[dict] = {"inbox": None}
 
     def __init__(self, platform):
         self.inbox = platform

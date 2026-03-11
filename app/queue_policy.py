@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import re
+from typing import Any
 
 from app import queue
 from app.config import config, TaskPolicyConfig
@@ -48,11 +49,11 @@ def resolve_policy(task_type: str) -> TaskPolicyConfig:
         for field in override.model_fields_set:
             merged[field] = getattr(override, field)
         return TaskPolicyConfig(**merged)
-    return policies.defaults
+    return policies.defaults  # type: ignore[no-any-return]
 
 
 def policy_enqueue(
-    payload: dict,
+    payload: dict[str, Any],
     priority: int = 5,
     provenance: str | None = None,
 ) -> str | None:
@@ -62,12 +63,11 @@ def policy_enqueue(
     policy = resolve_policy(task_type)
 
     # Dedup check
-    if policy.deduplicate_pending:
-        if queue.has_pending_duplicate(fp, task_type):
-            log.info(
-                "Dedup: skipping %s (fingerprint %s already pending)", task_type, fp,
-            )
-            return None
+    if policy.deduplicate_pending and queue.has_pending_duplicate(fp, task_type):
+        log.info(
+            "Dedup: skipping %s (fingerprint %s already pending)", task_type, fp,
+        )
+        return None
 
     # Rate limit check
     if policy.rate_limit is not None:

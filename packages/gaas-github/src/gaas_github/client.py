@@ -5,6 +5,7 @@ import logging
 import subprocess
 import time
 from collections.abc import Callable
+from typing import Any
 
 log = logging.getLogger(__name__)
 
@@ -12,7 +13,7 @@ MAX_RETRIES = 3
 BACKOFF_BASE = 1  # seconds; sleeps 1, 2, 4 on retries
 
 
-def _parse_search_item(item: dict) -> dict:
+def _parse_search_item(item: dict[str, Any]) -> dict[str, Any]:
     """Parse an item from the GitHub search/issues endpoint into a standard dict."""
     repo_url = item.get("repository_url", "")
     segments = repo_url.rstrip("/").split("/")
@@ -28,7 +29,7 @@ def _parse_search_item(item: dict) -> dict:
 
 
 class GitHubClient:
-    def get_pr(self, org: str, repo: str, number: int) -> dict:
+    def get_pr(self, org: str, repo: str, number: int) -> dict[str, Any]:
         result = self._gh_api(f"repos/{org}/{repo}/pulls/{number}")
         merged = result.get("merged", False)
         state = result.get("state", "unknown")
@@ -47,7 +48,7 @@ class GitHubClient:
             "status": status,
         }
 
-    def get_pr_detail(self, org: str, repo: str, number: int) -> dict:
+    def get_pr_detail(self, org: str, repo: str, number: int) -> dict[str, Any]:
         result = self._gh_api(f"repos/{org}/{repo}/pulls/{number}")
         return {
             "title": result.get("title", ""),
@@ -66,7 +67,7 @@ class GitHubClient:
         ]
         return self._run_gh(cmd, timeout=60)
 
-    def active_prs(self, integration, platform) -> list[dict]:
+    def active_prs(self, integration: Any, platform: Any) -> list[dict[str, Any]]:
         """Fetch all open PRs currently requiring the user's attention."""
         base_queries = [
             "is:pr is:open assignee:@me",
@@ -83,7 +84,7 @@ class GitHubClient:
         log.info("active_prs: found %d unique PRs across all queries", len(results))
         return results
 
-    def get_issue(self, org: str, repo: str, number: int) -> dict:
+    def get_issue(self, org: str, repo: str, number: int) -> dict[str, Any]:
         result = self._gh_api(f"repos/{org}/{repo}/issues/{number}")
         return {
             "org": org,
@@ -92,21 +93,27 @@ class GitHubClient:
             "title": result.get("title", ""),
             "author": result.get("user", {}).get("login", ""),
             "state": result.get("state", "unknown"),
-            "labels": [l.get("name", "") for l in result.get("labels", [])],
+            "labels": [
+                label.get("name", "")
+                for label in result.get("labels", [])
+            ],
         }
 
-    def get_issue_detail(self, org: str, repo: str, number: int) -> dict:
+    def get_issue_detail(self, org: str, repo: str, number: int) -> dict[str, Any]:
         result = self._gh_api(f"repos/{org}/{repo}/issues/{number}")
         return {
             "title": result.get("title", ""),
             "body": result.get("body", "") or "",
             "author": result.get("user", {}).get("login", ""),
             "state": result.get("state", "unknown"),
-            "labels": [l.get("name", "") for l in result.get("labels", [])],
+            "labels": [
+                label.get("name", "")
+                for label in result.get("labels", [])
+            ],
             "comment_count": result.get("comments", 0),
         }
 
-    def active_issues(self, integration, platform) -> list[dict]:
+    def active_issues(self, integration: Any, platform: Any) -> list[dict[str, Any]]:
         """Fetch all open issues currently requiring the user's attention."""
         base_queries = [
             "is:issue is:open assignee:@me",
@@ -125,16 +132,16 @@ class GitHubClient:
     def _search_entities(
         self,
         base_queries: list[str],
-        integration,
-        item_filter: Callable[[dict], bool] | None = None,
-    ) -> list[dict]:
+        integration: Any,
+        item_filter: Callable[[dict[str, Any]], bool] | None = None,
+    ) -> list[dict[str, Any]]:
         """Execute search queries and return deduplicated entity dicts.
 
         item_filter, when provided, is applied to each raw search result item
         before parsing (e.g., to exclude PRs from issue searches).
         """
         seen: set[tuple[str, str, int]] = set()
-        results: list[dict] = []
+        results: list[dict[str, Any]] = []
 
         scopes = self._scope_qualifiers(integration)
         for base_query in base_queries:
@@ -150,8 +157,8 @@ class GitHubClient:
     def _search_raw(
         self,
         query: str,
-        item_filter: Callable[[dict], bool] | None = None,
-    ) -> list[dict]:
+        item_filter: Callable[[dict[str, Any]], bool] | None = None,
+    ) -> list[dict[str, Any]]:
         """Execute a GitHub search/issues query and return parsed entity dicts."""
         result = self._gh_api(
             "search/issues",
@@ -163,13 +170,16 @@ class GitHubClient:
                 continue
             parsed = _parse_search_item(item)
             if not parsed:
-                log.warning("Cannot parse org/repo from repository_url: %s", item.get("repository_url", ""))
+                log.warning(
+                    "Cannot parse org/repo from repository_url: %s",
+                    item.get("repository_url", ""),
+                )
                 continue
             entities.append(parsed)
         log.info("_search_raw(%r): found %d results", query, len(entities))
         return entities
 
-    def _scope_qualifiers(self, integration) -> list[str]:
+    def _scope_qualifiers(self, integration: Any) -> list[str]:
         """Build scope qualifiers from the integration's org/repo config."""
         qualifiers = []
         for org in (integration.orgs or []):
@@ -178,11 +188,14 @@ class GitHubClient:
             qualifiers.append(f"repo:{repo}")
         return qualifiers or [""]
 
-    def _gh_api(self, endpoint: str, method: str = "GET", params: dict | None = None) -> dict:
+    def _gh_api(
+        self, endpoint: str, method: str = "GET",
+        params: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
         cmd = ["gh", "api", endpoint, "--method", method]
         for key, value in (params or {}).items():
             cmd.extend(["-f", f"{key}={value}"])
-        return json.loads(self._run_gh(cmd, timeout=30))
+        return json.loads(self._run_gh(cmd, timeout=30))  # type: ignore[no-any-return]
 
     def _run_gh(self, cmd: list[str], *, timeout: int = 30) -> str:
         """Run a gh CLI command with retry and exponential backoff."""
@@ -204,4 +217,5 @@ class GitHubClient:
                 time.sleep(delay)
             else:
                 log.error("gh api failed: %s", proc.stderr.strip())
+        assert last_err is not None
         raise last_err

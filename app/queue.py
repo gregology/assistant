@@ -7,8 +7,9 @@ import tempfile
 import uuid
 from datetime import datetime, UTC
 from pathlib import Path
+from typing import Any
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 from app.config import config
 from gaas_sdk.task import TaskRecord
@@ -19,12 +20,12 @@ BASE_DIR = Path(config.directories.task_queue)
 DIRS = ("pending", "active", "done", "failed")
 
 
-def init():
+def init() -> None:
     for d in DIRS:
         (BASE_DIR / d).mkdir(parents=True, exist_ok=True)
 
 
-def _now():
+def _now() -> datetime:
     return datetime.now(UTC)
 
 
@@ -43,18 +44,18 @@ def _atomic_write(path: Path, content: str) -> None:
         raise
 
 
-def fingerprint(payload: dict) -> str:
+def fingerprint(payload: dict[str, Any]) -> str:
     """Canonical JSON -> SHA-256 -> first 8 hex chars."""
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode()).hexdigest()[:8]
 
 
-def task_type_from_payload(payload: dict) -> str:
+def task_type_from_payload(payload: dict[str, Any]) -> str:
     """Extract the task type string from a payload dict."""
-    return payload.get("type", "unknown")
+    return str(payload.get("type", "unknown"))
 
 
-def parse_filename(filename: str) -> dict | None:
+def parse_filename(filename: str) -> dict[str, str] | None:
     """Parse a task filename into its components.
 
     Expected format: {priority}_{timestamp}_{uuid}--{fingerprint}--{task_type}.yaml
@@ -120,7 +121,7 @@ def _make_id(priority: int, fp: str, task_type: str) -> str:
     return f"{priority}_{ts}_{short_uuid}--{fp}--{task_type}"
 
 
-def enqueue(payload: dict, priority: int = 5, provenance: str | None = None) -> str:
+def enqueue(payload: dict[str, Any], priority: int = 5, provenance: str | None = None) -> str:
     fp = fingerprint(payload)
     task_type = task_type_from_payload(payload)
     task_id = _make_id(priority, fp, task_type)
@@ -160,12 +161,12 @@ def dequeue() -> TaskRecord | None:
 
         task["status"] = "active"
         _atomic_write(dst, yaml.dump(task, default_flow_style=False, sort_keys=False))
-        return task
+        return task  # type: ignore[no-any-return]
 
     return None
 
 
-def complete(task_id: str, result: dict | None = None):
+def complete(task_id: str, result: dict[str, Any] | None = None) -> None:
     filename = f"{task_id}.yaml"
     src = BASE_DIR / "active" / filename
     dst = BASE_DIR / "done" / filename
@@ -180,7 +181,7 @@ def complete(task_id: str, result: dict | None = None):
         src.unlink()
 
 
-def fail(task_id: str, error: str):
+def fail(task_id: str, error: str) -> None:
     filename = f"{task_id}.yaml"
     src = BASE_DIR / "active" / filename
     dst = BASE_DIR / "failed" / filename

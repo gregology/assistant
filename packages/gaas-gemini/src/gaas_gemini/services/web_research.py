@@ -41,7 +41,8 @@ def handle(task: TaskRecord) -> dict:
         return {"text": "", "sources": []}
 
     cfg = runtime.get_integration(integration_id)
-    client = GeminiClient(api_key=cfg.api_key, model=getattr(cfg, "model", None) or "gemini-3-pro-preview")
+    model = getattr(cfg, "model", None) or "gemini-3-pro-preview"
+    client = GeminiClient(api_key=cfg.api_key, model=model)
 
     # Pass 1: Grounded search
     log.info("Gemini web research: %s", prompt[:100])

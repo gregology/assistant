@@ -20,7 +20,7 @@ POLL_INTERVAL = 1  # seconds
 _shutting_down = False
 
 
-def _shutdown_handler(signum: int, frame: FrameType | None) -> None:
+def _shutdown_handler(signum: int, _frame: FrameType | None) -> None:
     global _shutting_down
     _shutting_down = True
     log.info("Received signal %s, shutting down gracefully…", signum)
@@ -28,7 +28,7 @@ def _shutdown_handler(signum: int, frame: FrameType | None) -> None:
 
 def handle(task: TaskRecord) -> dict[str, Any] | None:
     task_type = task["payload"].get("type")
-    handler = HANDLERS.get(task_type)
+    handler = HANDLERS.get(str(task_type))
     if handler is None:
         raise ValueError(f"Unknown task type: {task_type}")
     return handler(task)

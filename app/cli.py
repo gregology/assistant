@@ -81,7 +81,7 @@ def cmd_start(args: argparse.Namespace) -> int:
         supervisor_args.extend(["--port", str(args.port)])
 
     # Replace this process with the supervisor
-    sys.argv = ["supervisor"] + supervisor_args
+    sys.argv = ["supervisor", *supervisor_args]
     from app.supervisor import main as supervisor_main
 
     supervisor_main()
@@ -388,7 +388,7 @@ def main() -> int:
         parser.print_help()
         return 0
 
-    return args.func(args)
+    return args.func(args)  # type: ignore[no-any-return]
 
 
 if __name__ == "__main__":

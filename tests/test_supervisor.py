@@ -51,7 +51,10 @@ class TestManagedProcess:
     def test_env_var_passed_to_child(self):
         mp = ManagedProcess(
             "test",
-            [sys.executable, "-c", "import os, sys; sys.exit(0 if os.environ.get('GAAS_SUPERVISOR') == '1' else 1)"],
+            [
+                sys.executable, "-c",
+                "import os, sys; sys.exit(0 if os.environ.get('GAAS_SUPERVISOR') == '1' else 1)",
+            ],
         )
         mp.start()
         mp._proc.wait(timeout=5)

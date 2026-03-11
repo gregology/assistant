@@ -8,6 +8,7 @@ from hypothesis import settings as hp_settings
 from hypothesis.stateful import RuleBasedStateMachine, invariant, rule
 
 from app import queue
+import contextlib
 
 
 def snapshot_tree(base: Path) -> dict:
@@ -218,11 +219,9 @@ TestQueueStateMachine.settings = hp_settings(max_examples=50, stateful_step_coun
 class TestAtomicWrites:
     def test_enqueue_no_partial_file_on_error(self, queue_dir):
         """If os.rename fails after temp write, no .yaml file is left in pending/."""
-        with patch("app.queue.os.rename", side_effect=OSError("disk full")):
-            try:
-                queue.enqueue({"type": "test"})
-            except OSError:
-                pass
+        with patch("app.queue.os.rename", side_effect=OSError("disk full")), \
+             contextlib.suppress(OSError):
+            queue.enqueue({"type": "test"})
 
         yaml_files = list((queue_dir / "pending").glob("*.yaml"))
         tmp_files = list((queue_dir / "pending").glob("*.tmp"))

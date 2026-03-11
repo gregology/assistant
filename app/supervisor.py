@@ -36,7 +36,7 @@ class ManagedProcess:
     def __init__(self, name: str, cmd: list[str]):
         self.name = name
         self.cmd = cmd
-        self._proc: subprocess.Popen | None = None
+        self._proc: subprocess.Popen[bytes] | None = None
 
     @property
     def is_running(self) -> bool:
@@ -70,12 +70,12 @@ class ManagedProcess:
 _shutting_down = False
 
 
-def _shutdown_handler(signum, frame):
+def _shutdown_handler(signum: int, _frame: object) -> None:
     global _shutting_down
     _shutting_down = True
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="GaaS process supervisor")
     parser.add_argument("--dev", action="store_true", help="Enable uvicorn --reload")
     parser.add_argument("--expose", action="store_true",
@@ -105,7 +105,10 @@ def main():
     for child in children:
         child.start()
 
-    log.info("Supervisor running (dev=%s, host=%s, port=%d). Press Ctrl+C to stop.", args.dev, host, args.port)
+    log.info(
+        "Supervisor running (dev=%s, host=%s, port=%d). Press Ctrl+C to stop.",
+        args.dev, host, args.port,
+    )
 
     try:
         while not _shutting_down:

@@ -1,5 +1,6 @@
 import logging
 from dataclasses import dataclass
+from typing import Any
 
 import frontmatter
 
@@ -10,6 +11,7 @@ from gaas_sdk.evaluate import (
     evaluate_automations,
     resolve_action_provenance,
 )
+from gaas_sdk.protocols import ResolveValue
 from gaas_sdk.task import TaskRecord
 from .const import DEFAULT_CLASSIFICATIONS, DETERMINISTIC_SOURCES
 from .store import EmailStore
@@ -39,11 +41,11 @@ class EmailSnapshot:
     is_read: bool
     is_starred: bool
     is_answered: bool
-    authentication: dict
-    calendar: dict | None
+    authentication: dict[str, Any]
+    calendar: dict[str, Any] | None
 
 
-def _snapshot_from_frontmatter(meta: dict) -> EmailSnapshot:
+def _snapshot_from_frontmatter(meta: dict[str, Any]) -> EmailSnapshot:
     return EmailSnapshot(
         from_address=meta.get("from_address", ""),
         domain=meta.get("domain", ""),
@@ -62,9 +64,9 @@ def _snapshot_from_frontmatter(meta: dict) -> EmailSnapshot:
     )
 
 
-def _make_resolver(snapshot: EmailSnapshot):
+def _make_resolver(snapshot: EmailSnapshot) -> ResolveValue:
     """Return a resolve_value callable for the shared evaluation engine."""
-    def resolve_value(key: str, classification: dict):
+    def resolve_value(key: str, classification: dict[str, Any]) -> Any:
         if key.startswith("classification."):
             cls_key = key[len("classification."):]
             return classification.get(cls_key, MISSING)
@@ -84,7 +86,7 @@ def _make_resolver(snapshot: EmailSnapshot):
     return resolve_value
 
 
-def handle(task: TaskRecord):
+def handle(task: TaskRecord) -> None:
     integration_id = task["payload"]["integration"]
     integration = runtime.get_integration(integration_id)
     platform = runtime.get_platform(integration_id, "inbox")
@@ -108,7 +110,9 @@ def handle(task: TaskRecord):
 
     classifications = platform.classifications or DEFAULT_CLASSIFICATIONS
     resolve_value = _make_resolver(snapshot)
-    actions = evaluate_automations(platform.automations, resolve_value, classification, classifications)
+    actions = evaluate_automations(
+        platform.automations, resolve_value, classification, classifications,
+    )
 
     if actions:
         provenance = resolve_action_provenance(

@@ -25,6 +25,6 @@ def register_runtime() -> None:
         create_llm_conversation=lambda model="default", system=None: LLMConversation(
             model, system, backend=backends.get(model)
         ),
-        get_llm_config=lambda profile="default": config.llms[profile],
+        get_llm_config=lambda profile="default": config.llms[profile],  # type: ignore[misc]
         get_notes_dir=lambda: config.directories.notes,
     )

@@ -262,10 +262,16 @@ class TestConditionsMatch:
 
     def test_is_noreply_condition(self):
         noreply = _MockEmail(from_address="noreply@service.com")
-        assert conditions_match({"is_noreply": True}, _make_email_resolver(noreply), {}, CLASSIFICATIONS) is True
+        resolver = _make_email_resolver(noreply)
+        assert conditions_match(
+            {"is_noreply": True}, resolver, {}, CLASSIFICATIONS,
+        ) is True
 
         human = _MockEmail(from_address="alice@example.com")
-        assert conditions_match({"is_noreply": True}, _make_email_resolver(human), {}, CLASSIFICATIONS) is False
+        resolver = _make_email_resolver(human)
+        assert conditions_match(
+            {"is_noreply": True}, resolver, {}, CLASSIFICATIONS,
+        ) is False
 
     def test_mixed_deterministic_and_classification(self):
         email = _MockEmail(from_address="user@work.com")
@@ -285,29 +291,60 @@ class TestConditionsMatch:
         ) is False
 
     def test_is_calendar_event_condition(self):
-        cal_email = _MockEmail(calendar={"start": "2026-03-01T14:00:00Z", "end": "2026-03-01T15:00:00Z", "guest_count": 3})
-        assert conditions_match({"is_calendar_event": True}, _make_email_resolver(cal_email), {}, CLASSIFICATIONS) is True
+        cal_email = _MockEmail(calendar={
+            "start": "2026-03-01T14:00:00Z",
+            "end": "2026-03-01T15:00:00Z",
+            "guest_count": 3,
+        })
+        resolver = _make_email_resolver(cal_email)
+        assert conditions_match(
+            {"is_calendar_event": True}, resolver, {}, CLASSIFICATIONS,
+        ) is True
 
         normal_email = _MockEmail()
-        assert conditions_match({"is_calendar_event": True}, _make_email_resolver(normal_email), {}, CLASSIFICATIONS) is False
+        resolver = _make_email_resolver(normal_email)
+        assert conditions_match(
+            {"is_calendar_event": True}, resolver, {}, CLASSIFICATIONS,
+        ) is False
 
     def test_calendar_guest_count_condition(self):
-        cal_email = _MockEmail(calendar={"start": "2026-03-01T14:00:00Z", "end": "2026-03-01T15:00:00Z", "guest_count": 3})
+        cal_email = _MockEmail(calendar={
+            "start": "2026-03-01T14:00:00Z",
+            "end": "2026-03-01T15:00:00Z",
+            "guest_count": 3,
+        })
         resolver = _make_email_resolver(cal_email)
         assert conditions_match({"calendar.guest_count": 3}, resolver, {}, CLASSIFICATIONS) is True
         assert conditions_match({"calendar.guest_count": 5}, resolver, {}, CLASSIFICATIONS) is False
 
     def test_calendar_key_returns_missing_when_no_calendar(self):
         email = _MockEmail()
-        assert conditions_match({"calendar.guest_count": 3}, _make_email_resolver(email), {}, CLASSIFICATIONS) is False
+        resolver = _make_email_resolver(email)
+        assert conditions_match(
+            {"calendar.guest_count": 3}, resolver, {}, CLASSIFICATIONS,
+        ) is False
 
     def test_calendar_end_past_event_matches_lt_now(self):
-        past_cal = _MockEmail(calendar={"start": "2020-01-01T14:00:00+00:00", "end": "2020-01-01T15:00:00+00:00", "guest_count": 1})
-        assert conditions_match({"calendar.end": "<now()"}, _make_email_resolver(past_cal), {}, CLASSIFICATIONS) is True
+        past_cal = _MockEmail(calendar={
+            "start": "2020-01-01T14:00:00+00:00",
+            "end": "2020-01-01T15:00:00+00:00",
+            "guest_count": 1,
+        })
+        resolver = _make_email_resolver(past_cal)
+        assert conditions_match(
+            {"calendar.end": "<now()"}, resolver, {}, CLASSIFICATIONS,
+        ) is True
 
     def test_calendar_end_future_event_does_not_match_lt_now(self):
-        future_cal = _MockEmail(calendar={"start": "2099-01-01T14:00:00+00:00", "end": "2099-01-01T15:00:00+00:00", "guest_count": 1})
-        assert conditions_match({"calendar.end": "<now()"}, _make_email_resolver(future_cal), {}, CLASSIFICATIONS) is False
+        future_cal = _MockEmail(calendar={
+            "start": "2099-01-01T14:00:00+00:00",
+            "end": "2099-01-01T15:00:00+00:00",
+            "guest_count": 1,
+        })
+        resolver = _make_email_resolver(future_cal)
+        assert conditions_match(
+            {"calendar.end": "<now()"}, resolver, {}, CLASSIFICATIONS,
+        ) is False
 
 
 # ---------------------------------------------------------------------------
@@ -322,7 +359,10 @@ class TestEvaluateAutomations:
             AutomationConfig(when={"classification.human": 0.8}, then=["archive"]),
         ]
         result = {"human": 0.9, "requires_response": False, "priority": "low"}
-        actions = evaluate_automations(automations, _make_email_resolver(email), result, CLASSIFICATIONS)
+        resolver = _make_email_resolver(email)
+        actions = evaluate_automations(
+            automations, resolver, result, CLASSIFICATIONS,
+        )
         assert actions == [SimpleAction(action="archive")]
 
     def test_non_matching_automation_returns_empty(self):
@@ -331,7 +371,10 @@ class TestEvaluateAutomations:
             AutomationConfig(when={"classification.human": 0.8}, then=["archive"]),
         ]
         result = {"human": 0.3, "requires_response": False, "priority": "low"}
-        actions = evaluate_automations(automations, _make_email_resolver(email), result, CLASSIFICATIONS)
+        resolver = _make_email_resolver(email)
+        actions = evaluate_automations(
+            automations, resolver, result, CLASSIFICATIONS,
+        )
         assert actions == []
 
     def test_multiple_matching_automations_combine_actions(self):
@@ -344,7 +387,10 @@ class TestEvaluateAutomations:
             ),
         ]
         result = {"human": 0.9, "requires_response": True, "priority": "low"}
-        actions = evaluate_automations(automations, _make_email_resolver(email), result, CLASSIFICATIONS)
+        resolver = _make_email_resolver(email)
+        actions = evaluate_automations(
+            automations, resolver, result, CLASSIFICATIONS,
+        )
         assert SimpleAction(action="archive") in actions
         assert DictAction(data={"draft_reply": "noted"}) in actions
 
@@ -359,7 +405,10 @@ class TestEvaluateAutomations:
         automations = [
             AutomationConfig(when={"is_noreply": True}, then=["archive"]),
         ]
-        actions = evaluate_automations(automations, _make_email_resolver(email), {}, CLASSIFICATIONS)
+        resolver = _make_email_resolver(email)
+        actions = evaluate_automations(
+            automations, resolver, {}, CLASSIFICATIONS,
+        )
         assert actions == [SimpleAction(action="archive")]
 
 

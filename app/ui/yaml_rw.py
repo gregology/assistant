@@ -15,7 +15,7 @@ from io import StringIO
 from pathlib import Path
 from typing import Any
 
-from ruamel.yaml import YAML, CommentedMap
+from ruamel.yaml import YAML, CommentedMap  # type: ignore[attr-defined]
 
 log = logging.getLogger(__name__)
 
@@ -120,7 +120,8 @@ def validate_proposed(data: CommentedMap, config_path: Path = _DEFAULT_CONFIG_PA
 
 def is_secret_ref(node: Any) -> bool:
     """Check if a ruamel node has a !secret tag."""
-    return hasattr(node, "tag") and getattr(node, "tag", None) and node.tag.value == "!secret"
+    tag = getattr(node, "tag", None)
+    return bool(tag and tag.value == "!secret")
 
 
 def get_secret_key(node: Any) -> str | None:

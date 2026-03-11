@@ -84,8 +84,8 @@ class TestRuntimeRegistration:
 
         runtime.register(
             enqueue=lambda payload, priority=5, provenance=None: calls.append("enqueue") or "id_1",
-            get_integration=lambda iid: calls.append("get_integration"),
-            get_platform=lambda iid, pn: calls.append("get_platform"),
+            get_integration=lambda _iid: calls.append("get_integration"),
+            get_platform=lambda _iid, _pn: calls.append("get_platform"),
             create_llm_conversation=lambda model="default", system=None: calls.append("create_llm"),
             get_llm_config=lambda profile="default": calls.append("get_llm_config"),
             get_notes_dir=lambda: calls.append("get_notes_dir"),

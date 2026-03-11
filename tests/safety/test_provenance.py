@@ -6,6 +6,7 @@ This is safety-critical because it gates irreversible actions.
 """
 
 import logging
+from typing import ClassVar
 from unittest.mock import MagicMock, patch
 
 from app.config import (
@@ -28,7 +29,9 @@ from gaas_email.platforms.inbox.const import DETERMINISTIC_SOURCES
 class TestResolveProvenance:
     def test_pure_deterministic_single(self):
         assert resolve_provenance({"domain": "x.com"}, DETERMINISTIC_SOURCES) == "rule"
-        assert resolve_provenance({"authentication.dkim_pass": True}, DETERMINISTIC_SOURCES) == "rule"
+        assert (
+            resolve_provenance({"authentication.dkim_pass": True}, DETERMINISTIC_SOURCES) == "rule"
+        )
         assert resolve_provenance({"is_noreply": True}, DETERMINISTIC_SOURCES) == "rule"
         assert resolve_provenance({"from_address": "x@y.com"}, DETERMINISTIC_SOURCES) == "rule"
 
@@ -80,7 +83,7 @@ class _MockPlatform:
 
 
 class _MockPlatforms:
-    model_fields = {"inbox": None}
+    model_fields: ClassVar[dict] = {"inbox": None}
 
     def __init__(self, platform):
         self.inbox = platform
@@ -245,7 +248,9 @@ class TestSafetyValidation:
         automations = [
             AutomationConfig(
                 when={"classification.human": "> 0.8"},
-                then=[YoloAction({"script": {"name": "research_tos", "inputs": {"domain": "{{ domain }}"}}})],
+                then=[YoloAction(
+                    {"script": {"name": "research_tos", "inputs": {"domain": "{{ domain }}"}}}
+                )],
             ),
         ]
         integration, platform = _make_integration("test", automations)

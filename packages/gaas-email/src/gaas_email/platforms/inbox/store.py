@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import re
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 import frontmatter
 
@@ -142,9 +142,9 @@ class EmailStore:
         )
         if email.calendar is not None:
             fields["calendar"] = email.calendar
-        return self._store.save(filename, **fields)
+        return self._store.save(filename, **fields)  # type: ignore[arg-type]
 
-    def update(self, message_id: str, **fields) -> Path | None:
+    def update(self, message_id: str, **fields: Any) -> Path | None:
         filepath = self.find_by_message_id(message_id)
         if filepath is None:
             log.error("No file found for message_id=%s", message_id)

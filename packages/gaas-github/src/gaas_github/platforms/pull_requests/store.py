@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from ...entity_store import GitHubEntityStore
 
@@ -9,7 +10,7 @@ class PullRequestStore(GitHubEntityStore):
     _entity_type = "PR"
     _url_path = "pull"
 
-    def save(self, pr: dict) -> Path:
+    def save(self, pr: dict[str, Any]) -> Path:
         org, repo, number = pr["org"], pr["repo"], pr["number"]
         filename = self._filename(org, repo, number)
         return self._store.save(

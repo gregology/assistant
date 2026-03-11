@@ -229,7 +229,7 @@ class TestHandle:
         task = self._make_task(["archive"])
         try:
             handle(task)
-            assert False, "Expected exception to propagate"
+            raise AssertionError("Expected exception to propagate")
         except Exception as e:
             assert str(e) == "IMAP connection lost"
 

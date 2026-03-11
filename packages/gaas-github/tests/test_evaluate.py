@@ -360,9 +360,15 @@ class TestSafetyConstants:
             changed_files=0,
         )
         for source in PR_DETERMINISTIC:
-            assert hasattr(snap, source), f"PR DETERMINISTIC_SOURCES has '{source}' but PRSnapshot has no such field"
+            assert hasattr(snap, source), (
+                f"PR DETERMINISTIC_SOURCES has '{source}' "
+                f"but PRSnapshot has no such field"
+            )
         for field in dataclasses.fields(PRSnapshot):
-            assert field.name in PR_DETERMINISTIC, f"PRSnapshot has field '{field.name}' but it is not in DETERMINISTIC_SOURCES"
+            assert field.name in PR_DETERMINISTIC, (
+                f"PRSnapshot has field '{field.name}' "
+                f"but it is not in DETERMINISTIC_SOURCES"
+            )
 
     def test_issue_deterministic_sources_are_snapshot_fields(self):
         snap = IssueSnapshot(
@@ -370,9 +376,15 @@ class TestSafetyConstants:
             title="T", state="open", labels=[], comment_count=0,
         )
         for source in ISSUE_DETERMINISTIC:
-            assert hasattr(snap, source), f"Issue DETERMINISTIC_SOURCES has '{source}' but IssueSnapshot has no such field"
+            assert hasattr(snap, source), (
+                f"Issue DETERMINISTIC_SOURCES has '{source}' "
+                f"but IssueSnapshot has no such field"
+            )
         for field in dataclasses.fields(IssueSnapshot):
-            assert field.name in ISSUE_DETERMINISTIC, f"IssueSnapshot has field '{field.name}' but it is not in DETERMINISTIC_SOURCES"
+            assert field.name in ISSUE_DETERMINISTIC, (
+                f"IssueSnapshot has field '{field.name}' "
+                f"but it is not in DETERMINISTIC_SOURCES"
+            )
 
     def test_pr_no_irreversible_actions(self):
         """PR platform is read-only — no irreversible actions defined."""

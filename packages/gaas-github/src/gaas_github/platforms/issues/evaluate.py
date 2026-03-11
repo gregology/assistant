@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from typing import Any
 
 import frontmatter
 
@@ -13,6 +14,7 @@ from gaas_sdk.evaluate import (
     resolve_action_provenance,
     unwrap_actions,
 )
+from gaas_sdk.protocols import ResolveValue
 from gaas_sdk.task import TaskRecord
 from .const import DEFAULT_CLASSIFICATIONS, DETERMINISTIC_SOURCES
 from .store import IssueStore
@@ -37,7 +39,7 @@ class IssueSnapshot:
     comment_count: int
 
 
-def _snapshot_from_frontmatter(meta: dict) -> IssueSnapshot:
+def _snapshot_from_frontmatter(meta: dict[str, Any]) -> IssueSnapshot:
     return IssueSnapshot(
         org=meta.get("org", ""),
         repo=meta.get("repo", ""),
@@ -50,9 +52,9 @@ def _snapshot_from_frontmatter(meta: dict) -> IssueSnapshot:
     )
 
 
-def _make_resolver(snapshot: IssueSnapshot):
+def _make_resolver(snapshot: IssueSnapshot) -> ResolveValue:
     """Return a resolve_value callable for the shared evaluation engine."""
-    def resolve_value(key: str, classification: dict):
+    def resolve_value(key: str, classification: dict[str, Any]) -> Any:
         if key.startswith("classification."):
             cls_key = key[len("classification."):]
             return classification.get(cls_key, MISSING)
@@ -61,7 +63,7 @@ def _make_resolver(snapshot: IssueSnapshot):
     return resolve_value
 
 
-def handle(task: TaskRecord):
+def handle(task: TaskRecord) -> None:
     integration_id = task["payload"]["integration"]
     integration = runtime.get_integration(integration_id)
     platform = runtime.get_platform(integration_id, "issues")
@@ -87,7 +89,9 @@ def handle(task: TaskRecord):
 
     classifications = platform.classifications or DEFAULT_CLASSIFICATIONS
     resolve_value = _make_resolver(snapshot)
-    actions = evaluate_automations(platform.automations, resolve_value, classification, classifications)
+    actions = evaluate_automations(
+        platform.automations, resolve_value, classification, classifications,
+    )
 
     if not actions:
         log.info("github.issues.evaluate: no automations matched for %s/%s#%d", org, repo, number)
@@ -103,7 +107,7 @@ def handle(task: TaskRecord):
         org, repo, number, unwrap_actions(actions), provenance,
     )
     enqueue_actions(
-        actions=unwrap_actions(actions),
+        actions=unwrap_actions(actions),  # type: ignore[arg-type]
         platform_payload={
             "type": "github.issues.act",
             "integration": integration_id,

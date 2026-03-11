@@ -185,7 +185,7 @@ class TestBuildIntegrationModel:
         assert issubclass(Model, BaseIntegrationConfig)
 
         # Required fields — should fail without them
-        with pytest.raises(Exception):
+        with pytest.raises((ValueError, TypeError)):
             Model(type="mock_thing", name="test")
 
         # Should succeed with required fields
@@ -406,7 +406,7 @@ class TestLoadConfig:
             "  - type: nonexistent\n"
             "    name: test\n"
         )
-        with pytest.raises(Exception):
+        with pytest.raises((ValueError, TypeError)):
             load_config(config_path)
 
     def test_missing_required_field_rejected(self, tmp_path):
@@ -423,7 +423,7 @@ class TestLoadConfig:
             "    password: secret\n"
             # Missing imap_server
         )
-        with pytest.raises(Exception):
+        with pytest.raises((ValueError, TypeError)):
             load_config(config_path)
 
     def test_custom_integrations_directory(self, tmp_path):
@@ -509,5 +509,5 @@ class TestLoadConfig:
             "    username: b@b.com\n"
             "    password: y\n"
         )
-        with pytest.raises(Exception):
+        with pytest.raises((ValueError, TypeError)):
             load_config(config_path)

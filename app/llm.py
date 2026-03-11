@@ -68,7 +68,7 @@ class MessageList:
     def __len__(self) -> int:
         return len(self._messages)
 
-    def __iter__(self):
+    def __iter__(self) -> Any:
         return iter(self._messages)
 
     def _last_by_role(self, role: Role) -> Message | None:
@@ -85,7 +85,7 @@ class LLMBackend(Protocol):
         messages: list[dict[str, str]],
         model: str,
         parameters: dict[str, Any] | None = None,
-        response_format: dict | None = None,
+        response_format: dict[str, Any] | None = None,
     ) -> LLMResponse: ...
 
 
@@ -108,7 +108,7 @@ class ChatCompletionsBackend:
         messages: list[dict[str, str]],
         model: str,
         parameters: dict[str, Any] | None = None,
-        response_format: dict | None = None,
+        response_format: dict[str, Any] | None = None,
     ) -> LLMResponse:
         payload: dict[str, Any] = {
             "model": model,
@@ -188,7 +188,7 @@ class LLMConversation:
         if system is not None:
             self.messages.append(Message(role=Role.SYSTEM, content=system))
 
-    def message(self, prompt: str, schema: dict | None = None) -> str | dict:
+    def message(self, prompt: str, schema: dict[str, Any] | None = None) -> str | dict[str, Any]:
         self.messages.append(Message(role=Role.USER, content=prompt))
 
         if schema is None:
@@ -218,7 +218,7 @@ class LLMConversation:
         self.messages.append(Message(role=Role.ASSISTANT, content=response.content))
         return response.content
 
-    def _send_structured(self, schema: dict) -> dict:
+    def _send_structured(self, schema: dict[str, Any]) -> dict[str, Any]:
         response_format = _wrap_schema(schema)
         raw_content = ""
         errors: list[str] = []
@@ -249,7 +249,7 @@ class LLMConversation:
                 self.messages.append(
                     Message(role=Role.ASSISTANT, content=raw_content)
                 )
-                return parsed
+                return parsed  # type: ignore[no-any-return]
 
             log.warning(
                 "Schema validation failed attempt %d/%d: %s",
@@ -268,7 +268,7 @@ class LLMConversation:
         )
 
 
-def _wrap_schema(schema: dict) -> dict:
+def _wrap_schema(schema: dict[str, Any]) -> dict[str, Any]:
     return {
         "type": "json_schema",
         "json_schema": {
@@ -281,7 +281,7 @@ def _wrap_schema(schema: dict) -> dict:
     }
 
 
-def _validate_schema(data: Any, schema: dict) -> list[str]:
+def _validate_schema(data: Any, schema: dict[str, Any]) -> list[str]:
     full_schema = {"type": "object", **schema}
     validator = jsonschema.Draft202012Validator(full_schema)
     return [e.message for e in validator.iter_errors(data)]

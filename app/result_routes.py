@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from datetime import datetime, UTC
 from pathlib import Path
+from typing import Any
 
 import app.human_log  # noqa: F401 — registers HumanMarkdownHandler
 from gaas_sdk import runtime
@@ -23,7 +24,7 @@ from gaas_sdk.task import TaskRecord
 log = get_logger(__name__)
 
 
-def route_results(result: dict, task: TaskRecord) -> None:
+def route_results(result: dict[str, Any], task: TaskRecord) -> None:
     """Dispatch a handler's return value to configured result routes.
 
     Reads ``on_result`` from the task payload. Falls back to a ``note``
@@ -52,7 +53,7 @@ def route_results(result: dict, task: TaskRecord) -> None:
             )
 
 
-def _route_note(result: dict, task: TaskRecord, route_config: dict) -> Path:
+def _route_note(result: dict[str, Any], task: TaskRecord, route_config: dict[str, Any]) -> Path:
     """Save result as a markdown note with frontmatter.
 
     Directory is derived from the task type unless overridden by

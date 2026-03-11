@@ -73,7 +73,7 @@ class TestSecretMasking:
             response = client.get("/ui/config")
             for secret in secret_values:
                 assert secret not in response.text, (
-                    f"Secret value leaked in config page"
+                    "Secret value leaked in config page"
                 )
 
 
@@ -250,7 +250,7 @@ class TestConfigPagePhase2:
 # collapse-title overlays, and that form values are correct.
 # ---------------------------------------------------------------------------
 
-import re
+import re  # noqa: E402
 
 
 def _get_config_html() -> str:
@@ -347,9 +347,21 @@ class TestPostReturnsPartial:
     def test_post_responses_are_partials(self):
         """POST to each edit endpoint should NOT return a full HTML page."""
         endpoints = [
-            ("post", "/ui/config/llms/default", {"model": "test-model", "base_url": "http://localhost:11434"}),
-            ("post", "/ui/config/scripts/_new", {"script_name": "test_s", "shell": "echo hi", "timeout": "60"}),
-            ("post", "/ui/config/directories", {"task_queue": "data/queue", "logs": "logs", "notes": "", "custom_integrations": ""}),
+            (
+                "post", "/ui/config/llms/default",
+                {"model": "test-model", "base_url": "http://localhost:11434"},
+            ),
+            (
+                "post", "/ui/config/scripts/_new",
+                {"script_name": "test_s", "shell": "echo hi", "timeout": "60"},
+            ),
+            (
+                "post", "/ui/config/directories",
+                {
+                    "task_queue": "data/queue", "logs": "logs",
+                    "notes": "", "custom_integrations": "",
+                },
+            ),
         ]
         for method, url, data in endpoints:
             with patch(f"{_MOCK_BASE}.update_llm_profile"), \

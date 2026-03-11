@@ -138,11 +138,11 @@ def check_config() -> bool:
 
     # Try to parse it
     try:
-        import yaml
+        import yaml  # type: ignore[import-untyped]
 
         with open(config_path) as f:
             # Use a safe loader that ignores custom tags
-            class _PermissiveLoader(yaml.SafeLoader):
+            class _PermissiveLoader(yaml.SafeLoader):  # type: ignore[misc]
                 pass
 
             # Register handlers for custom tags so parsing doesn't fail
@@ -202,7 +202,7 @@ def check_directories() -> bool:
     try:
         import yaml
 
-        class _PermissiveLoader(yaml.SafeLoader):
+        class _PermissiveLoader(yaml.SafeLoader):  # type: ignore[misc]
             pass
 
         for tag in ("!secret", "!yolo"):
@@ -249,7 +249,7 @@ def check_llm_connectivity() -> bool:
         import urllib.request
         import urllib.error
 
-        class _PermissiveLoader(yaml.SafeLoader):
+        class _PermissiveLoader(yaml.SafeLoader):  # type: ignore[misc]
             pass
 
         for tag in ("!secret", "!yolo"):

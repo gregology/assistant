@@ -1,10 +1,12 @@
 import logging
 import os
 from pathlib import Path
+from typing import Any
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from jinja2 import Environment, FileSystemLoader
+from starlette.datastructures import ImmutableMultiDict
 
 from app.ui.presenters import (
     config_context,
@@ -89,7 +91,7 @@ def _render_integration_header(index: int) -> HTMLResponse:
     return HTMLResponse(content + _render_oob_banner())
 
 
-def _parse_parameters(raw: str) -> dict:
+def _parse_parameters(raw: str) -> dict[str, Any]:
     """Parse a YAML string into a dict for LLM parameters."""
     if not raw or not raw.strip():
         return {}
@@ -104,7 +106,7 @@ def _parse_parameters(raw: str) -> dict:
     return result
 
 
-def _parse_schedule(schedule_type: str, schedule_value: str) -> dict | None:
+def _parse_schedule(schedule_type: str, schedule_value: str) -> dict[str, str] | None:
     if schedule_type == "none" or not schedule_value.strip():
         return None
     if schedule_type == "every":
@@ -156,7 +158,7 @@ async def logs_page():
 
 
 @router.get("/logs/{date}", response_class=HTMLResponse)
-async def log_detail(date: str):
+async def log_detail(date: str) -> str:
     template = _env.get_template("logs.html")
     return template.render(
         **log_detail_context(date),
@@ -184,22 +186,22 @@ async def restart():
 
 
 @router.post("/config/llms/{name}", response_class=HTMLResponse)
-async def update_llm(name: str, request: Request):
+async def update_llm(name: str, request: Request) -> HTMLResponse:
     form = await request.form()
     try:
         profile_name = name
         if name == "_new":
-            profile_name = form.get("profile_name", "").strip()
+            profile_name = str(form.get("profile_name", "")).strip()
             if not profile_name:
                 return _render_error("Profile name is required")
 
-        updates = {}
+        updates: dict[str, Any] = {}
         if form.get("base_url"):
             updates["base_url"] = form["base_url"]
         if form.get("model"):
             updates["model"] = form["model"]
         if form.get("parameters"):
-            updates["parameters"] = _parse_parameters(form["parameters"])
+            updates["parameters"] = _parse_parameters(str(form["parameters"]))
         elif "parameters" in form:
             updates["parameters"] = {}
 
@@ -215,7 +217,7 @@ async def update_llm(name: str, request: Request):
 
 
 @router.delete("/config/llms/{name}", response_class=HTMLResponse)
-async def remove_llm(name: str):
+async def remove_llm(name: str) -> HTMLResponse:
     try:
         delete_llm_profile(name)
         reload_config()
@@ -226,14 +228,14 @@ async def remove_llm(name: str):
 
 
 @router.post("/config/directories", response_class=HTMLResponse)
-async def update_dirs(request: Request):
+async def update_dirs(request: Request) -> HTMLResponse:
     form = await request.form()
     try:
         updates = {
-            "notes": form.get("notes", "").strip(),
-            "task_queue": form.get("task_queue", "").strip(),
-            "logs": form.get("logs", "").strip(),
-            "custom_integrations": form.get("custom_integrations", "").strip(),
+            "notes": str(form.get("notes", "")).strip(),
+            "task_queue": str(form.get("task_queue", "")).strip(),
+            "logs": str(form.get("logs", "")).strip(),
+            "custom_integrations": str(form.get("custom_integrations", "")).strip(),
         }
         if not updates.get("task_queue"):
             return _render_error("Task queue path is required")
@@ -248,13 +250,13 @@ async def update_dirs(request: Request):
 
 
 @router.post("/config/integrations/{index}/settings", response_class=HTMLResponse)
-async def update_integration(index: int, request: Request):
+async def update_integration(index: int, request: Request) -> HTMLResponse:
     form = await request.form()
     try:
-        updates = {}
+        updates: dict[str, Any] = {}
         schedule = _parse_schedule(
-            form.get("schedule_type", "none"),
-            form.get("schedule_value", ""),
+            str(form.get("schedule_type", "none")),
+            str(form.get("schedule_value", "")),
         )
         updates["schedule"] = schedule
         if form.get("llm"):
@@ -267,9 +269,9 @@ async def update_integration(index: int, request: Request):
     return _render_integration_header(index)
 
 
-def _build_script_updates(form) -> dict:
+def _build_script_updates(form: ImmutableMultiDict[str, Any]) -> dict[str, Any]:
     """Extract script fields from form data into an updates dict."""
-    updates = {"shell": form.get("shell", "").strip()}
+    updates: dict[str, Any] = {"shell": str(form.get("shell", "")).strip()}
     updates["description"] = form.get("description", "")
     updates["timeout"] = int(form["timeout"]) if form.get("timeout") else 120
     updates["inputs"] = (
@@ -284,12 +286,12 @@ def _build_script_updates(form) -> dict:
 
 
 @router.post("/config/scripts/{name}", response_class=HTMLResponse)
-async def update_script_endpoint(name: str, request: Request):
+async def update_script_endpoint(name: str, request: Request) -> HTMLResponse:
     form = await request.form()
     try:
         script_name = name
         if name == "_new":
-            script_name = form.get("script_name", "").strip()
+            script_name = str(form.get("script_name", "")).strip()
             if not script_name:
                 return _render_error("Script name is required")
 
@@ -306,7 +308,7 @@ async def update_script_endpoint(name: str, request: Request):
 
 
 @router.delete("/config/scripts/{name}", response_class=HTMLResponse)
-async def remove_script(name: str):
+async def remove_script(name: str) -> HTMLResponse:
     try:
         delete_script(name)
         reload_config()
@@ -317,7 +319,7 @@ async def remove_script(name: str):
 
 
 @router.post("/integrations/{integration_id}/run", response_class=HTMLResponse)
-async def trigger_integration(integration_id: str):
+async def trigger_integration(integration_id: str) -> HTMLResponse:
     from app.main import _run_integration
     try:
         result = _run_integration(integration_id)
@@ -329,14 +331,14 @@ async def trigger_integration(integration_id: str):
 
 
 @router.post("/config/yaml", response_class=HTMLResponse)
-async def save_raw(request: Request):
+async def save_raw(request: Request) -> HTMLResponse:
     form = await request.form()
-    yaml_content = form.get("yaml_content", "")
+    yaml_content = str(form.get("yaml_content", ""))
     try:
         save_raw_yaml(yaml_content)
         reload_config()
     except ConfigValidationError as exc:
         return _render_error(str(exc))
 
-    success_content = f'<div class="alert alert-success mb-4"><span>Config saved.</span></div>'
+    success_content = '<div class="alert alert-success mb-4"><span>Config saved.</span></div>'
     return HTMLResponse(success_content + _render_oob_banner())

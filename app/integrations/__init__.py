@@ -23,10 +23,7 @@ def _load_handler(module_name: str, handler_path: str) -> TaskHandler | None:
     If handler_path starts with '.', it is relative to module_name.
     Expected format: ".platforms.issues.check.handle" or "module.func"
     """
-    if handler_path.startswith("."):
-        parts = handler_path[1:].split(".")
-    else:
-        parts = handler_path.split(".")
+    parts = handler_path[1:].split(".") if handler_path.startswith(".") else handler_path.split(".")
 
     func_name = parts.pop()
     sub_module = ".".join(parts)
@@ -34,7 +31,7 @@ def _load_handler(module_name: str, handler_path: str) -> TaskHandler | None:
 
     try:
         mod = importlib.import_module(full_module_path)
-        return getattr(mod, func_name)
+        return getattr(mod, func_name)  # type: ignore[no-any-return]
     except (ImportError, AttributeError):
         log.exception("Failed to load handler: %s from %s", handler_path, module_name)
         return None
@@ -50,7 +47,7 @@ def register_all() -> None:
             continue
 
         module = modules[domain]
-        module_name = module.__name__
+        module_name = module.__name__  # type: ignore[attr-defined]
 
         # 1. Integration-level handlers
         for suffix, handler_path in manifest.handlers.items():

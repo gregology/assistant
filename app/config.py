@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 from typing import Annotated, Any, Literal, Union
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 from pydantic import BaseModel, Field, create_model, model_validator
 
@@ -51,11 +51,11 @@ def _secret_constructor(loader: yaml.SafeLoader, node: yaml.ScalarNode) -> str:
             f"Secret '{key}' not found in {SECRETS_PATH}. "
             f"Available secrets: {list(secrets.keys())}"
         )
-    return secrets[key]
+    return str(secrets[key])
 
 
-_Loader = type("_Loader", (yaml.SafeLoader,), {})
-_Loader.add_constructor("!secret", _secret_constructor)
+_Loader: type = type("_Loader", (yaml.SafeLoader,), {})
+_Loader.add_constructor("!secret", _secret_constructor)  # type: ignore[attr-defined]
 
 
 def _yolo_constructor(loader: yaml.SafeLoader, node: yaml.Node) -> YoloAction:
@@ -70,7 +70,7 @@ def _yolo_constructor(loader: yaml.SafeLoader, node: yaml.Node) -> YoloAction:
     )
 
 
-_Loader.add_constructor("!yolo", _yolo_constructor)
+_Loader.add_constructor("!yolo", _yolo_constructor)  # type: ignore[attr-defined]
 
 
 # ---------------------------------------------------------------------------
@@ -78,7 +78,7 @@ _Loader.add_constructor("!yolo", _yolo_constructor)
 # ---------------------------------------------------------------------------
 
 
-def load_platform_const(integration_type: str, platform_name: str):
+def load_platform_const(integration_type: str, platform_name: str) -> object | None:
     """Dynamically load a platform's const module, or None if absent.
 
     Uses the loader's manifest registry to find the integration, then loads
@@ -140,17 +140,18 @@ _JSON_TYPE_MAP: dict[str, type] = {
 
 
 def _json_schema_to_field(
-    prop_name: str, prop_def: dict, required_fields: set[str]
-) -> tuple:
+    prop_name: str, prop_def: dict[str, Any], required_fields: set[str]
+) -> tuple[Any, ...]:
     """Convert a JSON Schema property definition to a (type, default) tuple
     for pydantic.create_model().
     """
     json_type = prop_def.get("type", "string")
 
+    python_type: Any
     if json_type == "array":
         item_type_str = prop_def.get("items", {}).get("type", "string")
         item_type = _JSON_TYPE_MAP.get(item_type_str, str)
-        python_type = list[item_type]
+        python_type = list[item_type]  # type: ignore[valid-type]
     else:
         python_type = _JSON_TYPE_MAP.get(json_type, str)
 
@@ -168,7 +169,7 @@ def _json_schema_to_field(
 def _build_platform_model(
     domain: str,
     platform_name: str,
-    platform_manifest,
+    platform_manifest: Any,
 ) -> type[BaseModel]:
     """Create a Pydantic model for a single platform's config."""
     schema = platform_manifest.config_schema
@@ -183,14 +184,14 @@ def _build_platform_model(
     platform_part = platform_name.title().replace('_', '')
     model_name = f"{domain_part}{platform_part}PlatformConfig"
 
-    return create_model(
+    return create_model(  # type: ignore[call-overload, no-any-return]
         model_name,
         __base__=BasePlatformConfig,
         **fields,
     )
 
 
-def build_integration_model(manifest) -> type[BaseModel]:
+def build_integration_model(manifest: Any) -> type[BaseModel]:
     """Create a Pydantic model from a manifest's config_schema and platforms.
 
     The model inherits from BaseIntegrationConfig and adds
@@ -217,19 +218,19 @@ def build_integration_model(manifest) -> type[BaseModel]:
             platform_fields[plat_name] = (plat_model | None, None)
 
         container_name = f"{manifest.domain.title().replace('_', '')}PlatformsContainer"
-        PlatformsContainer = create_model(container_name, **platform_fields)
+        PlatformsContainer = create_model(container_name, **platform_fields)  # type: ignore[call-overload]
         fields["platforms"] = (PlatformsContainer | None, None)
 
     model_name = f"{manifest.domain.title().replace('_', '')}Integration"
 
-    return create_model(
+    return create_model(  # type: ignore[call-overload, no-any-return]
         model_name,
         __base__=BaseIntegrationConfig,
         **fields,
     )
 
 
-def build_integration_union(manifests: dict) -> type:
+def build_integration_union(manifests: dict[str, Any]) -> Any:
     """Build a discriminated union type from all discovered integration manifests."""
     if not manifests:
         return BaseIntegrationConfig
@@ -239,7 +240,7 @@ def build_integration_union(manifests: dict) -> type:
     if len(models) == 1:
         return Annotated[models[0], Field(discriminator="type")]
 
-    union_type = Union[tuple(models)]
+    union_type = Union[tuple(models)]  # type: ignore[valid-type]  # noqa: UP007
     return Annotated[union_type, Field(discriminator="type")]
 
 
@@ -304,13 +305,16 @@ def _find_unsafe_actions(
             if name in irreversible_actions:
                 unsafe.append(name)
         else:
-            log.warning("Unrecognized action type %s treated as irreversible", type(action).__name__)
+            log.warning(
+                "Unrecognized action type %s treated as irreversible",
+                type(action).__name__,
+            )
             unsafe.append(f"unknown:{type(action).__name__}")
     return unsafe
 
 
 def _filter_platform_automations(
-    platform,
+    platform: Any,
     integration_name: str,
     platform_name: str,
     deterministic_sources: frozenset[str],
@@ -340,7 +344,7 @@ def _filter_platform_automations(
 
 
 def _validate_automation_safety(
-    integrations: list,
+    integrations: list[Any],
     scripts: dict[str, ScriptConfig] | None = None,
 ) -> list[str]:
     """Validate that no automation triggers irreversible actions from
@@ -370,7 +374,9 @@ def _validate_automation_safety(
                     integration.type,
                     platform_name,
                 )
-            deterministic_sources = getattr(const, "DETERMINISTIC_SOURCES", frozenset())
+            deterministic_sources: frozenset[str] = getattr(
+                const, "DETERMINISTIC_SOURCES", frozenset(),
+            )
             irreversible_actions = getattr(
                 const, "IRREVERSIBLE_ACTIONS", _UniversalSet()
             )
@@ -383,7 +389,7 @@ def _validate_automation_safety(
 
 
 def _validate_script_references(
-    integrations: list,
+    integrations: list[Any],
     scripts: dict[str, ScriptConfig],
 ) -> list[str]:
     """Warn about automation rules that reference undefined scripts.
@@ -421,7 +427,7 @@ def _validate_script_references(
 
 
 def _validate_service_references(
-    integrations: list,
+    integrations: list[Any],
 ) -> list[str]:
     """Warn about automation rules that reference unconfigured services.
 
@@ -472,7 +478,7 @@ def _validate_service_references(
 # ---------------------------------------------------------------------------
 
 
-def load_config(config_path: Path = _CONFIG_PATH) -> tuple:
+def load_config(config_path: Path = _CONFIG_PATH) -> tuple[Any, list[str]]:
     """Load and validate config with dynamic integration discovery.
 
     Phase 1: Parse raw YAML, extract custom_integrations directory path.
@@ -484,7 +490,7 @@ def load_config(config_path: Path = _CONFIG_PATH) -> tuple:
 
     # Phase 1: Raw YAML parse
     with config_path.open() as f:
-        raw: dict = yaml.load(f, Loader=_Loader)
+        raw: dict[str, Any] = yaml.load(f, Loader=_Loader)
 
     custom_dir_raw = raw.get("directories", {}).get("custom_integrations")
     custom_dir = Path(custom_dir_raw) if custom_dir_raw else None
@@ -499,37 +505,37 @@ def load_config(config_path: Path = _CONFIG_PATH) -> tuple:
     # Phase 4: Define AppConfig with the dynamic Integration type and validate
     class AppConfig(BaseModel):
         llms: dict[str, LLMConfig]
-        integrations: list[Integration] = []
+        integrations: list[Integration] = []  # type: ignore[valid-type]
         directories: DirectoriesConfig = DirectoriesConfig()
         scripts: dict[str, ScriptConfig] = {}
         queue_policies: QueuePolicyConfig = QueuePolicyConfig()
 
         @model_validator(mode="after")
-        def _check_unique_names(self):
+        def _check_unique_names(self) -> AppConfig:
             seen: set[str] = set()
             for i in self.integrations:
-                if i.id in seen:
+                if i.id in seen:  # type: ignore[attr-defined]
                     raise ValueError(
-                        f"Duplicate integration: {i.id!r}. "
-                        f"Each {i.type}.name must be unique."
+                        f"Duplicate integration: {i.id!r}. "  # type: ignore[attr-defined]
+                        f"Each {i.type}.name must be unique."  # type: ignore[attr-defined]
                     )
-                seen.add(i.id)
+                seen.add(i.id)  # type: ignore[attr-defined]
             return self
 
-        def get_integration(self, integration_id: str):
+        def get_integration(self, integration_id: str) -> Any:
             for entry in self.integrations:
-                if entry.id == integration_id:
+                if entry.id == integration_id:  # type: ignore[attr-defined]
                     return entry
-            available = [i.id for i in self.integrations]
+            available = [i.id for i in self.integrations]  # type: ignore[attr-defined]
             raise ValueError(
                 f"Unknown integration {integration_id!r}. "
                 f"Available: {available}"
             )
 
-        def get_integrations_by_type(self, integration_type: str) -> list:
-            return [i for i in self.integrations if i.type == integration_type]
+        def get_integrations_by_type(self, integration_type: str) -> list[Any]:
+            return [i for i in self.integrations if i.type == integration_type]  # type: ignore[attr-defined]
 
-        def get_platform(self, integration_id: str, platform_name: str):
+        def get_platform(self, integration_id: str, platform_name: str) -> Any:
             integration = self.get_integration(integration_id)
             platforms = getattr(integration, "platforms", None)
             if platforms is None:

@@ -1,3 +1,5 @@
+from typing import Any
+
 from fastapi import FastAPI, HTTPException
 
 import app.human_log
@@ -18,28 +20,28 @@ register_runtime()
 load_all_modules()
 register_all()
 
-app = FastAPI()
-app.include_router(ui_router)
+app: FastAPI = FastAPI()  # type: ignore[no-redef]
+app.include_router(ui_router)  # type: ignore[attr-defined]
 queue.init()
 
-from app.scheduler import init_schedules
+from app.scheduler import init_schedules  # noqa: E402
 
-init_schedules(app)
+init_schedules(app)  # type: ignore[arg-type]
 
 for _w in safety_warnings:
     _log.human(_w)
 
 
-@app.get("/")
-async def root():
+@app.get("/")  # type: ignore[attr-defined, untyped-decorator]
+async def root() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.get("/integrations")
-async def list_integrations():
-    results = []
+@app.get("/integrations")  # type: ignore[attr-defined, untyped-decorator]
+async def list_integrations() -> list[dict[str, Any]]:
+    results: list[dict[str, Any]] = []
     for i in config.integrations:
-        entry = {"id": i.id, "name": i.name, "type": i.type}
+        entry: dict[str, Any] = {"id": i.id, "name": i.name, "type": i.type}
         platforms = getattr(i, "platforms", None)
         if platforms is not None:
             entry["platforms"] = [
@@ -50,12 +52,15 @@ async def list_integrations():
     return results
 
 
-def _run_integration(integration_id: str, platform: str | None = None):
+def _run_integration(integration_id: str, platform: str | None = None) -> dict[str, Any]:
     """Shared logic for running integration platforms by composite ID."""
     try:
         integration = config.get_integration(integration_id)
     except ValueError:
-        raise HTTPException(status_code=404, detail=f"Integration {integration_id!r} not found")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Integration {integration_id!r} not found",
+        ) from None
 
     platforms_obj = getattr(integration, "platforms", None)
     if platforms_obj is None:
@@ -64,7 +69,7 @@ def _run_integration(integration_id: str, platform: str | None = None):
             detail=f"Integration {integration_id!r} has no platforms configured",
         )
 
-    task_ids = []
+    task_ids: list[str] = []
 
     if platform:
         plat = getattr(platforms_obj, platform, None)
@@ -101,11 +106,11 @@ def _run_integration(integration_id: str, platform: str | None = None):
     return {"task_ids": task_ids, "status": "pending"}
 
 
-@app.post("/integrations/{integration_id}/run")
-async def run_all_platforms(integration_id: str):
+@app.post("/integrations/{integration_id}/run")  # type: ignore[attr-defined, untyped-decorator]
+async def run_all_platforms(integration_id: str) -> dict[str, Any]:
     return _run_integration(integration_id)
 
 
-@app.post("/integrations/{integration_id}/{platform}/run")
-async def run_platform(integration_id: str, platform: str):
+@app.post("/integrations/{integration_id}/{platform}/run")  # type: ignore[attr-defined, untyped-decorator]
+async def run_platform(integration_id: str, platform: str) -> dict[str, Any]:
     return _run_integration(integration_id, platform)

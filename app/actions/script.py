@@ -11,6 +11,7 @@ import os
 import subprocess
 import tempfile
 from pathlib import Path
+from typing import Any
 
 import app.human_log  # noqa: F401 — registers HumanMarkdownHandler
 from app.config import config
@@ -60,7 +61,7 @@ def _process_log_file(log_path: Path, script_name: str) -> None:
         script_log.log(level, "%s", message)
 
 
-def execute(script_def, inputs: dict[str, str]) -> str | None:
+def execute(script_def: Any, inputs: dict[str, str]) -> str | None:
     """Execute a script definition with the given inputs.
 
     Returns the captured output string, or None if no output was captured.

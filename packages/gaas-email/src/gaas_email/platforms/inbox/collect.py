@@ -7,7 +7,7 @@ from .store import EmailStore
 log = logging.getLogger(__name__)
 
 
-def handle(task: TaskRecord):
+def handle(task: TaskRecord) -> None:
     from ...mail import Mailbox
 
     integration_id = task["payload"]["integration"]
@@ -16,10 +16,10 @@ def handle(task: TaskRecord):
     log.info("email.inbox.collect: uid=%s (integration=%s)", uid, integration_id)
 
     with Mailbox(
-        imap_server=integration.imap_server,
-        imap_port=integration.imap_port,
-        username=integration.username,
-        password=integration.password,
+        imap_server=integration.imap_server,  # type: ignore[attr-defined]
+        imap_port=integration.imap_port,  # type: ignore[attr-defined]
+        username=integration.username,  # type: ignore[attr-defined]
+        password=integration.password,  # type: ignore[attr-defined]
     ) as mb:
         email = mb.get_email(uid)
 

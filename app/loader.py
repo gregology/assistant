@@ -17,7 +17,7 @@ import logging
 import sys
 from pathlib import Path
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 from gaas_sdk.manifest import (
     IntegrationManifest,
@@ -184,9 +184,10 @@ def _load_manifest(
             human_log=svc_def.get("human_log"),
         )
 
+    manifest_name = str(raw.get("name", domain))
     return IntegrationManifest(
         domain=domain,
-        name=raw.get("name", domain),
+        name=manifest_name,
         version=raw.get("version", "0.0.0"),
         entry_task=raw.get("entry_task", "check"),
         dependencies=raw.get("dependencies", []),
@@ -262,7 +263,7 @@ def load_all_modules() -> dict[str, object]:
     return _modules
 
 
-def _load_module(manifest: IntegrationManifest):
+def _load_module(manifest: IntegrationManifest) -> object:
     """Import an integration's Python module."""
     if manifest.entry_point_module:
         return importlib.import_module(manifest.entry_point_module)
@@ -272,7 +273,7 @@ def _load_module(manifest: IntegrationManifest):
         return _load_custom_module(manifest)
 
 
-def _load_custom_module(manifest: IntegrationManifest):
+def _load_custom_module(manifest: IntegrationManifest) -> object:
     """Load a custom integration via spec_from_file_location.
 
     Uses a ``gaas_ext.{domain}`` namespace to avoid stdlib shadowing
@@ -305,11 +306,12 @@ def _load_custom_module(manifest: IntegrationManifest):
     module = importlib.util.module_from_spec(spec)
     module.__package__ = module_name
     sys.modules[module_name] = module
+    assert spec.loader is not None
     spec.loader.exec_module(module)
     return module
 
 
-def load_const_module(manifest: IntegrationManifest):
+def load_const_module(manifest: IntegrationManifest) -> object | None:
     """Load an integration's const.py for safety validation.
 
     const.py must only import from the app framework (app.*), not from
@@ -335,6 +337,7 @@ def load_const_module(manifest: IntegrationManifest):
         module = importlib.util.module_from_spec(spec)
         sys.modules[module_name] = module
         try:
+            assert spec.loader is not None
             spec.loader.exec_module(module)
         except Exception:
             log.exception("Failed to load const module: %s", const_path)
@@ -343,7 +346,7 @@ def load_const_module(manifest: IntegrationManifest):
         return module
 
 
-def load_platform_const_module(manifest: IntegrationManifest, platform_name: str):
+def load_platform_const_module(manifest: IntegrationManifest, platform_name: str) -> object | None:
     """Load a platform's const.py for safety validation.
 
     Looks in {manifest.path}/platforms/{platform_name}/const.py.
@@ -373,6 +376,7 @@ def load_platform_const_module(manifest: IntegrationManifest, platform_name: str
     module = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = module
     try:
+        assert spec.loader is not None
         spec.loader.exec_module(module)
     except Exception:
         log.exception("Failed to load platform const module: %s", const_path)

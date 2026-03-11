@@ -29,7 +29,8 @@ class TestSanitizeMessageId:
         assert _sanitize_message_id("<abc+tag@example.com>") == "abc_tag_example.com"
 
     def test_preserves_safe_chars(self):
-        assert _sanitize_message_id("<CABcd.123-xyz@mail.gmail.com>") == "CABcd.123-xyz_mail.gmail.com"
+        result = _sanitize_message_id("<CABcd.123-xyz@mail.gmail.com>")
+        assert result == "CABcd.123-xyz_mail.gmail.com"
 
     def test_empty_string(self):
         assert _sanitize_message_id("") == ""

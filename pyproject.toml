@@ -87,6 +87,21 @@ module = [
 ]
 ignore_missing_imports = true
 
+[tool.importlinter]
+root_packages = ["app", "gaas_sdk", "gaas_email", "gaas_github", "gaas_gemini"]
+
+[[tool.importlinter.contracts]]
+name = "SDK does not import app"
+type = "forbidden"
+source_modules = ["gaas_sdk"]
+forbidden_modules = ["app"]
+
+[[tool.importlinter.contracts]]
+name = "Integrations do not import app"
+type = "forbidden"
+source_modules = ["gaas_email", "gaas_github", "gaas_gemini"]
+forbidden_modules = ["app"]
+
 [tool.ruff]
 line-length = 100
 

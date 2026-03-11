@@ -13,11 +13,11 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 
-from app.config import (
-    SECRETS_PATH,
+from gaas_sdk.models import (
     BaseIntegrationConfig,
     BasePlatformConfig,
     DictAction,
@@ -25,10 +25,14 @@ from app.config import (
     ServiceAction,
     SimpleAction,
     YoloAction,
+)
+from gaas_sdk.provenance import resolve_provenance
+
+from app.config import (
+    SECRETS_PATH,
     config,
     load_config,
     load_platform_const,
-    resolve_provenance,
     safety_warnings,
 )
 from app import queue as _queue
@@ -49,7 +53,7 @@ class LLMProfileView:
     base_url: str
     model: str
     token: str
-    parameters: dict
+    parameters: dict[str, Any]
 
 
 @dataclass
@@ -62,7 +66,7 @@ class ClassificationView:
 
 @dataclass
 class AutomationView:
-    when: dict
+    when: dict[str, Any]
     then: list[str]
     provenance: str
     yolo: bool
@@ -119,7 +123,7 @@ class TaskView:
     status: str
     task_type: str
     created_at: str
-    payload: dict
+    payload: dict[str, Any]
 
 
 @dataclass
@@ -159,7 +163,7 @@ def _load_secret_values() -> frozenset[str]:
 # ---------------------------------------------------------------------------
 
 
-def _load_display_config():
+def _load_display_config() -> Any:
     """Load config fresh from disk for UI display.
 
     This is intentionally separate from the runtime singleton. The UI
@@ -175,7 +179,7 @@ def _load_display_config():
 # ---------------------------------------------------------------------------
 
 
-def _present_llm_profiles(cfg, secret_values: frozenset[str]) -> list[LLMProfileView]:
+def _present_llm_profiles(cfg: Any, secret_values: frozenset[str]) -> list[LLMProfileView]:
     profiles = []
     for name, llm_cfg in cfg.llms.items():
         profiles.append(LLMProfileView(
@@ -193,7 +197,7 @@ def _present_llm_profiles(cfg, secret_values: frozenset[str]) -> list[LLMProfile
 # ---------------------------------------------------------------------------
 
 
-def _present_classification(name: str, cls_cfg) -> ClassificationView:
+def _present_classification(name: str, cls_cfg: Any) -> ClassificationView:
     return ClassificationView(
         name=name,
         prompt=cls_cfg.prompt,
@@ -202,7 +206,7 @@ def _present_classification(name: str, cls_cfg) -> ClassificationView:
     )
 
 
-def _format_action(action) -> str:
+def _format_action(action: Any) -> str:
     if isinstance(action, YoloAction):
         return f"!yolo {action.value}"
     if isinstance(action, SimpleAction):
@@ -222,7 +226,10 @@ def _get_deterministic_sources(integration_type: str, platform_name: str) -> fro
 
 
 def _present_automation(
-    automation, integration_type: str, platform_name: str, deterministic_sources: frozenset[str]
+    automation: Any,
+    integration_type: str,
+    platform_name: str,
+    deterministic_sources: frozenset[str],
 ) -> AutomationView:
     provenance = resolve_provenance(automation.when, deterministic_sources)
     has_yolo = any(isinstance(a, YoloAction) for a in automation.then)
@@ -246,7 +253,7 @@ _BASE_PLATFORM_FIELDS = frozenset(BasePlatformConfig.model_fields.keys())
 
 def _present_platform(
     platform_name: str,
-    platform,
+    platform: Any,
     integration_type: str,
     secret_values: frozenset[str],
 ) -> PlatformView:
@@ -277,7 +284,7 @@ def _present_platform(
     )
 
 
-def _present_integration(integration, secret_values: frozenset[str]) -> IntegrationView:
+def _present_integration(integration: Any, secret_values: frozenset[str]) -> IntegrationView:
     schedule = None
     schedule_type = "none"
     schedule_value = ""
@@ -327,7 +334,7 @@ def _present_integration(integration, secret_values: frozenset[str]) -> Integrat
 # ---------------------------------------------------------------------------
 
 
-def _present_scripts(cfg) -> list[ScriptView]:
+def _present_scripts(cfg: Any) -> list[ScriptView]:
     scripts = []
     for name, script_cfg in cfg.scripts.items():
         scripts.append(ScriptView(
@@ -420,7 +427,7 @@ def _read_log_file(date: str) -> str | None:
 # ---------------------------------------------------------------------------
 
 
-def dashboard_context() -> dict:
+def dashboard_context() -> dict[str, Any]:
     """Dashboard shows the running system's state — uses runtime singleton."""
     secret_values = _load_secret_values()
     return {
@@ -431,7 +438,7 @@ def dashboard_context() -> dict:
     }
 
 
-def config_context() -> dict:
+def config_context() -> dict[str, Any]:
     """Config page shows what's on disk — reads fresh from the file."""
     from app.ui.yaml_rw import is_dirty, read_raw_yaml
 
@@ -453,7 +460,7 @@ def config_context() -> dict:
     }
 
 
-def llm_profiles_context() -> dict:
+def llm_profiles_context() -> dict[str, Any]:
     from app.ui.yaml_rw import is_dirty
 
     cfg = _load_display_config()
@@ -465,7 +472,7 @@ def llm_profiles_context() -> dict:
     }
 
 
-def scripts_list_context() -> dict:
+def scripts_list_context() -> dict[str, Any]:
     from app.ui.yaml_rw import is_dirty
 
     cfg = _load_display_config()
@@ -475,7 +482,7 @@ def scripts_list_context() -> dict:
     }
 
 
-def directories_context() -> dict:
+def directories_context() -> dict[str, Any]:
     from app.ui.yaml_rw import is_dirty
 
     cfg = _load_display_config()
@@ -490,7 +497,7 @@ def directories_context() -> dict:
     }
 
 
-def integration_header_context(index: int) -> dict:
+def integration_header_context(index: int) -> dict[str, Any]:
     cfg = _load_display_config()
     secret_values = _load_secret_values()
     integration = _present_integration(cfg.integrations[index], secret_values)
@@ -501,7 +508,7 @@ def integration_header_context(index: int) -> dict:
     }
 
 
-def raw_yaml_context() -> dict:
+def raw_yaml_context() -> dict[str, Any]:
     from app.ui.yaml_rw import is_dirty, read_raw_yaml
 
     return {
@@ -510,20 +517,20 @@ def raw_yaml_context() -> dict:
     }
 
 
-def queue_context() -> dict:
+def queue_context() -> dict[str, Any]:
     return {
         "counts": _get_queue_counts(),
         "tasks": {d: _get_recent_tasks(d) for d in _queue.DIRS},
     }
 
 
-def log_list_context() -> dict:
+def log_list_context() -> dict[str, Any]:
     return {
         "dates": _get_log_dates(),
     }
 
 
-def log_detail_context(date: str) -> dict:
+def log_detail_context(date: str) -> dict[str, Any]:
     return {
         "date": date,
         "content": _read_log_file(date),

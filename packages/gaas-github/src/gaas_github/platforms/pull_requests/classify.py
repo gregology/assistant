@@ -4,6 +4,7 @@ import logging
 import secrets
 from datetime import datetime, UTC
 from pathlib import Path
+from typing import Any
 
 import frontmatter
 
@@ -24,7 +25,7 @@ MAX_DIFF_CHARS = 10_000
 
 
 def _render_prompt(
-    detail: dict,
+    detail: dict[str, Any],
     diff: str,
     classifications: dict[str, ClassificationConfig],
 ) -> str:
@@ -44,7 +45,7 @@ def _render_prompt(
     )
 
 
-def handle(task: TaskRecord):
+def handle(task: TaskRecord) -> None:
     from ...client import GitHubClient
 
     integration_id = task["payload"]["integration"]
@@ -53,7 +54,10 @@ def handle(task: TaskRecord):
     org = task["payload"]["org"]
     repo = task["payload"]["repo"]
     number = task["payload"]["number"]
-    log.info("github.pull_requests.classify: %s/%s#%d (integration=%s)", org, repo, number, integration_id)
+    log.info(
+        "github.pull_requests.classify: %s/%s#%d (integration=%s)",
+        org, repo, number, integration_id,
+    )
 
     classifications = platform.classifications or DEFAULT_CLASSIFICATIONS
     llm_config = runtime.get_llm_config(integration.llm)
@@ -89,7 +93,10 @@ def handle(task: TaskRecord):
         schema = build_schema(classifications)
         classification = conversation.message(prompt=prompt, schema=schema)
 
-        log.info("github.pull_requests.classify: %s/%s#%d result=%s", org, repo, number, classification)
+        log.info(
+            "github.pull_requests.classify: %s/%s#%d result=%s",
+            org, repo, number, classification,
+        )
 
         classified_by = {
             "model": llm_config.model,

@@ -67,7 +67,9 @@ class TestFingerprint:
 
 class TestParseFilename:
     def test_valid_format(self):
-        result = queue.parse_filename("5_20260303T142532Z_a1b2c3d4--deadbeef--email.inbox.check.yaml")
+        result = queue.parse_filename(
+            "5_20260303T142532Z_a1b2c3d4--deadbeef--email.inbox.check.yaml"
+        )
         assert result == {
             "priority": "5",
             "timestamp": "20260303T142532Z",
@@ -77,7 +79,9 @@ class TestParseFilename:
         }
 
     def test_underscore_in_task_type(self):
-        result = queue.parse_filename("5_20260303T142532Z_a1b2c3d4--deadbeef--github.pull_requests.classify.yaml")
+        result = queue.parse_filename(
+            "5_20260303T142532Z_a1b2c3d4--deadbeef--github.pull_requests.classify.yaml"
+        )
         assert result is not None
         assert result["task_type"] == "github.pull_requests.classify"
 

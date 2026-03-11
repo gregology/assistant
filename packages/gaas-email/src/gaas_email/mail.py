@@ -5,6 +5,7 @@ from datetime import date, datetime, UTC
 from email.message import EmailMessage
 from email.policy import EmailPolicy
 from email.utils import parsedate_to_datetime
+from typing import Any
 
 import httpx
 import tldextract
@@ -43,13 +44,13 @@ class Email:
         self.contents_clean: str = self._clean(msg.text, msg.html)
 
         spf, dkim, dmarc = _parse_auth_results(msg.headers)
-        self.authentication: dict = {
+        self.authentication: dict[str, bool] = {
             "dkim_pass": dkim,
             "dmarc_pass": dmarc,
             "spf_pass": spf,
         }
 
-        self.calendar: dict | None = _parse_calendar(msg.attachments)
+        self.calendar: dict[str, Any] | None = _parse_calendar(msg.attachments)
         self.has_attachments: bool = _has_non_calendar_attachments(msg.attachments)
 
         self._flags: frozenset[str] = frozenset(msg.flags)
@@ -108,6 +109,7 @@ class Email:
         if not self.unsubscribe_option:
             log.warning("No one-click unsubscribe available for %s", self.subject)
             return False
+        assert self._unsubscribe_url is not None
         resp = httpx.post(
             self._unsubscribe_url,
             data={"List-Unsubscribe": "One-Click"},
@@ -123,8 +125,11 @@ class Email:
     def archive(self) -> None:
         folder = self._mailbox._folder("\\Archive")
         self._mailbox._move(self._uid, folder)
-        subject = self.subject[:25] + "…" if len(self.subject) > 25 else self.subject
-        log.human("Archived email from **%s** — `%s` (uid %s)", self.from_address, subject, self._uid)
+        subject = (self.subject[:25] + "…") if len(self.subject) > 25 else self.subject
+        log.human(
+            "Archived email from **%s** — `%s` (uid %s)",
+            self.from_address, subject, self._uid,
+        )
 
     def spam(self) -> None:
         folder = self._mailbox._folder("\\Junk")
@@ -149,7 +154,11 @@ class Email:
         reply["Subject"] = f"Re: {subject}" if not subject.lower().startswith("re:") else subject
         if self._message_id:
             reply["In-Reply-To"] = self._message_id
-            refs = f"{self._references} {self._message_id}".strip() if self._references else self._message_id
+            refs = (
+                f"{self._references} {self._message_id}".strip()
+                if self._references
+                else self._message_id
+            )
             reply["References"] = refs
         reply.set_content(contents)
 
@@ -196,7 +205,9 @@ class Mailbox:
             log.info("IMAP connected to %s as %s", self._imap_server, self._username)
             log.info("Discovered folders: %s", self._folders)
 
-    def inbox_message_ids(self, limit: int = 500, since: date | None = None) -> list[tuple[str, str]]:
+    def inbox_message_ids(
+        self, limit: int = 500, since: date | None = None,
+    ) -> list[tuple[str, str]]:
         """Fetch (uid, message_id) pairs from the inbox using headers-only fetch.
 
         Returns a list of (uid, raw_message_id) tuples, newest first.
@@ -265,7 +276,7 @@ class Mailbox:
     def __enter__(self) -> Mailbox:
         return self
 
-    def __exit__(self, *args) -> None:
+    def __exit__(self, *args: Any) -> None:
         self.disconnect()
 
 
@@ -283,14 +294,14 @@ def _clean_header(value: str) -> str:
     return " ".join(value.split())
 
 
-def _parse_unsubscribe_url(headers: dict) -> str | None:
+def _parse_unsubscribe_url(headers: dict[str, tuple[str, ...]]) -> str | None:
     raw = headers.get("list-unsubscribe", ("",))
     value = " ".join(raw)
     urls = re.findall(r"<(https?://[^>]+)>", value)
     return urls[0] if urls else None
 
 
-def _parse_received_date(headers: dict) -> datetime | None:
+def _parse_received_date(headers: dict[str, tuple[str, ...]]) -> datetime | None:
     received = headers.get("received", ())
     if not received:
         return None
@@ -300,14 +311,14 @@ def _parse_received_date(headers: dict) -> datetime | None:
     if not date_str:
         return None
     try:
-        dt = parsedate_to_datetime(date_str)
+        dt: datetime = parsedate_to_datetime(date_str)
         return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
     except Exception:
         log.warning("Failed to parse Received header date: %s", date_str)
         return None
 
 
-def _count_attendees(attendees) -> int:
+def _count_attendees(attendees: Any) -> int:
     if attendees is None:
         return 0
     if isinstance(attendees, list):
@@ -315,7 +326,7 @@ def _count_attendees(attendees) -> int:
     return 1
 
 
-def _extract_partstat(method: str, attendees) -> str | None:
+def _extract_partstat(method: str, attendees: Any) -> str | None:
     if method != "reply":
         return None
     first = attendees[0] if isinstance(attendees, list) else attendees
@@ -325,7 +336,7 @@ def _extract_partstat(method: str, attendees) -> str | None:
     return raw or None
 
 
-def _parse_calendar(attachments) -> dict | None:
+def _parse_calendar(attachments: Any) -> dict[str, Any] | None:
     """Extract calendar event data from email attachments.
 
     Returns a dict with:
@@ -346,15 +357,15 @@ def _parse_calendar(attachments) -> dict | None:
         except Exception:
             log.warning("Failed to parse calendar attachment")
             return None
-        raw_method = cal.get("method")
+        raw_method = cal.get("method")  # type: ignore[no-untyped-call]
         method = str(raw_method).lower() if raw_method else "request"
         for component in cal.walk():
             if component.name != "VEVENT":
                 continue
-            dtstart = component.get("dtstart")
-            dtend = component.get("dtend")
-            sequence = int(component.get("sequence", 0))
-            attendees = component.get("attendee")
+            dtstart = component.get("dtstart")  # type: ignore[no-untyped-call]
+            dtend = component.get("dtend")  # type: ignore[no-untyped-call]
+            sequence = int(component.get("sequence", 0))  # type: ignore[no-untyped-call]
+            attendees = component.get("attendee")  # type: ignore[no-untyped-call]
             return {
                 "start": dtstart.dt.isoformat() if dtstart else None,
                 "end": dtend.dt.isoformat() if dtend else None,
@@ -369,11 +380,11 @@ def _parse_calendar(attachments) -> dict | None:
 _CALENDAR_CONTENT_TYPES = frozenset({"text/calendar", "application/ics"})
 
 
-def _has_non_calendar_attachments(attachments) -> bool:
+def _has_non_calendar_attachments(attachments: Any) -> bool:
     return any(att.content_type not in _CALENDAR_CONTENT_TYPES for att in attachments)
 
 
-def _parse_auth_results(headers: dict) -> tuple[bool, bool, bool]:
+def _parse_auth_results(headers: dict[str, tuple[str, ...]]) -> tuple[bool, bool, bool]:
     auth = headers.get("authentication-results", ("",))
     auth_lower = " ".join(auth).lower()
     return (

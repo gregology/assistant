@@ -119,7 +119,9 @@ class TestEnqueueActions:
         with patch("gaas_sdk.runtime._enqueue") as mock:
             mock.return_value = "t1"
             enqueue_actions(
-                actions=[ScriptAction(script={"name": "research", "inputs": {"d": "{{ domain }}"}})],
+                actions=[ScriptAction(
+                    script={"name": "research", "inputs": {"d": "{{ domain }}"}}
+                )],
                 platform_payload={"type": "test.act", "id": "1"},
                 resolve_value=resolver,
                 classification={},
@@ -136,7 +138,9 @@ class TestEnqueueActions:
         with patch("gaas_sdk.runtime._enqueue") as mock:
             mock.return_value = "t1"
             enqueue_actions(
-                actions=[ServiceAction(service={"call": "gemini.research.web_search", "inputs": {}})],
+                actions=[ServiceAction(
+                    service={"call": "gemini.research.web_search", "inputs": {}}
+                )],
                 platform_payload={"type": "test.act", "id": "1"},
                 resolve_value=resolver,
                 classification={},

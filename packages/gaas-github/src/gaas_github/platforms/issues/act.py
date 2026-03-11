@@ -13,7 +13,7 @@ from gaas_sdk.task import TaskRecord
 log = logging.getLogger(__name__)
 
 
-def handle(task: TaskRecord):
+def handle(task: TaskRecord) -> None:
     org = task["payload"]["org"]
     repo = task["payload"]["repo"]
     number = task["payload"]["number"]

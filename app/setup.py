@@ -10,7 +10,7 @@ Usage:
 """
 
 import shutil
-import subprocess
+import subprocess  # nosec B404
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -123,7 +123,7 @@ def setup_llm() -> tuple[dict[str, Any], dict[str, str]]:
             import urllib.error
 
             req = urllib.request.Request(f"{host}/api/tags", method="GET")
-            with urllib.request.urlopen(req, timeout=5):
+            with urllib.request.urlopen(req, timeout=5):  # nosec B310
                 _success("Ollama is reachable")
         except Exception:
             _warn("Could not reach Ollama. Make sure it's running when you start GaaS.")
@@ -136,7 +136,7 @@ def setup_llm() -> tuple[dict[str, Any], dict[str, str]]:
             config["default"] = {
                 "base_url": base_url,
                 "model": model,
-                "token": "!secret llm_api_key",
+                "token": "!secret llm_api_key",  # nosec B105
             }
             secrets["llm_api_key"] = token
         else:
@@ -215,7 +215,7 @@ def setup_github() -> list[dict[str, Any]]:
         return []
 
     # Check auth status
-    result = subprocess.run(
+    result = subprocess.run(  # nosec B603
         [gh, "auth", "status"], capture_output=True, text=True
     )
     if result.returncode != 0:
@@ -309,6 +309,75 @@ def setup_directories() -> dict[str, str]:
 # ─── Config generation ────────────────────────────────────────────────────────
 
 
+def _emit_yaml_value(lines: list[str], key: str, value: Any, indent: int) -> None:
+    """Emit a single key-value pair with proper YAML formatting."""
+    prefix = " " * indent
+    if isinstance(value, str) and value.startswith("!secret"):
+        secret_name = value.split(" ", 1)[1]
+        lines.append(f"{prefix}{key}: !secret {secret_name}")
+    elif isinstance(value, dict):
+        lines.append(f"{prefix}{key}:")
+        for k2, v2 in value.items():
+            lines.append(f"{prefix}  {k2}: {v2}")
+    else:
+        lines.append(f"{prefix}{key}: {value}")
+
+
+def _emit_llms_section(lines: list[str], llm_config: dict[str, Any]) -> None:
+    """Emit the llms: section of config.yaml."""
+    lines.append("llms:")
+    for profile_name, profile in llm_config.items():
+        lines.append(f"  {profile_name}:")
+        for key, value in profile.items():
+            _emit_yaml_value(lines, key, value, indent=4)
+
+
+def _emit_integration_field(
+    lines: list[str], key: str, value: Any
+) -> None:
+    """Emit a single field of an integration entry."""
+    if key == "type":
+        return
+    if key == "password" and isinstance(value, str) and value.startswith("!secret"):
+        secret_name = value.split(" ", 1)[1]
+        lines.append(f"    {key}: !secret {secret_name}")
+    elif key == "schedule" and isinstance(value, dict):
+        lines.append("    schedule:")
+        for sk, sv in value.items():
+            lines.append(f"      {sk}: {sv}")
+    elif key == "platforms" and isinstance(value, dict):
+        lines.append("    platforms:")
+        for pname, pconfig in value.items():
+            lines.append(f"      {pname}:")
+            _write_platform(lines, pconfig, indent=8)
+    else:
+        lines.append(f"    {key}: {value}")
+
+
+def _emit_integrations_section(
+    lines: list[str], integrations: list[dict[str, Any]]
+) -> None:
+    """Emit the integrations: section of config.yaml."""
+    if not integrations:
+        return
+    lines.append("")
+    lines.append("integrations:")
+    for integration in integrations:
+        lines.append(f"  - type: {integration['type']}")
+        for key, value in integration.items():
+            _emit_integration_field(lines, key, value)
+
+
+def _emit_directories_section(
+    lines: list[str], directories: dict[str, str]
+) -> None:
+    """Emit the directories: section of config.yaml."""
+    lines.append("")
+    lines.append("directories:")
+    for key, path in directories.items():
+        lines.append(f"  {key}: {path}")
+
+
 def _build_config_yaml(
     llm_config: dict[str, Any],
     integrations: list[dict[str, Any]],
@@ -319,56 +388,10 @@ def _build_config_yaml(
     We write YAML by hand rather than using a YAML library to preserve
     the !secret references as literal strings and produce clean, readable output.
     """
-    lines = []
-
-    # LLMs
-    lines.append("llms:")
-    for profile_name, profile in llm_config.items():
-        lines.append(f"  {profile_name}:")
-        for key, value in profile.items():
-            if isinstance(value, str) and value.startswith("!secret"):
-                # Emit !secret tag directly (not as a quoted string)
-                secret_name = value.split(" ", 1)[1]
-                lines.append(f"    {key}: !secret {secret_name}")
-            elif isinstance(value, dict):
-                lines.append(f"    {key}:")
-                for k2, v2 in value.items():
-                    lines.append(f"      {k2}: {v2}")
-            else:
-                lines.append(f"    {key}: {value}")
-
-    # Integrations
-    if integrations:
-        lines.append("")
-        lines.append("integrations:")
-        for integration in integrations:
-            lines.append(f"  - type: {integration['type']}")
-            for key, value in integration.items():
-                if key == "type":
-                    continue
-                if key == "password" and isinstance(value, str) and value.startswith("!secret"):
-                    secret_name = value.split(" ", 1)[1]
-                    lines.append(f"    {key}: !secret {secret_name}")
-                elif key == "schedule" and isinstance(value, dict):
-                    lines.append("    schedule:")
-                    for sk, sv in value.items():
-                        lines.append(f"      {sk}: {sv}")
-                elif key == "platforms" and isinstance(value, dict):
-                    lines.append("    platforms:")
-                    for pname, pconfig in value.items():
-                        lines.append(f"      {pname}:")
-                        _write_platform(lines, pconfig, indent=8)
-                elif isinstance(value, int):
-                    lines.append(f"    {key}: {value}")
-                else:
-                    lines.append(f"    {key}: {value}")
-
-    # Directories
-    lines.append("")
-    lines.append("directories:")
-    for key, path in directories.items():
-        lines.append(f"  {key}: {path}")
-
+    lines: list[str] = []
+    _emit_llms_section(lines, llm_config)
+    _emit_integrations_section(lines, integrations)
+    _emit_directories_section(lines, directories)
     lines.append("")
     return "\n".join(lines)
 
@@ -414,25 +437,8 @@ def _backup_file(path: Path) -> Path | None:
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 
-def run_setup(reconfigure: bool = False) -> int:
-    """Run the interactive setup wizard. Returns exit code."""
-    config_path = PROJECT_ROOT / "config.yaml"
-    secrets_path = PROJECT_ROOT / "secrets.yaml"
-
-    print()
-    if _color():
-        print(f"  {BOLD}GaaS Setup Wizard{NC}")
-    else:
-        print("  GaaS Setup Wizard")
-    print()
-
-    if config_path.exists() and not reconfigure:
-        _info("config.yaml already exists.")
-        if not _prompt_yn("Reconfigure? (existing config will be backed up)", default=False):
-            _info("Nothing to do. Run with --reconfigure to force reconfiguration.")
-            return 0
-
-    # Back up existing files
+def _backup_existing_files(config_path: Path, secrets_path: Path) -> None:
+    """Back up config.yaml and secrets.yaml if they exist."""
     if config_path.exists():
         backup = _backup_file(config_path)
         if backup:
@@ -442,21 +448,14 @@ def run_setup(reconfigure: bool = False) -> int:
         if backup:
             _info(f"Backed up secrets.yaml to {backup.name}")
 
-    # Run each setup section
-    llm_config, llm_secrets = setup_llm()
-    email_integrations, email_secrets = setup_email()
-    github_integrations = setup_github()
-    directories = setup_directories()
 
-    # Merge
-    all_integrations = email_integrations + github_integrations
-    all_secrets = {**llm_secrets, **email_secrets}
-
-    # Generate files
-    config_content = _build_config_yaml(llm_config, all_integrations, directories)
-    secrets_content = _build_secrets_yaml(all_secrets)
-
-    # Show summary
+def _print_setup_summary(
+    llm_config: dict[str, Any],
+    all_integrations: list[dict[str, Any]],
+    all_secrets: dict[str, str],
+    directories: dict[str, str],
+) -> None:
+    """Display the setup summary before writing files."""
     _heading("Summary")
     print(f"  LLM profiles:  {', '.join(llm_config.keys()) if llm_config else 'none'}")
     print(f"  Integrations:  {len(all_integrations)}")
@@ -466,17 +465,9 @@ def run_setup(reconfigure: bool = False) -> int:
     print(f"  Data directory: {directories.get('notes', 'N/A').rsplit('/notes', 1)[0]}")
     print()
 
-    if not _prompt_yn("Write configuration?", default=True):
-        _warn("Setup cancelled. No files were written.")
-        return 1
 
-    # Write files
-    config_path.write_text(config_content)
-    _success(f"Written: {config_path}")
-
-    secrets_path.write_text(secrets_content)
-    _success(f"Written: {secrets_path}")
-
+def _print_next_steps(config_path: Path) -> None:
+    """Display next steps after successful setup."""
     print()
     _success("Setup complete!")
     print()
@@ -494,4 +485,50 @@ def run_setup(reconfigure: bool = False) -> int:
         _info(f"  Full config reference:  {example}")
     print()
 
+
+def run_setup(reconfigure: bool = False) -> int:
+    """Run the interactive setup wizard. Returns exit code."""
+    config_path = PROJECT_ROOT / "config.yaml"
+    secrets_path = PROJECT_ROOT / "secrets.yaml"
+
+    print()
+    title = f"  {BOLD}GaaS Setup Wizard{NC}" if _color() else "  GaaS Setup Wizard"
+    print(title)
+    print()
+
+    if config_path.exists() and not reconfigure:
+        _info("config.yaml already exists.")
+        if not _prompt_yn("Reconfigure? (existing config will be backed up)", default=False):
+            _info("Nothing to do. Run with --reconfigure to force reconfiguration.")
+            return 0
+
+    _backup_existing_files(config_path, secrets_path)
+
+    # Run each setup section
+    llm_config, llm_secrets = setup_llm()
+    email_integrations, email_secrets = setup_email()
+    github_integrations = setup_github()
+    directories = setup_directories()
+
+    # Merge
+    all_integrations = email_integrations + github_integrations
+    all_secrets = {**llm_secrets, **email_secrets}
+
+    # Generate files
+    config_content = _build_config_yaml(llm_config, all_integrations, directories)
+    secrets_content = _build_secrets_yaml(all_secrets)
+
+    _print_setup_summary(llm_config, all_integrations, all_secrets, directories)
+
+    if not _prompt_yn("Write configuration?", default=True):
+        _warn("Setup cancelled. No files were written.")
+        return 1
+
+    # Write files
+    config_path.write_text(config_content)
+    _success(f"Written: {config_path}")
+    secrets_path.write_text(secrets_content)
+    _success(f"Written: {secrets_path}")
+
+    _print_next_steps(config_path)
     return 0

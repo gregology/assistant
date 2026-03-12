@@ -148,6 +148,63 @@ def _action_to_payload(action: ActionType, yolo: bool) -> str | dict[str, Any]:
     return raw
 
 
+def _enqueue_script(
+    inner: ScriptAction,
+    resolve_value: ResolveValue,
+    classification: dict[str, Any],
+    provenance: str,
+    priority: int,
+) -> None:
+    """Enqueue a single script.run task."""
+    script_ref = inner.script
+    script_name = script_ref.get("name", "") if isinstance(script_ref, dict) else script_ref
+    raw_inputs = script_ref.get("inputs", {}) if isinstance(script_ref, dict) else {}
+    resolved_inputs = resolve_inputs(raw_inputs, resolve_value, classification)
+    runtime.enqueue({
+        "type": "script.run",
+        "script_name": script_name,
+        "inputs": resolved_inputs,
+    }, priority=priority, provenance=provenance)
+    log.info("Enqueued script.run for script=%s inputs=%s", script_name, resolved_inputs)
+
+
+def _enqueue_service(
+    inner: ServiceAction,
+    resolve_value: ResolveValue,
+    classification: dict[str, Any],
+    provenance: str,
+    priority: int,
+) -> None:
+    """Enqueue a single service task."""
+    service_ref = inner.service
+    call = service_ref.get("call", "")
+    raw_inputs = service_ref.get("inputs", {})
+    resolved_inputs = resolve_inputs(raw_inputs, resolve_value, classification)
+    # Parse call: {type}.{name}.{service_name}
+    parts = call.rsplit(".", 2)
+    if len(parts) != 3:
+        log.warning("Invalid service call format: %r (expected type.name.service)", call)
+        return
+    svc_type, svc_name, service_name = parts
+    on_result = service_ref.get("on_result", [{"type": "note"}])
+    payload: dict[str, Any] = {
+        "type": f"service.{svc_type}.{service_name}",
+        "integration": f"{svc_type}.{svc_name}",
+        "inputs": resolved_inputs,
+        "on_result": on_result,
+    }
+    raw_human_log = service_ref.get("human_log") or runtime.get_service_log_template(
+        f"service.{svc_type}.{service_name}"
+    )
+    if raw_human_log:
+        payload["human_log"] = _render_template(
+            raw_human_log, resolve_value, classification, extra=resolved_inputs,
+        )
+    runtime.enqueue(payload, priority=priority, provenance=provenance)
+    log.info("Enqueued service.%s.%s for integration=%s.%s inputs=%s",
+             svc_type, service_name, svc_type, svc_name, resolved_inputs)
+
+
 def enqueue_actions(
     actions: list[ActionType | YoloAction],
     platform_payload: dict[str, Any],
@@ -169,44 +226,9 @@ def enqueue_actions(
     for action in actions:
         inner, yolo = _unwrap_yolo(action)
         if isinstance(inner, ScriptAction):
-            script_ref = inner.script
-            script_name = script_ref.get("name", "") if isinstance(script_ref, dict) else script_ref
-            raw_inputs = script_ref.get("inputs", {}) if isinstance(script_ref, dict) else {}
-            resolved_inputs = resolve_inputs(raw_inputs, resolve_value, classification)
-            runtime.enqueue({
-                "type": "script.run",
-                "script_name": script_name,
-                "inputs": resolved_inputs,
-            }, priority=priority, provenance=provenance)
-            log.info("Enqueued script.run for script=%s inputs=%s", script_name, resolved_inputs)
+            _enqueue_script(inner, resolve_value, classification, provenance, priority)
         elif isinstance(inner, ServiceAction):
-            service_ref = inner.service
-            call = service_ref.get("call", "")
-            raw_inputs = service_ref.get("inputs", {})
-            resolved_inputs = resolve_inputs(raw_inputs, resolve_value, classification)
-            # Parse call: {type}.{name}.{service_name}
-            parts = call.rsplit(".", 2)
-            if len(parts) == 3:
-                svc_type, svc_name, service_name = parts
-                on_result = service_ref.get("on_result", [{"type": "note"}])
-                payload: dict[str, Any] = {
-                    "type": f"service.{svc_type}.{service_name}",
-                    "integration": f"{svc_type}.{svc_name}",
-                    "inputs": resolved_inputs,
-                    "on_result": on_result,
-                }
-                raw_human_log = service_ref.get("human_log") or runtime.get_service_log_template(
-                    f"service.{svc_type}.{service_name}"
-                )
-                if raw_human_log:
-                    payload["human_log"] = _render_template(
-                        raw_human_log, resolve_value, classification, extra=resolved_inputs,
-                    )
-                runtime.enqueue(payload, priority=priority, provenance=provenance)
-                log.info("Enqueued service.%s.%s for integration=%s.%s inputs=%s",
-                         svc_type, service_name, svc_type, svc_name, resolved_inputs)
-            else:
-                log.warning("Invalid service call format: %r (expected type.name.service)", call)
+            _enqueue_service(inner, resolve_value, classification, provenance, priority)
         else:
             platform_actions.append(_action_to_payload(inner, yolo))
 

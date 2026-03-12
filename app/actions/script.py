@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 import os
-import subprocess
+import subprocess  # nosec B404
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -61,45 +61,67 @@ def _process_log_file(log_path: Path, script_name: str) -> None:
         script_log.log(level, "%s", message)
 
 
+def _make_temp_file(prefix: str, suffix: str = ".txt") -> Path:
+    """Create a temporary file and return its Path."""
+    fd, path = tempfile.mkstemp(prefix=prefix, suffix=suffix)
+    os.close(fd)
+    return Path(path)
+
+
+def _build_env(inputs: dict[str, str], log_file: Path, output_file: Path) -> dict[str, str]:
+    """Build the subprocess environment with GAAS variables and inputs."""
+    env = os.environ.copy()
+    env["GAAS_LOG"] = str(log_file)
+    env["GAAS_OUTPUT_FILE"] = str(output_file)
+    for key, value in inputs.items():
+        env[f"GAAS_INPUT_{key.upper()}"] = value
+    return env
+
+
+def _build_script_body(script_def: Any) -> str:
+    """Build the bash script body with preamble and optional output capture."""
+    body: str = _PREAMBLE + "\n" + str(script_def.shell)
+    if script_def.output:
+        body += f'\nprintf "%s" "${{{script_def.output}}}" > "$GAAS_OUTPUT_FILE"'
+    return body
+
+
+def _read_captured_output(script_def: Any, output_file: Path) -> str | None:
+    """Read the captured output file, returning None if empty or not applicable."""
+    if not script_def.output or not output_file.exists():
+        return None
+    content = output_file.read_text()
+    return content or None
+
+
+def _cleanup_temp_files(*files: Path | None) -> None:
+    """Remove temporary files, ignoring missing ones."""
+    for f in files:
+        if f is not None and f.exists():
+            f.unlink()
+
+
+def _script_label(script_def: Any) -> str:
+    return script_def.description or "unnamed"
+
+
 def execute(script_def: Any, inputs: dict[str, str]) -> str | None:
     """Execute a script definition with the given inputs.
 
     Returns the captured output string, or None if no output was captured.
     Raises subprocess.TimeoutExpired if the script exceeds its timeout.
     """
-    log_file = None
-    script_file = None
-    output_file = None
+    log_file: Path | None = None
+    output_file: Path | None = None
+    script_file: Path | None = None
     try:
-        # Create temp files for logging and output capture
-        log_fd, log_path = tempfile.mkstemp(prefix="gaas_log_", suffix=".txt")
-        os.close(log_fd)
-        log_file = Path(log_path)
+        log_file = _make_temp_file("gaas_log_")
+        output_file = _make_temp_file("gaas_out_")
+        script_file = _make_temp_file("gaas_script_", suffix=".sh")
+        env = _build_env(inputs, log_file, output_file)
+        script_file.write_text(_build_script_body(script_def))
 
-        output_fd, output_path = tempfile.mkstemp(prefix="gaas_out_", suffix=".txt")
-        os.close(output_fd)
-        output_file = Path(output_path)
-
-        # Build environment
-        env = os.environ.copy()
-        env["GAAS_LOG"] = str(log_file)
-        env["GAAS_OUTPUT_FILE"] = str(output_file)
-        for key, value in inputs.items():
-            env[f"GAAS_INPUT_{key.upper()}"] = value
-
-        # Build script body with output capture
-        body = _PREAMBLE + "\n" + script_def.shell
-        if script_def.output:
-            body += f'\nprintf "%s" "${{{script_def.output}}}" > "$GAAS_OUTPUT_FILE"'
-
-        # Write script to temp file
-        script_fd, script_path = tempfile.mkstemp(prefix="gaas_script_", suffix=".sh")
-        os.close(script_fd)
-        script_file = Path(script_path)
-        script_file.write_text(body)
-
-        # Execute
-        result = subprocess.run(
+        result = subprocess.run(  # nosec
             ["bash", str(script_file)],
             env=env,
             timeout=script_def.timeout,
@@ -107,8 +129,7 @@ def execute(script_def: Any, inputs: dict[str, str]) -> str | None:
             text=True,
         )
 
-        # Process logs regardless of exit code
-        _process_log_file(log_file, script_def.description or "unnamed")
+        _process_log_file(log_file, _script_label(script_def))
 
         if result.returncode != 0:
             log.warning(
@@ -116,25 +137,14 @@ def execute(script_def: Any, inputs: dict[str, str]) -> str | None:
                 result.returncode, result.stderr.strip(),
             )
 
-        # Capture output
-        output = None
-        if script_def.output and output_file.exists():
-            content = output_file.read_text()
-            if content:
-                output = content
-
-        return output
+        return _read_captured_output(script_def, output_file)
 
     except subprocess.TimeoutExpired:
-        # Process any partial logs before re-raising
-        if log_file:
-            _process_log_file(log_file, script_def.description or "unnamed")
+        if log_file is not None:
+            _process_log_file(log_file, _script_label(script_def))
         raise
     finally:
-        # Clean up temp files
-        for f in (log_file, script_file, output_file):
-            if f is not None and f.exists():
-                f.unlink()
+        _cleanup_temp_files(log_file, script_file, output_file)
 
 
 def handle(task: TaskRecord) -> None:

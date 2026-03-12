@@ -14,7 +14,7 @@ import argparse
 import logging
 import os
 import signal
-import subprocess
+import subprocess  # nosec B404
 import sys
 import time
 from pathlib import Path
@@ -44,13 +44,13 @@ class ManagedProcess:
 
     def start(self) -> None:
         env = {**os.environ, "GAAS_SUPERVISOR": "1"}
-        self._proc = subprocess.Popen(self.cmd, env=env)
+        self._proc = subprocess.Popen(self.cmd, env=env)  # nosec B603
         log.info("Started %s (pid %d)", self.name, self._proc.pid)
 
     def stop(self, timeout: int = 30) -> None:
         if not self.is_running:
             return
-        assert self._proc is not None
+        assert self._proc is not None  # nosec B101
         pid = self._proc.pid
         log.info("Stopping %s (pid %d)…", self.name, pid)
         self._proc.terminate()
@@ -75,6 +75,45 @@ def _shutdown_handler(signum: int, _frame: object) -> None:
     _shutting_down = True
 
 
+def _build_children(args: argparse.Namespace) -> list[ManagedProcess]:
+    """Build the list of managed child processes from CLI args."""
+    host = "0.0.0.0" if args.expose else "127.0.0.1"  # nosec B104
+    python = sys.executable
+
+    server_cmd = [python, "-m", "uvicorn", "app.main:app", "--host", host, "--port", str(args.port)]
+    if args.dev:
+        server_cmd.append("--reload")
+
+    worker_cmd = [python, "-m", "app.worker"]
+    return [ManagedProcess("server", server_cmd), ManagedProcess("worker", worker_cmd)]
+
+
+def _check_restart_sentinel(children: list[ManagedProcess]) -> None:
+    """If the restart sentinel file exists, restart all children."""
+    if not SENTINEL.exists():
+        return
+    SENTINEL.unlink(missing_ok=True)
+    log.info("Restart sentinel detected, restarting all children…")
+    for child in children:
+        child.restart()
+
+
+def _watchdog_revive(children: list[ManagedProcess]) -> None:
+    """Restart any child that exited unexpectedly."""
+    for child in children:
+        if not child.is_running and not _shutting_down:
+            log.warning("%s exited unexpectedly, restarting…", child.name)
+            child.start()
+
+
+def _stop_all(children: list[ManagedProcess]) -> None:
+    """Stop all child processes."""
+    log.info("Supervisor shutting down…")
+    for child in children:
+        child.stop()
+    log.info("All children stopped")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="GaaS process supervisor")
     parser.add_argument("--dev", action="store_true", help="Enable uvicorn --reload")
@@ -83,28 +122,16 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=6767, help="Port number (default: 6767)")
     args = parser.parse_args()
 
-    host = "0.0.0.0" if args.expose else "127.0.0.1"
-    python = sys.executable
+    children = _build_children(args)
 
-    server_cmd = [python, "-m", "uvicorn", "app.main:app", "--host", host, "--port", str(args.port)]
-    if args.dev:
-        server_cmd.append("--reload")
-
-    worker_cmd = [python, "-m", "app.worker"]
-
-    server = ManagedProcess("server", server_cmd)
-    worker = ManagedProcess("worker", worker_cmd)
-    children = [server, worker]
-
-    # Clean up stale sentinel from a previous run
     SENTINEL.unlink(missing_ok=True)
-
     signal.signal(signal.SIGTERM, _shutdown_handler)
     signal.signal(signal.SIGINT, _shutdown_handler)
 
     for child in children:
         child.start()
 
+    host = "0.0.0.0" if args.expose else "127.0.0.1"  # nosec B104
     log.info(
         "Supervisor running (dev=%s, host=%s, port=%d). Press Ctrl+C to stop.",
         args.dev, host, args.port,
@@ -112,25 +139,11 @@ def main() -> None:
 
     try:
         while not _shutting_down:
-            # Check for restart sentinel
-            if SENTINEL.exists():
-                SENTINEL.unlink(missing_ok=True)
-                log.info("Restart sentinel detected, restarting all children…")
-                for child in children:
-                    child.restart()
-
-            # Watchdog: restart any child that exited unexpectedly
-            for child in children:
-                if not child.is_running and not _shutting_down:
-                    log.warning("%s exited unexpectedly, restarting…", child.name)
-                    child.start()
-
+            _check_restart_sentinel(children)
+            _watchdog_revive(children)
             time.sleep(POLL_INTERVAL)
     finally:
-        log.info("Supervisor shutting down…")
-        for child in children:
-            child.stop()
-        log.info("All children stopped")
+        _stop_all(children)
 
 
 if __name__ == "__main__":

@@ -52,50 +52,75 @@ async def list_integrations() -> list[dict[str, Any]]:
     return results
 
 
-def _run_integration(integration_id: str, platform: str | None = None) -> dict[str, Any]:
-    """Shared logic for running integration platforms by composite ID."""
+def _resolve_integration(integration_id: str) -> Any:
+    """Look up integration by ID, raising HTTPException if not found."""
     try:
-        integration = config.get_integration(integration_id)
+        return config.get_integration(integration_id)
     except ValueError:
         raise HTTPException(
             status_code=404,
             detail=f"Integration {integration_id!r} not found",
         ) from None
 
+
+def _resolve_platforms(integration_id: str, integration: Any) -> Any:
+    """Get the platforms object, raising HTTPException if absent."""
     platforms_obj = getattr(integration, "platforms", None)
     if platforms_obj is None:
         raise HTTPException(
             status_code=400,
             detail=f"Integration {integration_id!r} has no platforms configured",
         )
+    return platforms_obj
 
+
+def _enqueue_single_platform(
+    integration_id: str, integration_type: str, platform: str, platforms_obj: Any
+) -> str:
+    """Validate and enqueue a single platform, returning its task ID."""
+    if getattr(platforms_obj, platform, None) is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Platform {platform!r} not configured in {integration_id!r}",
+        )
+    entry_task = ENTRY_TASKS.get(f"{integration_type}.{platform}")
+    if entry_task is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"No entry task for {integration_type}.{platform}",
+        )
+    payload = {"type": entry_task, "integration": integration_id, "platform": platform}
+    return queue.enqueue(payload)
+
+
+def _enqueue_all_platforms(
+    integration_id: str, integration_type: str, platforms_obj: Any
+) -> list[str]:
+    """Enqueue entry tasks for all enabled platforms, returning task IDs."""
     task_ids: list[str] = []
+    for platform_name in type(platforms_obj).model_fields:
+        if getattr(platforms_obj, platform_name) is None:
+            continue
+        entry_task = ENTRY_TASKS.get(f"{integration_type}.{platform_name}")
+        if entry_task is None:
+            _log.warning("No entry task for %s.%s", integration_type, platform_name)
+            continue
+        payload = {"type": entry_task, "integration": integration_id, "platform": platform_name}
+        task_ids.append(queue.enqueue(payload))
+    return task_ids
+
+
+def _run_integration(integration_id: str, platform: str | None = None) -> dict[str, Any]:
+    """Shared logic for running integration platforms by composite ID."""
+    integration = _resolve_integration(integration_id)
+    platforms_obj = _resolve_platforms(integration_id, integration)
 
     if platform:
-        plat = getattr(platforms_obj, platform, None)
-        if plat is None:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Platform {platform!r} not configured in {integration_id!r}",
-            )
-        entry_task = ENTRY_TASKS.get(f"{integration.type}.{platform}")
-        if entry_task is None:
-            raise HTTPException(
-                status_code=400,
-                detail=f"No entry task for {integration.type}.{platform}",
-            )
-        payload = {"type": entry_task, "integration": integration_id, "platform": platform}
-        task_ids.append(queue.enqueue(payload))
+        task_ids = [_enqueue_single_platform(
+            integration_id, integration.type, platform, platforms_obj,
+        )]
     else:
-        for platform_name in type(platforms_obj).model_fields:
-            if getattr(platforms_obj, platform_name) is None:
-                continue
-            entry_task = ENTRY_TASKS.get(f"{integration.type}.{platform_name}")
-            if entry_task is None:
-                _log.warning("No entry task for %s.%s", integration.type, platform_name)
-                continue
-            payload = {"type": entry_task, "integration": integration_id, "platform": platform_name}
-            task_ids.append(queue.enqueue(payload))
+        task_ids = _enqueue_all_platforms(integration_id, integration.type, platforms_obj)
 
     if not task_ids:
         raise HTTPException(

@@ -17,7 +17,7 @@ import argparse
 import importlib.metadata
 import os
 import shutil
-import subprocess
+import subprocess  # nosec B404
 import sys
 from pathlib import Path
 
@@ -113,7 +113,7 @@ def cmd_update(args: argparse.Namespace) -> int:
 
     # Fetch latest changes
     _info("Fetching latest changes...")
-    result = subprocess.run(
+    result = subprocess.run(  # nosec B603
         [git, "fetch", "origin", branch],
         cwd=PROJECT_ROOT,
         capture_output=True,
@@ -124,7 +124,7 @@ def cmd_update(args: argparse.Namespace) -> int:
         return 1
 
     # Show what's new
-    result = subprocess.run(
+    result = subprocess.run(  # nosec B603
         [git, "log", "--oneline", f"HEAD..origin/{branch}"],
         cwd=PROJECT_ROOT,
         capture_output=True,
@@ -141,7 +141,7 @@ def cmd_update(args: argparse.Namespace) -> int:
     print()
 
     # Fast-forward to latest
-    result = subprocess.run(
+    result = subprocess.run(  # nosec B603
         [git, "merge", "--ff-only", f"origin/{branch}"],
         cwd=PROJECT_ROOT,
         capture_output=True,
@@ -161,7 +161,7 @@ def cmd_update(args: argparse.Namespace) -> int:
         _error("uv not found. Run: curl -LsSf https://astral.sh/uv/install.sh | sh")
         return 1
 
-    result = subprocess.run(
+    result = subprocess.run(  # nosec B603
         [uv, "sync", "--quiet"],
         cwd=PROJECT_ROOT,
         capture_output=True,
@@ -238,7 +238,7 @@ def cmd_version(args: argparse.Namespace) -> int:
     git_branch = "unknown"
     git = shutil.which("git")
     if git and (PROJECT_ROOT / ".git").is_dir():
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603
             [git, "rev-parse", "--short", "HEAD"],
             cwd=PROJECT_ROOT,
             capture_output=True,
@@ -246,7 +246,7 @@ def cmd_version(args: argparse.Namespace) -> int:
         )
         if result.returncode == 0:
             git_hash = result.stdout.strip()
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603
             [git, "rev-parse", "--abbrev-ref", "HEAD"],
             cwd=PROJECT_ROOT,
             capture_output=True,
@@ -273,7 +273,7 @@ def cmd_status(args: argparse.Namespace) -> int:
 
     try:
         req = urllib.request.Request(url, method="GET")
-        with urllib.request.urlopen(req, timeout=3) as resp:
+        with urllib.request.urlopen(req, timeout=3) as resp:  # nosec B310
             if resp.status == 200:
                 _success(f"GaaS is running on port {port}")
                 return 0

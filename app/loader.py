@@ -17,7 +17,7 @@ import logging
 import sys
 from pathlib import Path
 
-import yaml  # type: ignore[import-untyped]
+import yaml
 
 from gaas_sdk.manifest import (
     IntegrationManifest,
@@ -306,7 +306,7 @@ def _load_custom_module(manifest: IntegrationManifest) -> object:
     module = importlib.util.module_from_spec(spec)
     module.__package__ = module_name
     sys.modules[module_name] = module
-    assert spec.loader is not None
+    assert spec.loader is not None  # nosec B101
     spec.loader.exec_module(module)
     return module
 
@@ -337,7 +337,7 @@ def load_const_module(manifest: IntegrationManifest) -> object | None:
         module = importlib.util.module_from_spec(spec)
         sys.modules[module_name] = module
         try:
-            assert spec.loader is not None
+            assert spec.loader is not None  # nosec B101
             spec.loader.exec_module(module)
         except Exception:
             log.exception("Failed to load const module: %s", const_path)
@@ -376,7 +376,7 @@ def load_platform_const_module(manifest: IntegrationManifest, platform_name: str
     module = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = module
     try:
-        assert spec.loader is not None
+        assert spec.loader is not None  # nosec B101
         spec.loader.exec_module(module)
     except Exception:
         log.exception("Failed to load platform const module: %s", const_path)

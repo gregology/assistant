@@ -109,6 +109,21 @@ def check_deterministic_condition(value: Any, condition: Any) -> bool:
     return bool(value == condition)
 
 
+def _check_single_condition(
+    key: str,
+    condition: Any,
+    value: Any,
+    classifications: dict[str, ClassificationConfig],
+) -> bool:
+    """Check a single condition against its resolved value."""
+    if key.startswith("classification."):
+        cls_key = key[len("classification."):]
+        if cls_key not in classifications:
+            return False
+        return check_condition(value, condition, classifications[cls_key])
+    return check_deterministic_condition(value, condition)
+
+
 def conditions_match(
     when: dict[str, Any],
     resolve_value: ResolveValue,
@@ -125,17 +140,23 @@ def conditions_match(
         value = resolve_value(key, classification)
         if value is MISSING:
             return False
-
-        if key.startswith("classification."):
-            cls_key = key[len("classification."):]
-            if cls_key not in classifications:
-                return False
-            if not check_condition(value, condition, classifications[cls_key]):
-                return False
-        else:
-            if not check_deterministic_condition(value, condition):
-                return False
+        if not _check_single_condition(key, condition, value, classifications):
+            return False
     return True
+
+
+def _collect_deduped_actions(
+    then: list[ActionType | YoloAction],
+    seen_strings: set[str],
+    actions: list[ActionType | YoloAction],
+) -> None:
+    """Append actions from a matched rule, deduplicating SimpleActions."""
+    for action in then:
+        if isinstance(action, SimpleAction):
+            if action.action in seen_strings:
+                continue
+            seen_strings.add(action.action)
+        actions.append(action)
 
 
 def evaluate_automations(
@@ -153,12 +174,7 @@ def evaluate_automations(
     seen_strings: set[str] = set()
     for automation in automations:
         if conditions_match(automation.when, resolve_value, classification, classifications):
-            for action in automation.then:
-                if isinstance(action, SimpleAction):
-                    if action.action in seen_strings:
-                        continue
-                    seen_strings.add(action.action)
-                actions.append(action)
+            _collect_deduped_actions(automation.then, seen_strings, actions)
     return actions
 
 

@@ -39,56 +39,59 @@ def interval_to_cron(interval: str) -> str:
     raise ValueError(f"Unknown unit: {unit}")
 
 
+def _resolve_cron_expr(schedule: Any) -> str | None:
+    """Return the cron expression for a schedule, or None if not configured."""
+    if schedule.cron:
+        return schedule.cron  # type: ignore[no-any-return]
+    if schedule.every:
+        return interval_to_cron(schedule.every)
+    return None
+
+
+def _make_job(
+    task_type: str, integration_id: str, platform_name: str
+) -> Callable[[], None]:
+    """Create a scheduled job closure that enqueues a task."""
+    def job() -> None:
+        payload = {
+            "type": task_type,
+            "integration": integration_id,
+            "platform": platform_name,
+        }
+        log.info("Scheduled job: enqueueing %s", payload)
+        policy_enqueue(payload)
+    return job
+
+
+def _register_platform_schedules(
+    crons: Crons, integration: Any, expr: str
+) -> None:
+    """Register cron jobs for all enabled platforms in an integration."""
+    platforms = getattr(integration, "platforms", None)
+    if platforms is None:
+        return
+
+    for platform_name in type(platforms).model_fields:
+        if getattr(platforms, platform_name) is None:
+            continue
+        entry_task_name = ENTRY_TASKS.get(f"{integration.type}.{platform_name}")
+        if entry_task_name is None:
+            log.warning("No entry task for %s.%s", integration.type, platform_name)
+            continue
+        name = f"{integration.id}_{platform_name}"
+        crons.cron(expr, name=name)(_make_job(entry_task_name, integration.id, platform_name))
+        log.info("Registered schedule: %s [%s]", name, expr)
+
+
 def init_schedules(app: FastAPI) -> Crons:
     crons = Crons(app)
 
     for integration in config.integrations:
         if integration.schedule is None:
             continue
-
-        platforms = getattr(integration, "platforms", None)
-        if platforms is None:
+        expr = _resolve_cron_expr(integration.schedule)
+        if expr is None:
             continue
-
-        schedule = integration.schedule
-        if schedule.cron:
-            expr = schedule.cron
-        elif schedule.every:
-            expr = interval_to_cron(schedule.every)
-        else:
-            continue
-
-        for platform_name in type(platforms).model_fields:
-            platform = getattr(platforms, platform_name)
-            if platform is None:
-                continue
-
-            entry_task_name: str | None = ENTRY_TASKS.get(f"{integration.type}.{platform_name}")
-            if entry_task_name is None:
-                log.warning(
-                    "No entry task for %s.%s", integration.type, platform_name
-                )
-                continue
-
-            name = f"{integration.id}_{platform_name}"
-            _task_type: str = entry_task_name
-
-            def make_job(
-                task_type: str = _task_type,
-                int_entry: Any = integration,
-                plat_name: str = platform_name,
-            ) -> Callable[[], None]:
-                def job() -> None:
-                    payload = {
-                        "type": task_type,
-                        "integration": int_entry.id,
-                        "platform": plat_name,
-                    }
-                    log.info("Scheduled job: enqueueing %s", payload)
-                    policy_enqueue(payload)
-                return job
-
-            crons.cron(expr, name=name)(make_job())
-            log.info("Registered schedule: %s [%s]", name, expr)
+        _register_platform_schedules(crons, integration, expr)
 
     return crons

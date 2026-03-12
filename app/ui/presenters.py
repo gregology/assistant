@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import yaml  # type: ignore[import-untyped]
+import yaml
 
 from gaas_sdk.models import (
     BaseIntegrationConfig,
@@ -343,7 +343,7 @@ def _present_scripts(cfg: Any) -> list[ScriptView]:
             inputs=script_cfg.inputs,
             timeout=script_cfg.timeout,
             reversible=script_cfg.reversible,
-            shell=script_cfg.shell,
+            shell=script_cfg.shell,  # nosec B604
             output=script_cfg.output,
             on_output=script_cfg.on_output,
         ))

@@ -338,6 +338,37 @@ def _extract_partstat(method: str, attendees: Any) -> str | None:
     return raw or None
 
 
+def _extract_vevent(component: Any, method: str) -> dict[str, Any]:
+    """Build a calendar event dict from a VEVENT component."""
+    dtstart = component.get("dtstart")
+    dtend = component.get("dtend")
+    sequence = int(component.get("sequence", 0))
+    attendees = component.get("attendee")
+    return {
+        "start": dtstart.dt.isoformat() if dtstart else None,
+        "end": dtend.dt.isoformat() if dtend else None,
+        "guest_count": _count_attendees(attendees),
+        "method": method,
+        "is_update": method == "request" and sequence > 0,
+        "partstat": _extract_partstat(method, attendees),
+    }
+
+
+def _parse_ical(att: Any) -> dict[str, Any] | None:
+    """Parse a single iCal attachment, returning event data or None."""
+    try:
+        cal = Calendar.from_ical(att.payload)
+    except Exception:
+        log.warning("Failed to parse calendar attachment")
+        return None
+    raw_method = cal.get("method")  # type: ignore[no-untyped-call]
+    method = str(raw_method).lower() if raw_method else "request"
+    for component in cal.walk():
+        if component.name == "VEVENT":
+            return _extract_vevent(component, method)
+    return None
+
+
 def _parse_calendar(attachments: Any) -> dict[str, Any] | None:
     """Extract calendar event data from email attachments.
 
@@ -354,28 +385,7 @@ def _parse_calendar(attachments: Any) -> dict[str, Any] | None:
     for att in attachments:
         if att.content_type not in ("text/calendar", "application/ics"):
             continue
-        try:
-            cal = Calendar.from_ical(att.payload)
-        except Exception:
-            log.warning("Failed to parse calendar attachment")
-            return None
-        raw_method = cal.get("method")  # type: ignore[no-untyped-call]
-        method = str(raw_method).lower() if raw_method else "request"
-        for component in cal.walk():
-            if component.name != "VEVENT":
-                continue
-            dtstart = component.get("dtstart")  # type: ignore[no-untyped-call]
-            dtend = component.get("dtend")  # type: ignore[no-untyped-call]
-            sequence = int(component.get("sequence", 0))  # type: ignore[no-untyped-call]
-            attendees = component.get("attendee")  # type: ignore[no-untyped-call]
-            return {
-                "start": dtstart.dt.isoformat() if dtstart else None,
-                "end": dtend.dt.isoformat() if dtend else None,
-                "guest_count": _count_attendees(attendees),
-                "method": method,
-                "is_update": method == "request" and sequence > 0,
-                "partstat": _extract_partstat(method, attendees),
-            }
+        return _parse_ical(att)
     return None
 
 

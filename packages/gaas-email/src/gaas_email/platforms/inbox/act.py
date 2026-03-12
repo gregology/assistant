@@ -46,6 +46,35 @@ def _execute_action(email: Any, action: Any) -> None:
             log.warning("email.inbox.act: unknown action dict %r, skipping", action)
 
 
+def _is_blocked(action: Any, provenance: str, yolo: bool) -> bool:
+    """Return True if an irreversible action should be blocked by provenance."""
+    return _is_irreversible(action) and provenance in _UNSAFE_PROVENANCES and not yolo
+
+
+def _is_folder_move(action: Any) -> bool:
+    """Return True if the action moves an email to a different IMAP folder."""
+    if isinstance(action, str):
+        return action in _FOLDER_MOVES
+    return isinstance(action, dict) and "move_to" in action
+
+
+def _run_action(
+    email: Any, action: Any, yolo: bool, provenance: str,
+    store: "EmailStore | None", message_id: str,
+) -> None:
+    """Execute a single action with provenance checks and store sync."""
+    if _is_blocked(action, provenance, yolo):
+        log.warning(
+            "email.inbox.act: BLOCKED irreversible action %r "
+            "(provenance=%s, yolo=%s), skipping",
+            action, provenance, yolo,
+        )
+        return
+    _execute_action(email, action)
+    if store and _is_folder_move(action):
+        store.move_to_subdir(message_id, "synced")
+
+
 def handle(task: TaskRecord) -> None:
     from ...mail import Mailbox
 
@@ -73,19 +102,4 @@ def handle(task: TaskRecord) -> None:
 
         for action in actions:
             action, yolo = _unwrap_yolo(action)
-
-            if _is_irreversible(action) and provenance in _UNSAFE_PROVENANCES and not yolo:
-                log.warning(
-                    "email.inbox.act: BLOCKED irreversible action %r "
-                    "(provenance=%s, yolo=%s), skipping",
-                    action, provenance, yolo,
-                )
-                continue
-
-            _execute_action(email, action)
-            is_folder_move = (
-                (isinstance(action, str) and action in _FOLDER_MOVES)
-                or (isinstance(action, dict) and "move_to" in action)
-            )
-            if store and is_folder_move:
-                store.move_to_subdir(message_id, "synced")
+            _run_action(email, action, yolo, provenance, store, message_id)

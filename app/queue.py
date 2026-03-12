@@ -9,7 +9,7 @@ from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
-import yaml  # type: ignore[import-untyped]
+import yaml
 
 from app.config import config
 from gaas_sdk.task import TaskRecord

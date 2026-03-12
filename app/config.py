@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 from typing import Annotated, Any, Literal, Union
 
-import yaml  # type: ignore[import-untyped]
+import yaml
 
 from pydantic import BaseModel, Field, create_model, model_validator
 
@@ -62,10 +62,11 @@ def _yolo_constructor(loader: yaml.SafeLoader, node: yaml.Node) -> YoloAction:
     if isinstance(node, yaml.ScalarNode):
         return YoloAction(loader.construct_scalar(node))
     if isinstance(node, yaml.MappingNode):
-        return YoloAction(loader.construct_mapping(node, deep=True))
+        mapping: dict[str, Any] = loader.construct_mapping(node, deep=True)  # type: ignore[assignment]
+        return YoloAction(mapping)
     raise yaml.constructor.ConstructorError(
         None, None,
-        f"expected a scalar or mapping node, but found {node.id}",
+        f"expected a scalar or mapping node, but found {node.tag}",
         node.start_mark,
     )
 
@@ -261,6 +262,63 @@ class _UniversalSet:
         return True
 
 
+def _check_script_action_safety(
+    action: ScriptAction,
+    scripts: dict[str, ScriptConfig] | None,
+) -> str | None:
+    """Return an unsafe label for a script action, or None if safe."""
+    script_ref = action.script
+    script_name = script_ref.get("name", "") if isinstance(script_ref, dict) else script_ref
+    if scripts is None:
+        return f"script:{script_name}"
+    script_def = scripts.get(script_name)
+    if script_def is None or not script_def.reversible:
+        return f"script:{script_name}"
+    return None
+
+
+def _check_service_action_safety(action: ServiceAction) -> str | None:
+    """Return an unsafe label for a service action, or None if safe."""
+    from app.loader import get_manifests
+
+    call = action.service.get("call", "")
+    parts = call.rsplit(".", 2)
+    if len(parts) != 3:
+        return f"service:{call}"
+    svc_type, _svc_name, service_name = parts
+    manifests = get_manifests()
+    manifest = manifests.get(svc_type)
+    if not manifest or service_name not in manifest.services:
+        return f"service:{call}"
+    if not manifest.services[service_name].reversible:
+        return f"service:{call}"
+    return None
+
+
+def _check_single_action_safety(
+    action: Any,
+    irreversible_actions: frozenset[str] | _UniversalSet,
+    scripts: dict[str, ScriptConfig] | None,
+) -> str | None:
+    """Return an unsafe label for a single action, or None if safe."""
+    if isinstance(action, YoloAction):
+        return None
+    if isinstance(action, SimpleAction):
+        return action.action if action.action in irreversible_actions else None
+    if isinstance(action, ScriptAction):
+        return _check_script_action_safety(action, scripts)
+    if isinstance(action, ServiceAction):
+        return _check_service_action_safety(action)
+    if isinstance(action, DictAction):
+        name = next(iter(action.data), "")
+        return name if name in irreversible_actions else None
+    log.warning(
+        "Unrecognized action type %s treated as irreversible",
+        type(action).__name__,
+    )
+    return f"unknown:{type(action).__name__}"
+
+
 def _find_unsafe_actions(
     automation: AutomationConfig,
     irreversible_actions: frozenset[str] | _UniversalSet,
@@ -269,47 +327,9 @@ def _find_unsafe_actions(
     """Return irreversible action names that lack a !yolo override."""
     unsafe = []
     for action in automation.then:
-        if isinstance(action, YoloAction):
-            continue
-        if isinstance(action, SimpleAction):
-            if action.action in irreversible_actions:
-                unsafe.append(action.action)
-        elif isinstance(action, ScriptAction):
-            script_ref = action.script
-            script_name = script_ref.get("name", "") if isinstance(script_ref, dict) else script_ref
-            if scripts is None:
-                unsafe.append(f"script:{script_name}")
-            else:
-                script_def = scripts.get(script_name)
-                if script_def is None or not script_def.reversible:
-                    unsafe.append(f"script:{script_name}")
-        elif isinstance(action, ServiceAction):
-            service_ref = action.service
-            call = service_ref.get("call", "")
-            parts = call.rsplit(".", 2)
-            if len(parts) == 3:
-                svc_type, _svc_name, service_name = parts
-                # Look up service reversibility from manifest registry
-                from app.loader import get_manifests
-                manifests = get_manifests()
-                manifest = manifests.get(svc_type)
-                if manifest and service_name in manifest.services:
-                    if not manifest.services[service_name].reversible:
-                        unsafe.append(f"service:{call}")
-                else:
-                    unsafe.append(f"service:{call}")
-            else:
-                unsafe.append(f"service:{call}")
-        elif isinstance(action, DictAction):
-            name = next(iter(action.data), "")
-            if name in irreversible_actions:
-                unsafe.append(name)
-        else:
-            log.warning(
-                "Unrecognized action type %s treated as irreversible",
-                type(action).__name__,
-            )
-            unsafe.append(f"unknown:{type(action).__name__}")
+        label = _check_single_action_safety(action, irreversible_actions, scripts)
+        if label is not None:
+            unsafe.append(label)
     return unsafe
 
 
@@ -388,6 +408,65 @@ def _validate_automation_safety(
     return warnings
 
 
+def _iter_active_platforms(
+    integrations: list[Any],
+) -> Any:
+    """Yield (integration, platform_name, platform) for configured platforms."""
+    for integration in integrations:
+        platforms = getattr(integration, "platforms", None)
+        if platforms is None:
+            continue
+        for platform_name in type(platforms).model_fields:
+            platform = getattr(platforms, platform_name)
+            if platform is not None and hasattr(platform, "automations"):
+                yield integration, platform_name, platform
+
+
+def _unwrap_action(action: Any) -> Any:
+    """Unwrap a YoloAction to its underlying normalized action type."""
+    from gaas_sdk.models import _normalize_action
+
+    if isinstance(action, YoloAction):
+        return _normalize_action(action.value)
+    return action
+
+
+def _iter_platform_actions(
+    integrations: list[Any],
+) -> Any:
+    """Yield (integration, platform_name, action) for all automation actions.
+
+    Unwraps YoloAction wrappers so callers see the underlying action type.
+    """
+    for integration, platform_name, platform in _iter_active_platforms(integrations):
+        for automation in platform.automations:
+            for action in automation.then:
+                yield integration, platform_name, _unwrap_action(action)
+
+
+def _get_script_name(action: ScriptAction) -> str:
+    """Extract the script name from a ScriptAction."""
+    script_ref = action.script
+    if isinstance(script_ref, dict):
+        return str(script_ref.get("name", ""))
+    return str(script_ref)
+
+
+def _check_service_call_reference(
+    call: str,
+    manifests: dict[str, Any],
+) -> str | None:
+    """Return a warning fragment if the service call is invalid, else None."""
+    parts = call.rsplit(".", 2)
+    if len(parts) != 3:
+        return f"has malformed service call '{call}' (expected 'type.instance.service')"
+    svc_type, _svc_name, service_name = parts
+    manifest = manifests.get(svc_type)
+    if not manifest or service_name not in manifest.services:
+        return f"references unknown service '{call}'"
+    return None
+
+
 def _validate_script_references(
     integrations: list[Any],
     scripts: dict[str, ScriptConfig],
@@ -398,31 +477,15 @@ def _validate_script_references(
     unknown scripts at runtime, matching the act.py pattern.
     """
     warnings = []
-    for integration in integrations:
-        platforms = getattr(integration, "platforms", None)
-        if platforms is None:
+    for integration, platform_name, action in _iter_platform_actions(integrations):
+        if not isinstance(action, ScriptAction):
             continue
-        for platform_name in type(platforms).model_fields:
-            platform = getattr(platforms, platform_name)
-            if platform is None or not hasattr(platform, "automations"):
-                continue
-            for automation in platform.automations:
-                for action in automation.then:
-                    raw = action
-                    if isinstance(raw, YoloAction):
-                        from gaas_sdk.models import _normalize_action
-                        raw = _normalize_action(raw.value)
-                    if isinstance(raw, ScriptAction):
-                        script_ref = raw.script
-                        if isinstance(script_ref, dict):
-                            name = script_ref.get("name", "")
-                        else:
-                            name = script_ref
-                        if name not in scripts:
-                            warnings.append(
-                                f"Automation in '{integration.name}.{platform_name}' "
-                                f"references undefined script '{name}'"
-                            )
+        name = _get_script_name(action)
+        if name not in scripts:
+            warnings.append(
+                f"Automation in '{integration.name}.{platform_name}' "
+                f"references undefined script '{name}'"
+            )
     return warnings
 
 
@@ -438,38 +501,15 @@ def _validate_service_references(
 
     manifests = get_manifests()
     warnings = []
-    for integration in integrations:
-        platforms = getattr(integration, "platforms", None)
-        if platforms is None:
+    for integration, platform_name, action in _iter_platform_actions(integrations):
+        if not isinstance(action, ServiceAction):
             continue
-        for platform_name in type(platforms).model_fields:
-            platform = getattr(platforms, platform_name)
-            if platform is None or not hasattr(platform, "automations"):
-                continue
-            for automation in platform.automations:
-                for action in automation.then:
-                    raw = action
-                    if isinstance(raw, YoloAction):
-                        from gaas_sdk.models import _normalize_action
-                        raw = _normalize_action(raw.value)
-                    if isinstance(raw, ServiceAction):
-                        service_ref = raw.service
-                        call = service_ref.get("call", "")
-                        parts = call.rsplit(".", 2)
-                        if len(parts) != 3:
-                            warnings.append(
-                                f"Automation in '{integration.name}.{platform_name}' "
-                                f"has malformed service call '{call}' "
-                                f"(expected 'type.instance.service')"
-                            )
-                        else:
-                            svc_type, _svc_name, service_name = parts
-                            manifest = manifests.get(svc_type)
-                            if not manifest or service_name not in manifest.services:
-                                warnings.append(
-                                    f"Automation in '{integration.name}.{platform_name}' "
-                                    f"references unknown service '{call}'"
-                                )
+        call = action.service.get("call", "")
+        issue = _check_service_call_reference(call, manifests)
+        if issue is not None:
+            warnings.append(
+                f"Automation in '{integration.name}.{platform_name}' {issue}"
+            )
     return warnings
 
 
@@ -490,7 +530,7 @@ def load_config(config_path: Path = _CONFIG_PATH) -> tuple[Any, list[str]]:
 
     # Phase 1: Raw YAML parse
     with config_path.open() as f:
-        raw: dict[str, Any] = yaml.load(f, Loader=_Loader)
+        raw: dict[str, Any] = yaml.load(f, Loader=_Loader)  # nosec B506
 
     custom_dir_raw = raw.get("directories", {}).get("custom_integrations")
     custom_dir = Path(custom_dir_raw) if custom_dir_raw else None

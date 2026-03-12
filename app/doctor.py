@@ -9,9 +9,10 @@ Usage:
 
 import importlib.metadata
 import shutil
-import subprocess
+import subprocess  # nosec B404
 import sys
 from pathlib import Path
+from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -64,7 +65,7 @@ def check_uv() -> bool:
     """Check uv is installed."""
     uv = shutil.which("uv")
     if uv:
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603
             [uv, "--version"], capture_output=True, text=True
         )
         version = result.stdout.strip() if result.returncode == 0 else "unknown"
@@ -81,7 +82,7 @@ def check_git() -> bool:
         _fail("git not found")
         return False
 
-    result = subprocess.run(
+    result = subprocess.run(  # nosec B603
         [git, "--version"], capture_output=True, text=True
     )
     version = result.stdout.strip() if result.returncode == 0 else "unknown"
@@ -92,7 +93,7 @@ def check_git() -> bool:
         _warn(f"Not a git repository: {PROJECT_ROOT}")
         return True  # git itself is fine
 
-    result = subprocess.run(
+    result = subprocess.run(  # nosec B603
         [git, "status", "--porcelain"],
         cwd=PROJECT_ROOT,
         capture_output=True,
@@ -116,7 +117,7 @@ def check_gh() -> tuple[bool, bool]:
 
     _pass("GitHub CLI found")
 
-    result = subprocess.run(
+    result = subprocess.run(  # nosec B603
         [gh, "auth", "status"], capture_output=True, text=True
     )
     if result.returncode == 0:
@@ -125,6 +126,45 @@ def check_gh() -> tuple[bool, bool]:
     else:
         _warn("GitHub CLI not authenticated (run: gh auth login)")
         return True, False
+
+
+def _load_config_yaml() -> dict[str, Any] | None:
+    """Load and parse config.yaml with permissive tag handling.
+
+    Returns the parsed dict, or None if the file is empty.
+    Raises yaml.YAMLError on parse failure, OSError on read failure.
+    Caller is responsible for checking file existence and user-facing messaging.
+    """
+    import yaml
+
+    config_path = PROJECT_ROOT / "config.yaml"
+
+    class _PermissiveLoader(yaml.SafeLoader):
+        pass
+
+    for tag in ("!secret", "!yolo"):
+        _PermissiveLoader.add_constructor(
+            tag, lambda loader, node: loader.construct_scalar(node)  # type: ignore[arg-type]
+        )
+
+    with open(config_path) as f:
+        result: dict[str, Any] | None = yaml.load(f, Loader=_PermissiveLoader)  # nosec B506
+        return result
+
+
+def _check_config_structure(raw: dict[str, Any]) -> None:
+    """Validate top-level config keys and report integration count."""
+    missing = [key for key in ("llms", "directories") if key not in raw]
+    if missing:
+        _warn(f"config.yaml missing recommended keys: {', '.join(missing)}")
+    else:
+        _pass("config.yaml structure looks valid")
+
+    integrations = raw.get("integrations", [])
+    if integrations:
+        _pass(f"{len(integrations)} integration(s) configured")
+    else:
+        _warn("No integrations configured")
 
 
 def check_config() -> bool:
@@ -136,51 +176,23 @@ def check_config() -> bool:
 
     _pass(f"config.yaml exists ({config_path})")
 
-    # Try to parse it
+    import yaml
+
     try:
-        import yaml  # type: ignore[import-untyped]
-
-        with open(config_path) as f:
-            # Use a safe loader that ignores custom tags
-            class _PermissiveLoader(yaml.SafeLoader):  # type: ignore[misc]
-                pass
-
-            # Register handlers for custom tags so parsing doesn't fail
-            for tag in ("!secret", "!yolo"):
-                _PermissiveLoader.add_constructor(
-                    tag, lambda loader, node: loader.construct_scalar(node)
-                )
-            raw = yaml.load(f, Loader=_PermissiveLoader)
-
-        if not isinstance(raw, dict):
-            _fail("config.yaml is not a valid YAML mapping")
-            return False
-
-        # Check required top-level keys
-        missing = []
-        for key in ("llms", "directories"):
-            if key not in raw:
-                missing.append(key)
-        if missing:
-            _warn(f"config.yaml missing recommended keys: {', '.join(missing)}")
-        else:
-            _pass("config.yaml structure looks valid")
-
-        # Count integrations
-        integrations = raw.get("integrations", [])
-        if integrations:
-            _pass(f"{len(integrations)} integration(s) configured")
-        else:
-            _warn("No integrations configured")
-
-        return True
-
+        raw = _load_config_yaml()
     except yaml.YAMLError as e:
         _fail(f"config.yaml parse error: {e}")
         return False
     except Exception as e:
         _fail(f"Could not read config.yaml: {e}")
         return False
+
+    if not isinstance(raw, dict):
+        _fail("config.yaml is not a valid YAML mapping")
+        return False
+
+    _check_config_structure(raw)
+    return True
 
 
 def check_secrets() -> bool:
@@ -193,6 +205,19 @@ def check_secrets() -> bool:
     return True
 
 
+def _check_single_directory(name: str, path_str: str) -> bool:
+    """Check a single directory exists and is writable. Returns True if OK."""
+    path = Path(path_str)
+    if not path.is_dir():
+        _warn(f"{name}: {path} (does not exist — will be created on first run)")
+        return True
+    if path.stat().st_mode & 0o200:
+        _pass(f"{name}: {path}")
+        return True
+    _fail(f"{name}: {path} (not writable)")
+    return False
+
+
 def check_directories() -> bool:
     """Check configured data directories exist and are writable."""
     config_path = PROJECT_ROOT / "config.yaml"
@@ -200,42 +225,63 @@ def check_directories() -> bool:
         return False
 
     try:
-        import yaml
-
-        class _PermissiveLoader(yaml.SafeLoader):  # type: ignore[misc]
-            pass
-
-        for tag in ("!secret", "!yolo"):
-            _PermissiveLoader.add_constructor(
-                tag, lambda loader, node: loader.construct_scalar(node)
-            )
-
-        with open(config_path) as f:
-            raw = yaml.load(f, Loader=_PermissiveLoader)
-
-        dirs = raw.get("directories", {})
-        if not dirs:
-            _warn("No directories configured")
-            return False
-
-        all_ok = True
-        for name, path_str in dirs.items():
-            path = Path(path_str)
-            if path.is_dir():
-                # Check writable
-                if path.stat().st_mode & 0o200:
-                    _pass(f"{name}: {path}")
-                else:
-                    _fail(f"{name}: {path} (not writable)")
-                    all_ok = False
-            else:
-                _warn(f"{name}: {path} (does not exist — will be created on first run)")
-
-        return all_ok
-
+        raw = _load_config_yaml()
     except Exception:
         _warn("Could not check directories (config parse error)")
         return False
+
+    if not raw:
+        _warn("No directories configured")
+        return False
+
+    dirs = raw.get("directories", {})
+    if not dirs:
+        _warn("No directories configured")
+        return False
+
+    return all(_check_single_directory(name, path_str) for name, path_str in dirs.items())
+
+
+def _extract_default_llm(raw: dict[str, Any]) -> tuple[str, str] | None:
+    """Extract base_url and model from the default LLM profile.
+
+    Returns (base_url, model) or None if not configured.
+    """
+    llms = raw.get("llms", {})
+    default_llm = llms.get("default")
+    if not default_llm:
+        _warn("No default LLM profile configured")
+        return None
+
+    base_url = default_llm.get("base_url", "")
+    if not base_url:
+        _warn("Default LLM has no base_url")
+        return None
+
+    return base_url, default_llm.get("model", "unknown")
+
+
+def _probe_llm_urls(base_url: str, model: str) -> bool:
+    """Try to reach the LLM backend at known endpoints. Returns True if reachable."""
+    import urllib.request
+
+    urls_to_try = [
+        f"{base_url.rstrip('/')}/api/tags",   # Ollama
+        f"{base_url.rstrip('/')}/v1/models",   # OpenAI-compatible
+    ]
+    for url in urls_to_try:
+        try:
+            req = urllib.request.Request(url, method="GET")
+            with urllib.request.urlopen(req, timeout=5) as resp:  # nosec B310
+                if resp.status == 200:
+                    _pass(f"LLM backend reachable: {base_url} (model: {model})")
+                    return True
+        except Exception:  # nosec B112
+            continue
+
+    _warn(f"LLM backend not reachable: {base_url} (model: {model})")
+    _warn("  Make sure your LLM server is running")
+    return False
 
 
 def check_llm_connectivity() -> bool:
@@ -245,58 +291,21 @@ def check_llm_connectivity() -> bool:
         return False
 
     try:
-        import yaml
-        import urllib.request
-        import urllib.error
-
-        class _PermissiveLoader(yaml.SafeLoader):  # type: ignore[misc]
-            pass
-
-        for tag in ("!secret", "!yolo"):
-            _PermissiveLoader.add_constructor(
-                tag, lambda loader, node: loader.construct_scalar(node)
-            )
-
-        with open(config_path) as f:
-            raw = yaml.load(f, Loader=_PermissiveLoader)
-
-        llms = raw.get("llms", {})
-        default_llm = llms.get("default")
-        if not default_llm:
-            _warn("No default LLM profile configured")
-            return False
-
-        base_url = default_llm.get("base_url", "")
-        model = default_llm.get("model", "unknown")
-
-        if not base_url:
-            _warn("Default LLM has no base_url")
-            return False
-
-        # Try to reach the base URL
-        # For Ollama, /api/tags works; for OpenAI-compatible, / or /v1/models
-        urls_to_try = [
-            f"{base_url.rstrip('/')}/api/tags",  # Ollama
-            f"{base_url.rstrip('/')}/v1/models",  # OpenAI-compatible
-        ]
-
-        for url in urls_to_try:
-            try:
-                req = urllib.request.Request(url, method="GET")
-                with urllib.request.urlopen(req, timeout=5) as resp:
-                    if resp.status == 200:
-                        _pass(f"LLM backend reachable: {base_url} (model: {model})")
-                        return True
-            except Exception:
-                continue
-
-        _warn(f"LLM backend not reachable: {base_url} (model: {model})")
-        _warn("  Make sure your LLM server is running")
-        return False
-
+        raw = _load_config_yaml()
     except Exception:
         _warn("Could not check LLM connectivity")
         return False
+
+    if not raw:
+        _warn("Could not check LLM connectivity")
+        return False
+
+    llm_info = _extract_default_llm(raw)
+    if not llm_info:
+        return False
+
+    base_url, model = llm_info
+    return _probe_llm_urls(base_url, model)
 
 
 def check_version() -> bool:
@@ -306,13 +315,13 @@ def check_version() -> bool:
         return True  # Can't check, skip
 
     # Fetch without changing anything
-    subprocess.run(
+    subprocess.run(  # nosec B603
         [git, "fetch", "--quiet", "origin"],
         cwd=PROJECT_ROOT,
         capture_output=True,
     )
 
-    result = subprocess.run(
+    result = subprocess.run(  # nosec B603
         [git, "log", "--oneline", "HEAD..origin/main"],
         cwd=PROJECT_ROOT,
         capture_output=True,

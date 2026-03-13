@@ -71,7 +71,7 @@ class TestExecute:
 
     def test_input_env_vars_injected(self):
         script = _make_script(
-            shell='OUTPUT="$GAAS_INPUT_DOMAIN"',
+            shell='OUTPUT="$ASSISTANT_INPUT_DOMAIN"',
             output="OUTPUT",
         )
         result = execute(script, {"domain": "example.com"})
@@ -79,7 +79,7 @@ class TestExecute:
 
     def test_input_vars_uppercased(self):
         script = _make_script(
-            shell='OUTPUT="$GAAS_INPUT_MY_KEY"',
+            shell='OUTPUT="$ASSISTANT_INPUT_MY_KEY"',
             output="OUTPUT",
         )
         result = execute(script, {"my_key": "test_value"})
@@ -185,7 +185,7 @@ class TestHandle:
 
     def test_handle_with_inputs(self):
         script_def = _make_script(
-            shell='OUTPUT="$GAAS_INPUT_DOMAIN"',
+            shell='OUTPUT="$ASSISTANT_INPUT_DOMAIN"',
             output="OUTPUT",
             description="test script",
         )

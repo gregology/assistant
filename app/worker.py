@@ -10,8 +10,8 @@ from app.result_routes import route_results
 from app.runtime_init import register_runtime
 from app.loader import load_all_modules
 from app.integrations import HANDLERS, register_all
-from gaas_sdk.logging import get_logger
-from gaas_sdk.task import TaskRecord
+from assistant_sdk.logging import get_logger
+from assistant_sdk.task import TaskRecord
 
 log = get_logger(__name__)
 

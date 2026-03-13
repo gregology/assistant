@@ -11,9 +11,9 @@ We'll use a fictional "Todoist task creation" service as the running example.
 Services are simpler than platforms. No `const.py`, no snapshot, no pipeline.
 
 ```
-packages/gaas-todoist/
+packages/assistant-todoist/
   pyproject.toml
-  src/gaas_todoist/
+  src/assistant_todoist/
     __init__.py
     manifest.yaml
     client.py
@@ -28,24 +28,24 @@ packages/gaas-todoist/
 
 ```toml
 [project]
-name = "gaas-todoist"
+name = "assistant-todoist"
 version = "0.1.0"
-description = "Todoist integration for GaaS"
+description = "Todoist integration for Assistant"
 requires-python = ">=3.11"
 dependencies = [
-    "gaas-sdk>=0.1.0",
+    "assistant-sdk>=0.1.0",
     "todoist-api-python>=2.0",
 ]
 
-[project.entry-points."gaas.integrations"]
-todoist = "gaas_todoist"
+[project.entry-points."assistant.integrations"]
+todoist = "assistant_todoist"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/gaas_todoist"]
+packages = ["src/assistant_todoist"]
 ```
 
 Update the root `pyproject.toml` the same way as platform integrations.
@@ -94,7 +94,7 @@ services:
 
 ### Reversibility decision
 
-This service creates tasks in an external system. That's irreversible -- you can't un-create a task in Todoist from GaaS (you'd have to delete it, which is a separate action). So `reversible: false` is correct.
+This service creates tasks in an external system. That's irreversible -- you can't un-create a task in Todoist from Assistant (you'd have to delete it, which is a separate action). So `reversible: false` is correct.
 
 A service that only reads from an external API is still irreversible if it sends user-context data. The Gemini web research service is irreversible because the search query might contain private information extracted from emails. You can't un-send the network request.
 
@@ -140,8 +140,8 @@ Service handlers receive the full task dict and return a result dict. The worker
 
 ```python
 import logging
-from gaas_sdk import runtime
-from gaas_todoist.client import TodoistClient
+from assistant_sdk import runtime
+from assistant_todoist.client import TodoistClient
 
 log = logging.getLogger(__name__)
 
@@ -201,12 +201,12 @@ def test_create_task_returns_result():
         }
     }
 
-    with patch("gaas_todoist.services.create_task.TodoistClient", return_value=mock_client):
-        with patch("gaas_todoist.services.create_task.runtime") as mock_runtime:
+    with patch("assistant_todoist.services.create_task.TodoistClient", return_value=mock_client):
+        with patch("assistant_todoist.services.create_task.runtime") as mock_runtime:
             mock_runtime.get_integration.return_value = MagicMock(
                 api_token="fake", default_project="Inbox",
             )
-            from gaas_todoist.services.create_task import handle
+            from assistant_todoist.services.create_task import handle
             result = handle(task)
 
     assert result["id"] == "123"
@@ -223,8 +223,8 @@ def test_empty_title_skips():
         }
     }
 
-    with patch("gaas_todoist.services.create_task.runtime"):
-        from gaas_todoist.services.create_task import handle
+    with patch("assistant_todoist.services.create_task.runtime"):
+        from assistant_todoist.services.create_task import handle
         result = handle(task)
 
     assert "error" in result

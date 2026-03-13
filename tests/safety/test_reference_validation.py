@@ -17,7 +17,7 @@ from app.config import (
     _validate_script_references,
     _validate_service_references,
 )
-from gaas_sdk.manifest import ServiceManifest
+from assistant_sdk.manifest import ServiceManifest
 
 
 # ---------------------------------------------------------------------------

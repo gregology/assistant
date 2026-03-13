@@ -88,8 +88,8 @@ Don't chase 100%. Coverage priority follows the same rule as test rigor: proport
 Package-level coverage (run from repo root):
 
 ```bash
-uv run pytest --cov=gaas_sdk --cov-report=term-missing packages/gaas-sdk/tests/
-uv run pytest --cov=gaas_email --cov-report=term-missing packages/gaas-email/tests/
+uv run pytest --cov=assistant_sdk --cov-report=term-missing packages/assistant-sdk/tests/
+uv run pytest --cov=assistant_email --cov-report=term-missing packages/assistant-email/tests/
 ```
 
 ## Running Tests
@@ -130,7 +130,7 @@ tests/
     test_provenance.py                   # Provenance derivation + safety validation
     test_reference_validation.py         # Script/service reference existence checks
 
-packages/gaas-email/tests/
+packages/assistant-email/tests/
   test_act.py                            # Action execution, allowlist enforcement
   test_check.py                          # Window parsing, inbox fetch ordering, IMAP criteria
   test_classify.py                       # Condition matching, operators, schema building
@@ -138,18 +138,18 @@ packages/gaas-email/tests/
   test_evaluate.py                       # Snapshot construction, resolver patterns, automation evaluation
   test_mail_parsing.py                   # Header parsing (auth, unsubscribe, dates, calendar)
 
-packages/gaas-gemini/tests/
+packages/assistant-gemini/tests/
   test_client.py                         # GeminiClient two-pass flow (mocked)
   test_web_research.py                   # Service handler with full task dict, with/without output_schema
 
-packages/gaas-github/tests/
+packages/assistant-github/tests/
   test_client.py                         # GitHub API client parsing, search dedup, PR status derivation
   test_entity_store.py                   # GitHubEntityStore: save, find, find_anywhere, move_to_synced
   test_evaluate.py                       # PR/Issue snapshot construction, resolver, automation evaluation
   test_issue_store.py                    # IssueStore save, field mappings, URL generation, defaults
   test_pr_store.py                       # PullRequestStore save, field mappings, URL generation
 
-packages/gaas-sdk/tests/
+packages/assistant-sdk/tests/
   test_action_partitioning.py            # Action detection, input resolution, script/service partitioning
   test_classify.py                       # Schema building (confidence/boolean/enum), Jinja2 environment
   test_evaluate.py                       # Automation evaluation engine: conditions, operators, dedup
@@ -161,4 +161,4 @@ packages/gaas-sdk/tests/
   test_task.py                           # TaskPayload and TaskRecord TypedDict smoke tests
 ```
 
-Package tests import from `gaas_sdk.*` directly and run without loading the app config singleton. Run them in isolation with `uv run pytest packages/gaas-email/tests/` etc.
+Package tests import from `assistant_sdk.*` directly and run without loading the app config singleton. Run them in isolation with `uv run pytest packages/assistant-email/tests/` etc.

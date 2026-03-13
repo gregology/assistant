@@ -1,1 +1,0 @@
-"""GaaS GitHub integration."""

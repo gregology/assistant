@@ -22,9 +22,9 @@ See `app/AGENTS.yaml` for design decisions and invariants.
 
 ### Runtime Init (`runtime_init.py`)
 
-Registers app-level implementations with `gaas_sdk.runtime` at startup. Called from `main.py` and `worker.py` before `load_all_modules()`. Wires up `policy_enqueue` (config-driven dedup + rate limiting wrapper around `queue.enqueue`), `config.get_integration`, `config.get_platform`, LLM conversation creation, and notes directory lookup. Tests register via `conftest.py`.
+Registers app-level implementations with `assistant_sdk.runtime` at startup. Called from `main.py` and `worker.py` before `load_all_modules()`. Wires up `policy_enqueue` (config-driven dedup + rate limiting wrapper around `queue.enqueue`), `config.get_integration`, `config.get_platform`, LLM conversation creation, and notes directory lookup. Tests register via `conftest.py`.
 
-### NoteStore (`gaas_sdk.store`)
+### NoteStore (`assistant_sdk.store`)
 
 The `NoteStore` implementation lives in the SDK package. All persistent data (emails, PRs) uses this pattern:
 
@@ -53,13 +53,13 @@ Platform-specific stores (`EmailStore`, `PullRequestStore`, `IssueStore`) wrap `
 
 Registers the `HumanMarkdownHandler` that appends `log.human()` calls (level 25, between INFO and WARNING) to daily markdown files at `logs/YYYY-MM-DD DayOfWeek.md`. Uses `O_APPEND` mode for concurrent-safe writes. This is the audit trail.
 
-The `log.human()` method itself comes from `AuditLogger` in `gaas_sdk.logging`. All modules that need audit logging use `from gaas_sdk.logging import get_logger` instead of `logging.getLogger`. Both `main.py` and `worker.py` import `app.human_log` to ensure the file handler is registered.
+The `log.human()` method itself comes from `AuditLogger` in `assistant_sdk.logging`. All modules that need audit logging use `from assistant_sdk.logging import get_logger` instead of `logging.getLogger`. Both `main.py` and `worker.py` import `app.human_log` to ensure the file handler is registered.
 
 ### Shared Action Layer (`actions/` - partially re-exported)
 
 Cross-cutting actions that can be triggered from any integration's automations. The evaluate phase partitions actions into platform-specific and shared types via `enqueue_actions()`.
 
-- **`actions/__init__.py`**: Re-exports `is_script_action()`, `is_service_action()`, `resolve_inputs()`, and `enqueue_actions()` from `gaas_sdk.actions`. The partitioning logic (scripts, services, platform actions) lives in the SDK.
+- **`actions/__init__.py`**: Re-exports `is_script_action()`, `is_service_action()`, `resolve_inputs()`, and `enqueue_actions()` from `assistant_sdk.actions`. The partitioning logic (scripts, services, platform actions) lives in the SDK.
 - **`actions/script.py`**: Script executor. Writes a bash preamble (with `log_human`/`log_info`/`log_warn` helpers) plus the user's shell code to a temp file, runs via `subprocess.run`, processes `\x1e`-delimited log records, captures output. The `handle()` function is the worker handler for `script.run` tasks.
 
 Script actions become individual `script.run` queue tasks. Service actions become individual `service.{domain}.{service_name}` queue tasks. Platform-specific actions are bundled separately. Each type has independent failure tracking in `failed/`.
@@ -100,12 +100,12 @@ Polling loop: dequeue, route to handler by task type string, capture the return 
 
 When a handler returns a non-None result (service handlers), the worker: (1) passes the result to `queue.complete()` which stores it in the completed task YAML as an audit record, and (2) calls `route_results()` to persist the output via configured routes. This ordering ensures a routing failure never marks a completed task as failed — the result is preserved in `done/` as the recovery point.
 
-Integrations are discovered through three channels: the builtin `app/integrations/` directory, a user-configurable custom integrations directory, and Python entry points (`gaas.integrations` group). Entry-point discovery allows packages under `packages/` to register themselves without being copied into `app/integrations/`.
+Integrations are discovered through three channels: the builtin `app/integrations/` directory, a user-configurable custom integrations directory, and Python entry points (`assistant.integrations` group). Entry-point discovery allows packages under `packages/` to register themselves without being copied into `app/integrations/`.
 
 ## Conventions
 
 - Type hints throughout, mypy strict on the SDK, graduated for `app/`
-- `get_logger(__name__)` from `gaas_sdk.logging` in every module (not `logging.getLogger`)
+- `get_logger(__name__)` from `assistant_sdk.logging` in every module (not `logging.getLogger`)
 - Pydantic `BaseModel` for all config/data structures
 - `log.human()` for audit-visible actions, `log.info()` for operational details
 - Context managers for IMAP connections (`with Mailbox(...) as mb:`)

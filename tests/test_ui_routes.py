@@ -13,9 +13,9 @@ class TestDashboard:
         assert response.status_code == 200
         assert "text/html" in response.headers["content-type"]
 
-    def test_contains_gaas(self):
+    def test_contains_assistant(self):
         response = client.get("/ui/")
-        assert "GaaS" in response.text
+        assert "Assistant" in response.text
 
 
 class TestConfigPage:

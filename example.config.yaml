@@ -1,6 +1,6 @@
-# GaaS example config. Email integration with optional Gemini web research.
-# See packages/gaas-email/README.md, packages/gaas-github/README.md,
-# and packages/gaas-gemini/README.md for more config options and examples.
+# Assistant example config. Email integration with optional Gemini web research.
+# See packages/assistant-email/README.md, packages/assistant-github/README.md,
+# and packages/assistant-gemini/README.md for more config options and examples.
 
 llms:
   default:

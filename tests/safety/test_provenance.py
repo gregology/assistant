@@ -18,7 +18,7 @@ from app.config import (
     _validate_automation_safety,
     resolve_provenance,
 )
-from gaas_email.platforms.inbox.const import DETERMINISTIC_SOURCES
+from assistant_email.platforms.inbox.const import DETERMINISTIC_SOURCES
 
 
 # ---------------------------------------------------------------------------
@@ -388,7 +388,7 @@ class TestSafetyValidation:
         Services that transmit data externally (like web research) are
         irreversible even if they don't modify local state.
         """
-        from gaas_sdk.manifest import ServiceManifest
+        from assistant_sdk.manifest import ServiceManifest
         from unittest.mock import patch
 
         # Hypothetical local-only service (e.g., local file search)

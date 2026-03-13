@@ -39,9 +39,9 @@ uv run pytest --cov=app --cov-report=term-missing -v
 
 **What it catches:** Type mismatches, unchecked dict access, missing return types, wrong function signatures, `Any` leaking through your code.
 
-**Config:** `pyproject.toml` under `[tool.mypy]`. Strict mode is on globally. The SDK (`gaas_sdk.*`) enforces full strict. `app.*` has `disallow_untyped_defs = false` for now (tighten later). Tests skip `no-untyped-def`. The Pydantic mypy plugin is enabled.
+**Config:** `pyproject.toml` under `[tool.mypy]`. Strict mode is on globally. The SDK (`assistant_sdk.*`) enforces full strict. `app.*` has `disallow_untyped_defs = false` for now (tighten later). Tests skip `no-untyped-def`. The Pydantic mypy plugin is enabled.
 
-Package test directories (`packages/*/tests/`) are excluded from mypy. Multiple packages have identically named test files (e.g. `test_classify.py` in both `gaas-email` and `gaas-sdk`), and mypy treats those as duplicate modules. The top-level `tests/` directory is still checked. The package test directories don't have `__init__.py` files -- pytest discovers them fine without those since the project uses `--import-mode=importlib`.
+Package test directories (`packages/*/tests/`) are excluded from mypy. Multiple packages have identically named test files (e.g. `test_classify.py` in both `assistant-email` and `assistant-sdk`), and mypy treats those as duplicate modules. The top-level `tests/` directory is still checked. The package test directories don't have `__init__.py` files -- pytest discovers them fine without those since the project uses `--import-mode=importlib`.
 
 **When to run it:** Before any refactor that touches function signatures or data flow. The SDK should stay at zero mypy errors. The `--ignore-missing-imports` flag is needed because some third-party packages don't ship type stubs.
 
@@ -80,30 +80,30 @@ Package test directories (`packages/*/tests/`) are excluded from mypy. Multiple 
 
 ### import-linter
 
-**What it catches:** Architectural boundary violations. You define contracts ("gaas-sdk must never import from app") and it flags violations.
+**What it catches:** Architectural boundary violations. You define contracts ("assistant-sdk must never import from app") and it flags violations.
 
 **When to run it:** This one needs a config file. Add to `pyproject.toml`:
 
 ```toml
 [tool.importlinter]
-root_packages = ["app", "gaas_sdk", "gaas_email", "gaas_github", "gaas_gemini"]
+root_packages = ["app", "assistant_sdk", "assistant_email", "assistant_github", "assistant_gemini"]
 
 [[tool.importlinter.contracts]]
 name = "SDK does not import app"
 type = "forbidden"
-source_modules = ["gaas_sdk"]
+source_modules = ["assistant_sdk"]
 forbidden_modules = ["app"]
 
 [[tool.importlinter.contracts]]
 name = "Integrations do not import app"
 type = "forbidden"
-source_modules = ["gaas_email", "gaas_github", "gaas_gemini"]
+source_modules = ["assistant_email", "assistant_github", "assistant_gemini"]
 forbidden_modules = ["app"]
 ```
 
 Then: `uv run lint-imports`
 
-The two contracts above enforce the architectural boundary that was established when the SDK was extracted. Integrations talk to the app through `gaas_sdk.runtime`, never by importing `app.*` directly. If someone accidentally adds `from app.config import config` inside an integration package, this catches it.
+The two contracts above enforce the architectural boundary that was established when the SDK was extracted. Integrations talk to the app through `assistant_sdk.runtime`, never by importing `app.*` directly. If someone accidentally adds `from app.config import config` inside an integration package, this catches it.
 
 Add more contracts as the architecture evolves.
 

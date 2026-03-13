@@ -17,7 +17,7 @@ from typing import Any
 
 import yaml
 
-from gaas_sdk.models import (
+from assistant_sdk.models import (
     BaseIntegrationConfig,
     BasePlatformConfig,
     DictAction,
@@ -26,7 +26,7 @@ from gaas_sdk.models import (
     SimpleAction,
     YoloAction,
 )
-from gaas_sdk.provenance import resolve_provenance
+from assistant_sdk.provenance import resolve_provenance
 
 from app.config import (
     SECRETS_PATH,

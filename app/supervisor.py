@@ -6,7 +6,7 @@ Usage:
     uv run python -m app.supervisor --expose       # Allow external connections
     uv run python -m app.supervisor --port 8080    # Custom port (default: 6767)
 
-Creates a .gaas-restart sentinel file mechanism: the UI writes the file,
+Creates a .assistant-restart sentinel file mechanism: the UI writes the file,
 the supervisor detects it and restarts all children.
 """
 
@@ -26,7 +26,7 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-SENTINEL = PROJECT_ROOT / ".gaas-restart"
+SENTINEL = PROJECT_ROOT / ".assistant-restart"
 POLL_INTERVAL = 0.5  # seconds
 
 
@@ -43,7 +43,7 @@ class ManagedProcess:
         return self._proc is not None and self._proc.poll() is None
 
     def start(self) -> None:
-        env = {**os.environ, "GAAS_SUPERVISOR": "1"}
+        env = {**os.environ, "ASSISTANT_SUPERVISOR": "1"}
         self._proc = subprocess.Popen(self.cmd, env=env)  # nosec B603
         log.info("Started %s (pid %d)", self.name, self._proc.pid)
 
@@ -115,7 +115,7 @@ def _stop_all(children: list[ManagedProcess]) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="GaaS process supervisor")
+    parser = argparse.ArgumentParser(description="Assistant process supervisor")
     parser.add_argument("--dev", action="store_true", help="Enable uvicorn --reload")
     parser.add_argument("--expose", action="store_true",
                         help="Allow external connections (bind 0.0.0.0 instead of 127.0.0.1)")

@@ -1,6 +1,6 @@
 # Testing Philosophy
 
-Tests in GaaS exist to enforce the Principle of Reversibility. The purpose of the test suite is not to reduce bugs in general. It is to guarantee that automated actions cannot cause irreversible harm.
+Tests in Assistant exist to enforce the Principle of Reversibility. The purpose of the test suite is not to reduce bugs in general. It is to guarantee that automated actions cannot cause irreversible harm.
 
 ## Test rigor follows irreversibility, not complexity
 
@@ -27,7 +27,7 @@ The dispatch layer (`evaluate_automations`, `check_condition`, `conditions_match
 
 A property test that says "for all possible classifications, no unknown action is ever produced" is a fundamentally stronger guarantee than an example test that says "for this one test email, archive was produced."
 
-GaaS uses Hypothesis to generate all possible classification outputs (500 examples per run) and asserts structural properties:
+Assistant uses Hypothesis to generate all possible classification outputs (500 examples per run) and asserts structural properties:
 
 - Only known actions are ever produced
 - Action count is bounded (no runaway automation chains)

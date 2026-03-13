@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}GaaS{% endblock %}</title>
+  <title>{% block title %}Assistant{% endblock %}</title>
   <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.14/dist/full.min.css" rel="stylesheet" type="text/css" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
@@ -33,7 +33,7 @@
   <div class="corner-ribbon">ALPHA</div>
   <div class="navbar bg-base-100 shadow-lg">
     <div class="navbar-start">
-      <a href="/ui/" class="btn btn-ghost text-xl">GaaS</a>
+      <a href="/ui/" class="btn btn-ghost text-xl">Assistant</a>
     </div>
     <div class="navbar-center">
       <ul class="menu menu-horizontal px-1">
@@ -52,10 +52,10 @@
         {% if supervisor_active %}
         <span>Config has been updated.</span>
         <form method="POST" action="/ui/system/restart" class="inline">
-          <button type="submit" class="btn btn-sm btn-primary ml-2">Restart GaaS</button>
+          <button type="submit" class="btn btn-sm btn-primary ml-2">Restart Assistant</button>
         </form>
         {% else %}
-        Config has been updated. Restart GaaS for changes to take effect.
+        Config has been updated. Restart Assistant for changes to take effect.
         {% endif %}
       </div>
       {% endif %}
@@ -63,7 +63,7 @@
     {% block content %}{% endblock %}
   </main>
   <footer class="footer footer-center p-4 text-base-content">
-    <p>GaaS — Greg as a Service</p>
+    <p>Assistant — Greg as a Service</p>
   </footer>
 </body>
 </html>

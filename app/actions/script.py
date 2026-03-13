@@ -15,18 +15,18 @@ from typing import Any
 
 import app.human_log  # noqa: F401 — registers HumanMarkdownHandler
 from app.config import config
-from gaas_sdk.logging import get_logger
-from gaas_sdk.task import TaskRecord
+from assistant_sdk.logging import get_logger
+from assistant_sdk.task import TaskRecord
 
 log = get_logger(__name__)
 
 # Bash preamble injected before every script. Provides log_human, log_info,
-# log_warn helper functions that write LEVEL\tMESSAGE\x1e records to $GAAS_LOG.
+# log_warn helper functions that write LEVEL\tMESSAGE\x1e records to $ASSISTANT_LOG.
 # Uses printf so \t and \x1e are interpreted by bash, not Python.
 _PREAMBLE = r"""
-log_human() { printf 'HUMAN\t%s\x1e' "$*" >> "$GAAS_LOG"; }
-log_info()  { printf 'INFO\t%s\x1e' "$*" >> "$GAAS_LOG"; }
-log_warn()  { printf 'WARN\t%s\x1e' "$*" >> "$GAAS_LOG"; }
+log_human() { printf 'HUMAN\t%s\x1e' "$*" >> "$ASSISTANT_LOG"; }
+log_info()  { printf 'INFO\t%s\x1e' "$*" >> "$ASSISTANT_LOG"; }
+log_warn()  { printf 'WARN\t%s\x1e' "$*" >> "$ASSISTANT_LOG"; }
 """
 
 _LOG_ROUTES: dict[str, int] = {
@@ -69,12 +69,12 @@ def _make_temp_file(prefix: str, suffix: str = ".txt") -> Path:
 
 
 def _build_env(inputs: dict[str, str], log_file: Path, output_file: Path) -> dict[str, str]:
-    """Build the subprocess environment with GAAS variables and inputs."""
+    """Build the subprocess environment with ASSISTANT variables and inputs."""
     env = os.environ.copy()
-    env["GAAS_LOG"] = str(log_file)
-    env["GAAS_OUTPUT_FILE"] = str(output_file)
+    env["ASSISTANT_LOG"] = str(log_file)
+    env["ASSISTANT_OUTPUT_FILE"] = str(output_file)
     for key, value in inputs.items():
-        env[f"GAAS_INPUT_{key.upper()}"] = value
+        env[f"ASSISTANT_INPUT_{key.upper()}"] = value
     return env
 
 
@@ -82,7 +82,7 @@ def _build_script_body(script_def: Any) -> str:
     """Build the bash script body with preamble and optional output capture."""
     body: str = _PREAMBLE + "\n" + str(script_def.shell)
     if script_def.output:
-        body += f'\nprintf "%s" "${{{script_def.output}}}" > "$GAAS_OUTPUT_FILE"'
+        body += f'\nprintf "%s" "${{{script_def.output}}}" > "$ASSISTANT_OUTPUT_FILE"'
     return body
 
 
@@ -115,9 +115,9 @@ def execute(script_def: Any, inputs: dict[str, str]) -> str | None:
     output_file: Path | None = None
     script_file: Path | None = None
     try:
-        log_file = _make_temp_file("gaas_log_")
-        output_file = _make_temp_file("gaas_out_")
-        script_file = _make_temp_file("gaas_script_", suffix=".sh")
+        log_file = _make_temp_file("assistant_log_")
+        output_file = _make_temp_file("assistant_out_")
+        script_file = _make_temp_file("assistant_script_", suffix=".sh")
         env = _build_env(inputs, log_file, output_file)
         script_file.write_text(_build_script_body(script_def))
 

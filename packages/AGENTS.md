@@ -1,8 +1,8 @@
-# Building a GaaS Integration
+# Building a Assistant Integration
 
-You're here because someone wants a new integration for GaaS. This document tells you what to ask, what to read, and in what order.
+You're here because someone wants a new integration for Assistant. This document tells you what to ask, what to read, and in what order.
 
-GaaS integrations come in two flavors. Pick the right one first, then follow the recipe.
+Assistant integrations come in two flavors. Pick the right one first, then follow the recipe.
 
 ## What kind of integration is this?
 
@@ -18,11 +18,11 @@ These are in priority order. Get answers to all of them before you start.
 
 ### For any integration
 
-1. **What's the domain name?** Single lowercase word, no hyphens. This becomes the package name (`gaas-{domain}`), the entry point key, and the config `type:` value. Examples: `email`, `github`, `gemini`, `slack`, `todoist`.
+1. **What's the domain name?** Single lowercase word, no hyphens. This becomes the package name (`assistant-{domain}`), the entry point key, and the config `type:` value. Examples: `email`, `github`, `gemini`, `slack`, `todoist`.
 
 2. **What credentials or config does it need?** API keys, tokens, server URLs, account IDs. Each becomes a field in `config_schema` and the user puts the actual values in `config.yaml` (secrets go in `secrets.yaml` via `!secret` references).
 
-3. **Does it have external dependencies?** Python packages beyond `gaas-sdk`. List them. They go in `pyproject.toml` under `dependencies` and in `manifest.yaml` under `dependencies` (the loader checks these at startup).
+3. **Does it have external dependencies?** Python packages beyond `assistant-sdk`. List them. They go in `pyproject.toml` under `dependencies` and in `manifest.yaml` under `dependencies` (the loader checks these at startup).
 
 4. **What actions can it take?** For each action, ask: **can it be undone?** This is the most important question in the entire system. See `integration-guide/safety.md` for the reversibility framework. The answer determines how actions get classified, tested, and gated.
 
@@ -61,10 +61,10 @@ Once you know what you're building, here's what to read:
 
 Don't just read the docs. Read the actual code.
 
-- **Platform (simple):** `packages/gaas-github/` -- two platforms (PRs and issues), read-only, no irreversible actions yet
-- **Platform (full):** `packages/gaas-email/` -- IMAP polling, LLM classification, actions with reversibility tiers, custom store
-- **Service:** `packages/gaas-gemini/` -- callable web research, irreversible (external API), result routing
-- **SDK contracts:** `packages/gaas-sdk/` -- the models, evaluation engine, and runtime that all integrations depend on
+- **Platform (simple):** `packages/assistant-github/` -- two platforms (PRs and issues), read-only, no irreversible actions yet
+- **Platform (full):** `packages/assistant-email/` -- IMAP polling, LLM classification, actions with reversibility tiers, custom store
+- **Service:** `packages/assistant-gemini/` -- callable web research, irreversible (external API), result routing
+- **SDK contracts:** `packages/assistant-sdk/` -- the models, evaluation engine, and runtime that all integrations depend on
 
 ## Hard rules
 

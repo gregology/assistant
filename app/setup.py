@@ -1,12 +1,12 @@
-"""Guided setup wizard for GaaS.
+"""Guided setup wizard for Assistant.
 
 Generates config.yaml and secrets.yaml through interactive prompts.
 Reuses the project's config patterns (YAML with !secret references)
 and validates the result before writing.
 
 Usage:
-    gaas setup                # First-time setup
-    gaas setup --reconfigure  # Reconfigure an existing installation
+    assistant setup                # First-time setup
+    assistant setup --reconfigure  # Reconfigure an existing installation
 """
 
 import shutil
@@ -91,7 +91,7 @@ def _prompt_yn(msg: str, default: bool = True) -> bool:
 def setup_llm() -> tuple[dict[str, Any], dict[str, str]]:
     """Configure LLM backends. Returns (config_section, secrets_section)."""
     _heading("LLM Backend")
-    _info("GaaS needs an LLM backend for classification tasks.")
+    _info("Assistant needs an LLM backend for classification tasks.")
     _info("You can use a local Ollama server or an OpenAI-compatible API.\n")
 
     backend = _prompt_choice(
@@ -126,7 +126,7 @@ def setup_llm() -> tuple[dict[str, Any], dict[str, str]]:
             with urllib.request.urlopen(req, timeout=5):  # nosec B310
                 _success("Ollama is reachable")
         except Exception:
-            _warn("Could not reach Ollama. Make sure it's running when you start GaaS.")
+            _warn("Could not reach Ollama. Make sure it's running when you start Assistant.")
 
     elif backend == "OpenAI-compatible API":
         base_url = _prompt("API base URL", "https://api.openai.com")
@@ -211,7 +211,7 @@ def setup_github() -> list[dict[str, Any]]:
     gh = shutil.which("gh")
     if not gh:
         _warn("GitHub CLI (gh) not found. Skipping GitHub integration.")
-        _info("Install gh from https://cli.github.com/ and re-run: gaas setup --reconfigure")
+        _info("Install gh from https://cli.github.com/ and re-run: assistant setup --reconfigure")
         return []
 
     # Check auth status
@@ -220,7 +220,7 @@ def setup_github() -> list[dict[str, Any]]:
     )
     if result.returncode != 0:
         _warn("GitHub CLI not authenticated. Skipping GitHub integration.")
-        _info("Run 'gh auth login' and then: gaas setup --reconfigure")
+        _info("Run 'gh auth login' and then: assistant setup --reconfigure")
         return []
 
     _success("GitHub CLI authenticated")
@@ -272,10 +272,10 @@ def setup_github() -> list[dict[str, Any]]:
 def setup_directories() -> dict[str, str]:
     """Configure data directories. Returns directories config."""
     _heading("Data Directories")
-    _info("GaaS stores notes, task queue data, and logs on the filesystem.")
+    _info("Assistant stores notes, task queue data, and logs on the filesystem.")
     _info("Defaults are inside your home directory.\n")
 
-    default_base = str(Path.home() / ".gaas" / "data")
+    default_base = str(Path.home() / ".assistant" / "data")
 
     base = _prompt("Base data directory", default_base)
     base_path = Path(base)
@@ -414,7 +414,7 @@ def _write_platform(lines: list[str], config: dict[str, Any], indent: int) -> No
 def _build_secrets_yaml(secrets: dict[str, str]) -> str:
     """Build secrets.yaml content."""
     lines = [
-        "# GaaS secrets — referenced from config.yaml via !secret <key>",
+        "# Assistant secrets — referenced from config.yaml via !secret <key>",
         "# Keep this file safe. It is gitignored by default.",
         "",
     ]
@@ -475,13 +475,13 @@ def _print_next_steps(config_path: Path) -> None:
     example = PROJECT_ROOT / "example.config.yaml"
     if _color():
         _info(f"  1. Review your config:  {BOLD}cat {config_path}{NC}")
-        _info(f"  2. Check your setup:    {BOLD}gaas doctor{NC}")
-        _info(f"  3. Start GaaS:          {BOLD}gaas start{NC}")
+        _info(f"  2. Check your setup:    {BOLD}assistant doctor{NC}")
+        _info(f"  3. Start Assistant:          {BOLD}assistant start{NC}")
         _info(f"  Full config reference:  {BOLD}{example}{NC}")
     else:
         _info(f"  1. Review your config:  cat {config_path}")
-        _info("  2. Check your setup:    gaas doctor")
-        _info("  3. Start GaaS:          gaas start")
+        _info("  2. Check your setup:    assistant doctor")
+        _info("  3. Start Assistant:          assistant start")
         _info(f"  Full config reference:  {example}")
     print()
 
@@ -492,7 +492,7 @@ def run_setup(reconfigure: bool = False) -> int:
     secrets_path = PROJECT_ROOT / "secrets.yaml"
 
     print()
-    title = f"  {BOLD}GaaS Setup Wizard{NC}" if _color() else "  GaaS Setup Wizard"
+    title = f"  {BOLD}Assistant Setup Wizard{NC}" if _color() else "  Assistant Setup Wizard"
     print(title)
     print()
 

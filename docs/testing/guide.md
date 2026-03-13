@@ -7,10 +7,10 @@ This is the practical companion to the [testing philosophy](philosophy.md). It c
 ```bash
 uv run pytest -v                           # All tests (core + packages)
 uv run pytest tests/safety                 # Safety tests only
-uv run pytest packages/gaas-email/tests/   # Email tests in isolation (no app config)
-uv run pytest packages/gaas-gemini/tests/  # Gemini tests in isolation
-uv run pytest packages/gaas-github/tests/  # GitHub tests in isolation
-uv run pytest packages/gaas-sdk/tests/     # SDK tests in isolation
+uv run pytest packages/assistant-email/tests/   # Email tests in isolation (no app config)
+uv run pytest packages/assistant-gemini/tests/  # Gemini tests in isolation
+uv run pytest packages/assistant-github/tests/  # GitHub tests in isolation
+uv run pytest packages/assistant-sdk/tests/     # SDK tests in isolation
 ```
 
 CI runs on GitHub Actions (`.github/workflows/test.yml`): checkout, setup uv, sync, pytest.
@@ -44,7 +44,7 @@ tests/
     test_provenance.py                   # Provenance derivation + safety validation
     test_reference_validation.py         # Script/service reference existence warnings
 
-packages/gaas-email/tests/
+packages/assistant-email/tests/
   test_act.py                            # Action execution, allowlist enforcement
   test_check.py                          # Window parsing, inbox fetch ordering, IMAP criteria
   test_classify.py                       # Condition matching, operators, schema building
@@ -52,18 +52,18 @@ packages/gaas-email/tests/
   test_evaluate.py                       # Snapshot construction, resolver patterns, automation evaluation
   test_mail_parsing.py                   # Header parsing (auth, unsubscribe, dates, calendar)
 
-packages/gaas-gemini/tests/
+packages/assistant-gemini/tests/
   test_client.py                         # GeminiClient two-pass flow (mocked)
   test_web_research.py                   # Service handler with/without output_schema
 
-packages/gaas-github/tests/
+packages/assistant-github/tests/
   test_client.py                         # GitHub API client parsing, search dedup, PR status derivation
   test_entity_store.py                   # GitHubEntityStore: save, find, find_anywhere, move_to_synced
   test_evaluate.py                       # PR/Issue snapshot construction, resolver, automation evaluation
   test_issue_store.py                    # IssueStore save, field mappings, URL generation, defaults
   test_pr_store.py                       # PullRequestStore save, field mappings, URL generation
 
-packages/gaas-sdk/tests/
+packages/assistant-sdk/tests/
   test_action_partitioning.py            # Action detection, input resolution, script/service partitioning
   test_classify.py                       # Schema building (confidence/boolean/enum), Jinja2 environment
   test_evaluate.py                       # Automation evaluation engine: conditions, operators, dedup
@@ -75,7 +75,7 @@ packages/gaas-sdk/tests/
   test_task.py                           # TaskPayload and TaskRecord TypedDict smoke tests
 ```
 
-Package tests import from `gaas_sdk.*` directly. They run without loading the app config singleton, which means they can be executed in isolation.
+Package tests import from `assistant_sdk.*` directly. They run without loading the app config singleton, which means they can be executed in isolation.
 
 ## Fixtures
 
@@ -129,7 +129,7 @@ Assert on the whole tree, not individual files. After `enqueue -> dequeue -> com
 
 1. **Categorize the reversibility tier.** Read-only, soft reversible, hard reversible, or irreversible. This comes first. See the [safety model](../architecture/safety-model.md) for tier definitions.
 
-2. **Add the action.** For platform-specific actions: add to `SIMPLE_ACTIONS` or dict action handling in `act.py`. For cross-cutting actions (like scripts): add to the shared action layer in `gaas_sdk/actions.py`. For services: declare in the integration's `manifest.yaml` under `services:`. The `SIMPLE_ACTIONS` set must not grow without deliberate reversibility review.
+2. **Add the action.** For platform-specific actions: add to `SIMPLE_ACTIONS` or dict action handling in `act.py`. For cross-cutting actions (like scripts): add to the shared action layer in `assistant_sdk/actions.py`. For services: declare in the integration's `manifest.yaml` under `services:`. The `SIMPLE_ACTIONS` set must not grow without deliberate reversibility review.
 
 3. **Write tests matching the tier.** Read-only gets unit tests. Soft reversible gets filesystem snapshot assertions. Hard reversible gets shadow/dry-run verification. Irreversible gets property-based safety invariants and mandatory dry run.
 

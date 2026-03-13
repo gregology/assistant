@@ -3,9 +3,9 @@
 from unittest.mock import patch
 
 from app.actions import enqueue_actions, is_script_action, resolve_inputs
-from gaas_sdk.actions import _render_template
-from gaas_sdk.models import ScriptAction, SimpleAction
-from gaas_sdk.evaluate import MISSING
+from assistant_sdk.actions import _render_template
+from assistant_sdk.models import ScriptAction, SimpleAction
+from assistant_sdk.evaluate import MISSING
 
 
 def _make_resolver(**fields):
@@ -194,7 +194,7 @@ class TestEnqueueActions:
     def test_platform_only(self, queue_dir):
         """Platform-only actions produce a single platform task, no script tasks."""
         resolver = _make_resolver()
-        with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
+        with patch("assistant_sdk.runtime._enqueue") as mock_enqueue:
             mock_enqueue.return_value = "task_1"
             enqueue_actions(
                 actions=[SimpleAction(action="archive"), SimpleAction(action="spam")],
@@ -211,7 +211,7 @@ class TestEnqueueActions:
     def test_script_only(self, queue_dir):
         """Script-only actions produce script tasks, no platform task."""
         resolver = _make_resolver(domain="test.com")
-        with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
+        with patch("assistant_sdk.runtime._enqueue") as mock_enqueue:
             mock_enqueue.return_value = "task_1"
             enqueue_actions(
                 actions=[ScriptAction(script={
@@ -231,7 +231,7 @@ class TestEnqueueActions:
     def test_mixed_actions(self, queue_dir):
         """Mixed actions produce both script and platform tasks."""
         resolver = _make_resolver(domain="test.com")
-        with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
+        with patch("assistant_sdk.runtime._enqueue") as mock_enqueue:
             mock_enqueue.return_value = "task_1"
             enqueue_actions(
                 actions=[
@@ -253,7 +253,7 @@ class TestEnqueueActions:
     def test_empty_actions(self, queue_dir):
         """Empty actions produce no tasks."""
         resolver = _make_resolver()
-        with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
+        with patch("assistant_sdk.runtime._enqueue") as mock_enqueue:
             enqueue_actions(
                 actions=[],
                 platform_payload={"type": "email.inbox.act", "uid": "123"},
@@ -266,7 +266,7 @@ class TestEnqueueActions:
     def test_provenance_passed_through(self, queue_dir):
         """Provenance is passed to all enqueued tasks."""
         resolver = _make_resolver()
-        with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
+        with patch("assistant_sdk.runtime._enqueue") as mock_enqueue:
             mock_enqueue.return_value = "task_1"
             enqueue_actions(
                 actions=[SimpleAction(action="archive")],

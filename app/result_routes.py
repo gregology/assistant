@@ -16,10 +16,10 @@ from pathlib import Path
 from typing import Any
 
 import app.human_log  # noqa: F401 — registers HumanMarkdownHandler
-from gaas_sdk import runtime
-from gaas_sdk.logging import get_logger
-from gaas_sdk.store import NoteStore
-from gaas_sdk.task import TaskRecord
+from assistant_sdk import runtime
+from assistant_sdk.logging import get_logger
+from assistant_sdk.store import NoteStore
+from assistant_sdk.task import TaskRecord
 
 log = get_logger(__name__)
 

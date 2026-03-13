@@ -12,7 +12,7 @@ from typing import Any
 import yaml
 
 from app.config import config
-from gaas_sdk.task import TaskRecord
+from assistant_sdk.task import TaskRecord
 
 log = logging.getLogger(__name__)
 

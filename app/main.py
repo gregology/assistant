@@ -9,7 +9,7 @@ from app.runtime_init import register_runtime
 from app.loader import load_all_modules
 from app.integrations import ENTRY_TASKS, register_all
 from app.ui import router as ui_router
-from gaas_sdk.logging import get_logger
+from assistant_sdk.logging import get_logger
 
 _log = get_logger(__name__)
 

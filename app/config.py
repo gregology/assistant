@@ -8,8 +8,8 @@ import yaml
 
 from pydantic import BaseModel, Field, create_model, model_validator
 
-# Re-export models from gaas_sdk so existing imports work unchanged
-from gaas_sdk.models import (  # noqa: F401
+# Re-export models from assistant_sdk so existing imports work unchanged
+from assistant_sdk.models import (  # noqa: F401
     YoloAction,
     ScheduleConfig,
     ScriptConfig,
@@ -22,7 +22,7 @@ from gaas_sdk.models import (  # noqa: F401
     ServiceAction,
     DictAction,
 )
-from gaas_sdk.provenance import resolve_provenance
+from assistant_sdk.provenance import resolve_provenance
 
 log = logging.getLogger(__name__)
 
@@ -424,7 +424,7 @@ def _iter_active_platforms(
 
 def _unwrap_action(action: Any) -> Any:
     """Unwrap a YoloAction to its underlying normalized action type."""
-    from gaas_sdk.models import _normalize_action
+    from assistant_sdk.models import _normalize_action
 
     if isinstance(action, YoloAction):
         return _normalize_action(action.value)

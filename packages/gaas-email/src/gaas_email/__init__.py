@@ -1,1 +1,0 @@
-"""GaaS Email (IMAP) integration."""

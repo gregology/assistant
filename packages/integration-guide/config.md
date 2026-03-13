@@ -1,6 +1,6 @@
 # Config Patterns
 
-GaaS uses Home Assistant-style YAML config. This doc covers how your integration plugs into it.
+Assistant uses Home Assistant-style YAML config. This doc covers how your integration plugs into it.
 
 ## How users configure your integration
 

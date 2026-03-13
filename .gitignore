@@ -208,7 +208,7 @@ cron_state.db*
 .complexipy_cache
 
 # Supervisor restart sentinel
-.gaas-restart
+.assistant-restart
 
 # Refactoring audit output
 to_review/

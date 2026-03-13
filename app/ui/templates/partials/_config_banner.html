@@ -4,10 +4,10 @@
     {% if supervisor_active %}
     <span>Config has been updated.</span>
     <form method="POST" action="/ui/system/restart" class="inline">
-      <button type="submit" class="btn btn-sm btn-primary ml-2">Restart GaaS</button>
+      <button type="submit" class="btn btn-sm btn-primary ml-2">Restart Assistant</button>
     </form>
     {% else %}
-    Config has been updated. Restart GaaS for changes to take effect.
+    Config has been updated. Restart Assistant for changes to take effect.
     {% endif %}
   </div>
   {% endif %}

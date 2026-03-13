@@ -53,7 +53,7 @@ class TestManagedProcess:
             "test",
             [
                 sys.executable, "-c",
-                "import os, sys; sys.exit(0 if os.environ.get('GAAS_SUPERVISOR') == '1' else 1)",
+                "import os, sys; sys.exit(0 if os.environ.get('ASSISTANT_SUPERVISOR')=='1' else 1)",
             ],
         )
         mp.start()
@@ -72,7 +72,7 @@ class TestSentinelFile:
         assert SENTINEL.parent == project_root
 
     def test_sentinel_create_detect_delete(self, tmp_path):
-        sentinel = tmp_path / ".gaas-restart"
+        sentinel = tmp_path / ".assistant-restart"
         assert not sentinel.exists()
         sentinel.touch()
         assert sentinel.exists()
@@ -95,7 +95,7 @@ class TestRestartEndpoint:
         return TestClient(app)
 
     def test_restart_creates_sentinel(self, client, tmp_path):
-        sentinel = tmp_path / ".gaas-restart"
+        sentinel = tmp_path / ".assistant-restart"
         with patch("app.ui.routes._SENTINEL", sentinel):
             response = client.post("/ui/system/restart")
 
@@ -103,13 +103,13 @@ class TestRestartEndpoint:
         assert sentinel.exists()
 
     def test_restart_returns_standalone_html(self, client, tmp_path):
-        sentinel = tmp_path / ".gaas-restart"
+        sentinel = tmp_path / ".assistant-restart"
         with patch("app.ui.routes._SENTINEL", sentinel):
             response = client.post("/ui/system/restart")
 
         body = response.text
         assert "<!DOCTYPE html>" in body
-        assert "Restarting GaaS" in body
+        assert "Restarting Assistant" in body
         # Must have health-polling JS
         assert 'fetch("/")' in body
         # Standalone: should NOT contain base.html navbar

@@ -1,10 +1,10 @@
-"""Diagnostic checks for GaaS installations.
+"""Diagnostic checks for Assistant installations.
 
 Verifies prerequisites, configuration, connectivity, and filesystem state.
 Designed to be the first thing a user runs when something isn't working.
 
 Usage:
-    gaas doctor
+    assistant doctor
 """
 
 import importlib.metadata
@@ -171,7 +171,7 @@ def check_config() -> bool:
     """Check config.yaml exists and is parseable."""
     config_path = PROJECT_ROOT / "config.yaml"
     if not config_path.exists():
-        _fail("config.yaml not found — run: gaas setup")
+        _fail("config.yaml not found — run: assistant setup")
         return False
 
     _pass(f"config.yaml exists ({config_path})")
@@ -329,7 +329,7 @@ def check_version() -> bool:
     )
     if result.returncode == 0 and result.stdout.strip():
         count = len(result.stdout.strip().splitlines())
-        _warn(f"{count} update(s) available — run: gaas update")
+        _warn(f"{count} update(s) available — run: assistant update")
         return False
 
     _pass("Up to date")
@@ -340,9 +340,9 @@ def check_version() -> bool:
 
 
 def _get_version() -> str:
-    """Get the GaaS version from metadata or pyproject.toml fallback."""
+    """Get the Assistant version from metadata or pyproject.toml fallback."""
     try:
-        return importlib.metadata.version("gaas")
+        return importlib.metadata.version("assistant")
     except importlib.metadata.PackageNotFoundError:
         pass
     pyproject = PROJECT_ROOT / "pyproject.toml"
@@ -356,9 +356,9 @@ def _get_version() -> str:
 def run_doctor() -> int:
     """Run all diagnostic checks. Returns 0 if all pass, 1 if any fail."""
     if _color():
-        print(f"\n  {BOLD}GaaS Doctor{NC}\n")
+        print(f"\n  {BOLD}Assistant Doctor{NC}\n")
     else:
-        print("\n  GaaS Doctor\n")
+        print("\n  Assistant Doctor\n")
 
     version = _get_version()
     print(f"  Version: {version}")

@@ -9,9 +9,9 @@ We'll use a fictional "Slack messages" integration as the running example.
 ## Step 1: Create the package skeleton
 
 ```
-packages/gaas-slack/
+packages/assistant-slack/
   pyproject.toml
-  src/gaas_slack/
+  src/assistant_slack/
     __init__.py               # Empty or a docstring
     manifest.yaml
     client.py                 # Slack API wrapper
@@ -34,29 +34,29 @@ packages/gaas-slack/
 
 ```toml
 [project]
-name = "gaas-slack"
+name = "assistant-slack"
 version = "0.1.0"
-description = "Slack integration for GaaS"
+description = "Slack integration for Assistant"
 requires-python = ">=3.11"
 dependencies = [
-    "gaas-sdk>=0.1.0",
+    "assistant-sdk>=0.1.0",
     "slack-sdk>=3.0",
 ]
 
-[project.entry-points."gaas.integrations"]
-slack = "gaas_slack"
+[project.entry-points."assistant.integrations"]
+slack = "assistant_slack"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/gaas_slack"]
+packages = ["src/assistant_slack"]
 ```
 
 Then update the root `pyproject.toml`:
-- Add `"gaas-slack"` to `[project.dependencies]` (or optional extras)
-- Add `gaas-slack = { path = "packages/gaas-slack", editable = true }` under `[tool.uv.sources]`
+- Add `"assistant-slack"` to `[project.dependencies]` (or optional extras)
+- Add `assistant-slack = { path = "packages/assistant-slack", editable = true }` under `[tool.uv.sources]`
 
 Run `uv sync` to install.
 
@@ -104,7 +104,7 @@ platforms:
 This is where you make the safety decisions. Do this before writing any handler code.
 
 ```python
-from gaas_sdk.models import ClassificationConfig
+from assistant_sdk.models import ClassificationConfig
 
 DEFAULT_CLASSIFICATIONS: dict[str, ClassificationConfig] = {
     "importance": ClassificationConfig(
@@ -170,7 +170,7 @@ class SlackClient:
 
 ```python
 import logging
-from gaas_sdk import runtime
+from assistant_sdk import runtime
 from .store import SlackMessageStore
 
 log = logging.getLogger(__name__)
@@ -211,7 +211,7 @@ def handle(task: dict):
 
 ```python
 import logging
-from gaas_sdk import runtime
+from assistant_sdk import runtime
 from .store import SlackMessageStore
 
 log = logging.getLogger(__name__)
@@ -250,8 +250,8 @@ from pathlib import Path
 
 import frontmatter
 
-from gaas_sdk import runtime
-from gaas_sdk.classify import build_schema, make_jinja_env
+from assistant_sdk import runtime
+from assistant_sdk.classify import build_schema, make_jinja_env
 from .const import DEFAULT_CLASSIFICATIONS
 from .store import SlackMessageStore
 
@@ -319,9 +319,9 @@ from dataclasses import dataclass
 
 import frontmatter
 
-from gaas_sdk import runtime
-from gaas_sdk.actions import enqueue_actions
-from gaas_sdk.evaluate import (
+from assistant_sdk import runtime
+from assistant_sdk.actions import enqueue_actions
+from assistant_sdk.evaluate import (
     MISSING,
     evaluate_automations,
     resolve_action_provenance,
@@ -418,7 +418,7 @@ def handle(task: dict):
 
 ```python
 import logging
-from gaas_sdk import runtime
+from assistant_sdk import runtime
 from .const import SIMPLE_ACTIONS
 
 log = logging.getLogger(__name__)
@@ -460,7 +460,7 @@ def handle(task: dict):
 
 ```python
 from pathlib import Path
-from gaas_sdk.store import NoteStore
+from assistant_sdk.store import NoteStore
 
 class SlackMessageStore:
     def __init__(self, path: Path):
@@ -534,8 +534,8 @@ Focus on safety-critical paths first.
 
 ```python
 # tests/test_evaluate.py
-from gaas_sdk.evaluate import evaluate_automations, MISSING
-from gaas_sdk.models import ClassificationConfig, AutomationConfig
+from assistant_sdk.evaluate import evaluate_automations, MISSING
+from assistant_sdk.models import ClassificationConfig, AutomationConfig
 
 
 def _make_resolver(**fields):
@@ -582,7 +582,7 @@ def test_classification_condition():
     assert actions == ["pin"]
 ```
 
-Run with `uv run pytest packages/gaas-slack/tests/ -v`.
+Run with `uv run pytest packages/assistant-slack/tests/ -v`.
 
 ## Step 10: Wire it up
 

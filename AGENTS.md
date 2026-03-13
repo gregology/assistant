@@ -1,4 +1,4 @@
-# GaaS (Greg as a Service)
+# Assistant (Assistant)
 
 An AI-powered personal assistant that processes emails, pull requests, issues, and other inputs using LLMs, safely. Think of it as OpenClaw but with elastic bands around the pinchers: same category of tool, but with safety and auditability as first-class concerns rather than afterthoughts.
 
@@ -29,7 +29,7 @@ AI has ability but no accountability. Every non-reversible action requires a hum
 
 ## Provenance Tracking
 
-When an action is triggered by LLM classification vs. deterministic rules (e.g. domain-based filtering), the system tracks the provenance. Every automation rule is assigned `rule`, `llm`, or `hybrid` provenance based on its condition keys. Irreversible actions are blocked from `llm` and `hybrid` provenance unless explicitly overridden with the `!yolo` tag. This is enforced at two layers: config load time (primary gate, strips unsafe automations) and execution time in each platform's `act.py` (defense-in-depth). See `packages/gaas-email/AGENTS.md` for the email provenance model, and `tests/safety/test_provenance.py` for the safety tests that enforce it.
+When an action is triggered by LLM classification vs. deterministic rules (e.g. domain-based filtering), the system tracks the provenance. Every automation rule is assigned `rule`, `llm`, or `hybrid` provenance based on its condition keys. Irreversible actions are blocked from `llm` and `hybrid` provenance unless explicitly overridden with the `!yolo` tag. This is enforced at two layers: config load time (primary gate, strips unsafe automations) and execution time in each platform's `act.py` (defense-in-depth). See `packages/assistant-email/AGENTS.md` for the email provenance model, and `tests/safety/test_provenance.py` for the safety tests that enforce it.
 
 ## Tech Stack
 
@@ -40,34 +40,34 @@ When an action is triggered by LLM classification vs. deterministic rules (e.g. 
 - **Jinja2** for prompt templates with injection defenses
 - **Hypothesis** for property-based testing of safety invariants
 - **httpx** as HTTP client for LLM backends
-- **gaas-sdk** contracts package for models, evaluation engine, classification, NoteStore, and runtime registration
-- Integration-specific dependencies live in their packages (`imap-tools` in gaas-email, `google-genai` in gaas-gemini, etc.)
+- **assistant-sdk** contracts package for models, evaluation engine, classification, NoteStore, and runtime registration
+- Integration-specific dependencies live in their packages (`imap-tools` in assistant-email, `google-genai` in assistant-gemini, etc.)
 
 ## Installation
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/gregology/GaaS/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/gregology/assistant/main/install.sh | bash
 ```
 
-This installs GaaS to `~/.gaas`, creates a `gaas` CLI wrapper in `~/.local/bin`, and offers to run the setup wizard. Re-running the same command on an existing install triggers `gaas update`.
+This installs Assistant to `~/.assistant`, creates a `assistant` CLI wrapper in `~/.local/bin`, and offers to run the setup wizard. Re-running the same command on an existing install triggers `assistant update`.
 
 Environment variables for customization:
-- `GAAS_HOME` — install directory (default: `~/.gaas`)
-- `GAAS_BIN_DIR` — CLI wrapper location (default: `~/.local/bin`)
-- `GAAS_BRANCH` — branch to track (default: `main`)
+- `ASSISTANT_HOME` — install directory (default: `~/.assistant`)
+- `ASSISTANT_BIN_DIR` — CLI wrapper location (default: `~/.local/bin`)
+- `ASSISTANT_BRANCH` — branch to track (default: `main`)
 
 ## CLI
 
-After installation, `gaas` is the main entry point:
+After installation, `assistant` is the main entry point:
 
 ```bash
-gaas start [--dev] [--expose] [--port N]  # Start server + worker
-gaas setup [--reconfigure]                # Guided config wizard
-gaas update                               # Update to latest version
-gaas doctor                               # Diagnostic checks
-gaas version                              # Version info
-gaas status                               # Check if running
-gaas logs [--tail N]                      # Show human-readable audit logs
+assistant start [--dev] [--expose] [--port N]  # Start server + worker
+assistant setup [--reconfigure]                # Guided config wizard
+assistant update                               # Update to latest version
+assistant doctor                               # Diagnostic checks
+assistant version                              # Version info
+assistant status                               # Check if running
+assistant logs [--tail N]                      # Show human-readable audit logs
 ```
 
 ## Development
@@ -106,16 +106,16 @@ uv run python -m app.cli <subcommand>
 ```
 install.sh         # Curl-pipe-bash installer/updater (thin bootstrapper)
 packages/
-  gaas-sdk/        # Contracts layer: models, evaluate, classify, NoteStore, runtime
-  gaas-email/      # Email integration (inbox platform, IMAP)
-  gaas-github/     # GitHub integration (pull_requests + issues platforms)
-  gaas-gemini/     # Gemini integration (web_research service)
+  assistant-sdk/        # Contracts layer: models, evaluate, classify, NoteStore, runtime
+  assistant-email/      # Email integration (inbox platform, IMAP)
+  assistant-github/     # GitHub integration (pull_requests + issues platforms)
+  assistant-gemini/     # Gemini integration (web_research service)
 app/
-  cli.py           # CLI entry point: gaas start|setup|update|doctor|version|status|logs
+  cli.py           # CLI entry point: assistant start|setup|update|doctor|version|status|logs
   setup.py         # Guided setup wizard (generates config.yaml + secrets.yaml)
   doctor.py        # Diagnostic checks (prereqs, config, connectivity)
   main.py          # FastAPI server, endpoints, scheduler init
-  runtime_init.py  # Registers app implementations with gaas_sdk.runtime
+  runtime_init.py  # Registers app implementations with assistant_sdk.runtime
   config.py        # YAML config + !secret references, dynamic Pydantic models
   loader.py        # Integration discovery (builtin dir, custom dir, entry points)
   queue.py         # Filesystem-based task queue
@@ -126,7 +126,7 @@ app/
   scheduler.py     # Cron scheduling from config
   llm.py           # LLM backend abstraction, structured output, retry
   human_log.py     # Human-readable daily markdown logs
-  actions/         # Re-exports from gaas_sdk.actions + script executor
+  actions/         # Re-exports from assistant_sdk.actions + script executor
   integrations/    # Handler registry, entry-point loader, custom integration support
   ui/              # Web UI: routes, presenters, YAML editor, Jinja2 templates
 tests/                 # 18 test files + safety/ (see docs/testing/guide.md for full listing)
@@ -140,7 +140,7 @@ Integrations ship as installable packages under `packages/` and are discovered v
 
 ## Configuration
 
-Config uses Home Assistant-inspired YAML with `!secret` references to a separate `secrets.yaml`. See `example.config.yaml` for a starter config and the integration READMEs (`packages/gaas-*/README.md`) for full config references. Key patterns:
+Config uses Home Assistant-inspired YAML with `!secret` references to a separate `secrets.yaml`. See `example.config.yaml` for a starter config and the integration READMEs (`packages/assistant-*/README.md`) for full config references. Key patterns:
 
 - **Classification shorthand**: `human: "is this a personal email?"` expands to `{prompt: "...", type: "confidence"}`
 - **Automation rules**: `when`/`then` pairs with operators (`>`, `>=`, `<`, `<=`, `==`) for confidence, exact/list match for enums, identity for booleans

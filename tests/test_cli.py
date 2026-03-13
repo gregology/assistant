@@ -1,4 +1,4 @@
-"""Tests for the GaaS CLI, setup wizard, and doctor."""
+"""Tests for the Assistant CLI, setup wizard, and doctor."""
 
 import subprocess
 from pathlib import Path
@@ -19,7 +19,7 @@ class TestCLIParser:
         from app.cli import build_parser
 
         parser = build_parser()
-        assert parser.prog == "gaas"
+        assert parser.prog == "assistant"
 
     def test_start_defaults(self):
         from app.cli import build_parser
@@ -94,7 +94,7 @@ class TestCLIParser:
     def test_no_command_returns_zero(self):
         from app.cli import main
 
-        with patch("sys.argv", ["gaas"]):
+        with patch("sys.argv", ["assistant"]):
             # No subcommand should print help and return 0
             result = main()
             assert result == 0
@@ -112,7 +112,7 @@ class TestVersion:
         result = cmd_version(args)
         assert result == 0
         output = capsys.readouterr().out
-        assert "GaaS v" in output
+        assert "Assistant v" in output
         assert "Python:" in output
         assert "Path:" in output
 
@@ -128,7 +128,7 @@ class TestStatus:
         parser = build_parser()
         args = parser.parse_args(["status"])
         result = cmd_status(args)
-        # Should return 1 (not running) unless GaaS happens to be running
+        # Should return 1 (not running) unless Assistant happens to be running
         # during tests — either is acceptable
         assert result in (0, 1)
 
@@ -313,7 +313,7 @@ class TestSetupConfigGeneration:
         from app.setup import _build_secrets_yaml
 
         result = _build_secrets_yaml({})
-        assert "GaaS secrets" in result  # Header still present
+        assert "Assistant secrets" in result  # Header still present
 
     def test_backup_file(self, tmp_path):
         from app.setup import _backup_file
@@ -369,8 +369,8 @@ class TestInstallScript:
     def test_install_script_has_banner(self):
         """Script should include ASCII art banner."""
         content = (PROJECT_ROOT / "install.sh").read_text()
-        assert "GaaS" in content
-        assert "Greg as a Service" in content
+        assert "Assistant" in content
+        assert "AI-powered personal assistant" in content
 
     def test_install_script_shellcheck(self):
         """Run shellcheck if available."""

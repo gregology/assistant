@@ -1,6 +1,6 @@
 # Integrations
 
-Integrations connect GaaS to external systems (email, GitHub, Gemini, etc.). The project follows a Home Assistant-inspired model: core integrations for universally useful services, with the intent for community integrations for more bespoke needs.
+Integrations connect Assistant to external systems (email, GitHub, Gemini, etc.). The project follows a Home Assistant-inspired model: core integrations for universally useful services, with the intent for community integrations for more bespoke needs.
 
 ## Architecture
 
@@ -10,7 +10,7 @@ Integrations are discovered through three channels, checked in this order:
 
 1. **Builtin directory** (`app/integrations/`) - packages shipped in the source tree. Highest priority.
 2. **Custom directory** (user-configurable via `directories.custom_integrations` in `config.yaml`) - user-authored integrations that don't touch the source tree. Can shadow entry-point packages.
-3. **Entry points** (`gaas.integrations` group) - installable packages that register via `[project.entry-points."gaas.integrations"]` in their pyproject.toml. Lowest priority.
+3. **Entry points** (`assistant.integrations` group) - installable packages that register via `[project.entry-points."assistant.integrations"]` in their pyproject.toml. Lowest priority.
 
 Email and GitHub ship as entry-point packages under `packages/`. They're discovered automatically when installed. A user can shadow them with a local override in the builtin or custom directory during development.
 
@@ -151,7 +151,7 @@ Classifications are fed to the LLM as a JSON schema, and the response is validat
 
 ## Automation Dispatch: The Safety Boundary
 
-The automation dispatch layer (`evaluate_automations` in `gaas_sdk.evaluate`) is **purely deterministic**. It evaluates `when`/`then` rules against classification results and produces a list of actions. This is the critical safety boundary:
+The automation dispatch layer (`evaluate_automations` in `assistant_sdk.evaluate`) is **purely deterministic**. It evaluates `when`/`then` rules against classification results and produces a list of actions. This is the critical safety boundary:
 
 - The LLM is non-deterministic and its output is treated as untrusted
 - The dispatch layer is deterministic and is where bugs become irreversible actions
@@ -161,7 +161,7 @@ When conditions use AND semantics. All conditions in a `when` dict must match. M
 
 ### Shared Action Layer
 
-Some actions are cross-cutting -- they can be triggered from any integration's automations. The evaluate phase partitions actions via `enqueue_actions()` from `gaas_sdk.actions`:
+Some actions are cross-cutting -- they can be triggered from any integration's automations. The evaluate phase partitions actions via `enqueue_actions()` from `assistant_sdk.actions`:
 
 - **Script actions** (`{"script": {"name": "...", "inputs": {...}}}`) are enqueued as individual `script.run` queue tasks with resolved inputs.
 - **Service actions** (`{"service": {"call": "...", "inputs": {...}}}`) are enqueued as individual `service.{domain}.{service_name}` queue tasks with default `on_result` routing (note + human log).
@@ -174,13 +174,13 @@ Each platform's `evaluate.py` calls `enqueue_actions()` instead of `runtime.enqu
 ### Installable package (recommended)
 
 1. Create a package under `packages/your_integration/` with a `src/` layout
-2. Add a `pyproject.toml` with entry point: `[project.entry-points."gaas.integrations"]` -> `your_domain = "your_package"`
+2. Add a `pyproject.toml` with entry point: `[project.entry-points."assistant.integrations"]` -> `your_domain = "your_package"`
 3. Add a `manifest.yaml` with `domain`, `config_schema`, and `platforms:` and/or `services:` sections
 4. Add an `__init__.py` that aggregates `HANDLERS` from platforms
 5. Create `platforms/` and/or `services/` sub-packages
-6. Import from `gaas_sdk.*` for models, evaluation, runtime functions
+6. Import from `assistant_sdk.*` for models, evaluation, runtime functions
 7. Categorize every action by reversibility tier before implementing
-8. Add tests in your package's `tests/` directory, importing from `gaas_sdk.*` directly
+8. Add tests in your package's `tests/` directory, importing from `assistant_sdk.*` directly
 9. Add the package to root `pyproject.toml` dependencies and `[tool.uv.sources]`
 10. Add to your `config.yaml` using `type: <domain>` with a `platforms:` section
 11. If using LLM classification, add prompt templates with salt-based injection defenses
@@ -194,4 +194,4 @@ Each platform's `evaluate.py` calls `enqueue_actions()` instead of `runtime.enqu
 5. Each platform exports a `HANDLERS` dict from its `__init__.py`
 6. Install any dependencies declared in `manifest.yaml` with `uv add`
 7. Add the integration to your `config.yaml` using `type: <domain>` with a `platforms:` section
-8. Restart GaaS. The integration is discovered automatically
+8. Restart Assistant. The integration is discovered automatically

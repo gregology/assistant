@@ -1,4 +1,4 @@
-# Why GaaS Exists
+# Why Assistant Exists
 
 Most of the messages that reach you every day were not written for you.
 
@@ -18,13 +18,13 @@ A marketing email from a SaaS product you used once three years ago? Sender-bene
 
 The ratio is not close. The vast majority of what lands in your inbox exists to serve the sender. But your email client treats every message the same. They all get a bold subject line and a notification. They all compete for the same scarce resource: your attention.
 
-## What GaaS does about it
+## What Assistant does about it
 
-GaaS uses AI to sort this out. It reads your email, classifies each message, and takes action based on rules you define. The simplest version of this is: identify messages that are not worth your human attention and archive them. No notification, no bold subject line, no context switch. Just quietly moved out of the way.
+Assistant uses AI to sort this out. It reads your email, classifies each message, and takes action based on rules you define. The simplest version of this is: identify messages that are not worth your human attention and archive them. No notification, no bold subject line, no context switch. Just quietly moved out of the way.
 
 That alone is useful. But the more interesting possibility goes further.
 
-Take that terms of service email. Right now you have two options: ignore it or read a 12-page legal document. GaaS could, in theory, fetch the previous version of the terms, diff it against the new one, and surface the actual changes. Turn a message that was sent purely for the sender's benefit into information that actually benefits you.
+Take that terms of service email. Right now you have two options: ignore it or read a 12-page legal document. Assistant could, in theory, fetch the previous version of the terms, diff it against the new one, and surface the actual changes. Turn a message that was sent purely for the sender's benefit into information that actually benefits you.
 
 This is the core idea. Not just filtering out noise, but transforming sender-benefit communication into receiver-benefit communication. Changing the equation so that what reaches you is actually worth your time.
 
@@ -32,12 +32,12 @@ This is the core idea. Not just filtering out noise, but transforming sender-ben
 
 An AI assistant that touches your inbox is useful exactly up to the point where it does something wrong. Delete an important email, send a reply you didn't approve, leak private content to an external service. One bad action and the trust is gone.
 
-That's why GaaS treats safety as a structural property of the system, not a feature you bolt on. Every autonomous action must be reversible. The AI classifies, but deterministic code decides what actions to take. The AI's output is treated as untrusted input, always. If something cannot be undone, a human has to approve it first.
+That's why Assistant treats safety as a structural property of the system, not a feature you bolt on. Every autonomous action must be reversible. The AI classifies, but deterministic code decides what actions to take. The AI's output is treated as untrusted input, always. If something cannot be undone, a human has to approve it first.
 
 These aren't guidelines. They're enforced in code. See the [safety model](architecture/safety-model.md) for details on how.
 
 ## Beyond email
 
-Email is the first integration and the most mature one, but the sender-benefit vs receiver-benefit framing applies broadly. GitHub notifications, Slack messages, calendar invites. Any channel where the volume of incoming information outpaces your ability to process it is a channel where GaaS can help separate what matters from what doesn't.
+Email is the first integration and the most mature one, but the sender-benefit vs receiver-benefit framing applies broadly. GitHub notifications, Slack messages, calendar invites. Any channel where the volume of incoming information outpaces your ability to process it is a channel where Assistant can help separate what matters from what doesn't.
 
 The goal is not to replace your judgment. It's to stop wasting it on things that don't deserve it.

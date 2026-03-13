@@ -1,6 +1,6 @@
 # Web UI Architecture
 
-GaaS currently requires users to hand-edit `config.yaml`. That works for developers but creates a real barrier for anyone else. Home Assistant solved this well by offering YAML editing, UI forms, and in-UI YAML editors. Users pick their comfort level.
+Assistant currently requires users to hand-edit `config.yaml`. That works for developers but creates a real barrier for anyone else. Home Assistant solved this well by offering YAML editing, UI forms, and in-UI YAML editors. Users pick their comfort level.
 
 The goal is to add a web UI that lives alongside the YAML config, not above it. The YAML file stays as the source of truth. The UI reads it, displays it, and can write back to it while preserving comments and formatting.
 
@@ -24,7 +24,7 @@ Lesson: don't force users to pick one. YAML and UI should be peers.
 
 **n8n** is instructive mostly as a cautionary tale. The Vue.js frontend is over 100K lines of TypeScript. They need a full-time frontend team. That is not us.
 
-**Portainer** uses an import/export model. Upload a compose file, Portainer ingests it, you edit via UI, you can re-export. The export may not match the original. This is fine for their use case but violates GaaS's "filesystem is the database" principle.
+**Portainer** uses an import/export model. Upload a compose file, Portainer ingests it, you edit via UI, you can re-export. The export may not match the original. This is fine for their use case but violates Assistant's "filesystem is the database" principle.
 
 ### JSON Schema form generation
 
@@ -44,7 +44,7 @@ No existing library takes a JSON Schema (or Pydantic model) and emits server-ren
 
 ### Frontend approaches
 
-We evaluated three stacks against GaaS's constraints: Python-developer team, FastAPI + Jinja2 already in the project, maintainability over features, no desire for a JavaScript build toolchain.
+We evaluated three stacks against Assistant's constraints: Python-developer team, FastAPI + Jinja2 already in the project, maintainability over features, no desire for a JavaScript build toolchain.
 
 | | HTMX + Jinja2 | Alpine.js + HTMX | Full SPA |
 |---|---|---|---|
@@ -152,7 +152,7 @@ No phase requires Node.js, npm, or a JavaScript build step.
 
 ### FastUI (Pydantic-native)
 
-Everything defined in Python, pre-built React app renders it. Appealing because GaaS already has Pydantic models for everything. But FastUI is young, the component set is limited, and custom widgets require React knowledge, which defeats the "all Python" premise. Non-standard UI patterns like `!yolo` badges or provenance display would require forking or upstream contributions.
+Everything defined in Python, pre-built React app renders it. Appealing because Assistant already has Pydantic models for everything. But FastUI is young, the component set is limited, and custom widgets require React knowledge, which defeats the "all Python" premise. Non-standard UI patterns like `!yolo` badges or provenance display would require forking or upstream contributions.
 
 ### Full SPA with RJSF
 

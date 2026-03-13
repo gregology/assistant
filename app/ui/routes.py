@@ -34,7 +34,7 @@ from app.ui.yaml_rw import (
 
 _TEMPLATE_DIR = Path(__file__).parent / "templates"
 _env = Environment(loader=FileSystemLoader(_TEMPLATE_DIR), autoescape=True)
-_SENTINEL = Path(__file__).resolve().parent.parent.parent / ".gaas-restart"
+_SENTINEL = Path(__file__).resolve().parent.parent.parent / ".assistant-restart"
 
 log = logging.getLogger(__name__)
 
@@ -47,7 +47,7 @@ router = APIRouter(prefix="/ui")
 
 
 def _supervisor_active() -> bool:
-    return os.environ.get("GAAS_SUPERVISOR") == "1"
+    return os.environ.get("ASSISTANT_SUPERVISOR") == "1"
 
 
 def _render_error(error_msg: str) -> HTMLResponse:

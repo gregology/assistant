@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 
 from app.config import config
-from gaas_sdk.logging import HUMAN, get_logger  # noqa: F401 — re-export get_logger
+from assistant_sdk.logging import HUMAN, get_logger  # noqa: F401 — re-export get_logger
 
 _log_dir: Path = Path(config.directories.logs)
 

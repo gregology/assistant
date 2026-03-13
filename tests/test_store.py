@@ -1,6 +1,6 @@
 import frontmatter
 
-from gaas_sdk.store import NoteStore
+from assistant_sdk.store import NoteStore
 
 
 class TestNoteStore:
@@ -59,7 +59,7 @@ class TestNoteStore:
 
     def test_all_returns_empty_for_nonexistent_dir(self):
         from pathlib import Path
-        store = NoteStore(Path("/tmp/gaas_test_nonexistent_dir"))
+        store = NoteStore(Path("/tmp/assistant_test_nonexistent_dir"))
         assert store.all() == []
 
     def test_save_creates_directory_if_missing(self, tmp_path):

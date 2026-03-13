@@ -19,7 +19,7 @@ from pathlib import Path
 
 import yaml
 
-from gaas_sdk.manifest import (
+from assistant_sdk.manifest import (
     IntegrationManifest,
     PlatformManifest,
     ServiceManifest,
@@ -71,9 +71,9 @@ def _discover_entry_points() -> dict[str, IntegrationManifest]:
     """Discover integrations installed as Python packages with entry points."""
     manifests: dict[str, IntegrationManifest] = {}
     try:
-        eps = importlib.metadata.entry_points(group="gaas.integrations")
+        eps = importlib.metadata.entry_points(group="assistant.integrations")
     except Exception:
-        log.debug("No gaas.integrations entry points found")
+        log.debug("No assistant.integrations entry points found")
         return manifests
 
     for ep in eps:
@@ -276,24 +276,24 @@ def _load_module(manifest: IntegrationManifest) -> object:
 def _load_custom_module(manifest: IntegrationManifest) -> object:
     """Load a custom integration via spec_from_file_location.
 
-    Uses a ``gaas_ext.{domain}`` namespace to avoid stdlib shadowing
+    Uses a ``assistant_ext.{domain}`` namespace to avoid stdlib shadowing
     and cross-integration leakage. Relative imports within the
     integration package work normally.
     """
-    module_name = f"gaas_ext.{manifest.domain}"
+    module_name = f"assistant_ext.{manifest.domain}"
     init_path = manifest.path / "__init__.py"
 
     if not init_path.exists():
         raise ImportError(f"No __init__.py found in {manifest.path}")
 
-    # Ensure the gaas_ext namespace package exists
-    if "gaas_ext" not in sys.modules:
+    # Ensure the assistant_ext namespace package exists
+    if "assistant_ext" not in sys.modules:
         import types
 
-        ns_pkg = types.ModuleType("gaas_ext")
+        ns_pkg = types.ModuleType("assistant_ext")
         ns_pkg.__path__ = []
-        ns_pkg.__package__ = "gaas_ext"
-        sys.modules["gaas_ext"] = ns_pkg
+        ns_pkg.__package__ = "assistant_ext"
+        sys.modules["assistant_ext"] = ns_pkg
 
     spec = importlib.util.spec_from_file_location(
         module_name,
@@ -330,7 +330,7 @@ def load_const_module(manifest: IntegrationManifest) -> object | None:
         except ImportError:
             return None
     else:
-        module_name = f"gaas_ext.{manifest.domain}.const"
+        module_name = f"assistant_ext.{manifest.domain}.const"
         spec = importlib.util.spec_from_file_location(module_name, const_path)
         if spec is None:
             return None
@@ -365,7 +365,7 @@ def load_platform_const_module(manifest: IntegrationManifest, platform_name: str
     elif manifest.builtin:
         module_name = f"app.integrations.{manifest.domain}.platforms.{platform_name}.const"
     else:
-        module_name = f"gaas_ext.{manifest.domain}.platforms.{platform_name}.const"
+        module_name = f"assistant_ext.{manifest.domain}.platforms.{platform_name}.const"
 
     if module_name in sys.modules:
         return sys.modules[module_name]

@@ -7,9 +7,9 @@ This is the spec. Everything here is required unless marked optional.
 Platform integration:
 
 ```
-packages/gaas-{domain}/
+packages/assistant-{domain}/
   pyproject.toml
-  src/gaas_{domain}/
+  src/assistant_{domain}/
     __init__.py
     manifest.yaml
     client.py                     # API client (if needed)
@@ -32,9 +32,9 @@ packages/gaas-{domain}/
 Service integration:
 
 ```
-packages/gaas-{domain}/
+packages/assistant-{domain}/
   pyproject.toml
-  src/gaas_{domain}/
+  src/assistant_{domain}/
     __init__.py
     manifest.yaml
     client.py                     # API client (if needed)
@@ -53,35 +53,35 @@ The source `__init__.py` files can be empty. Handler loading goes through the ma
 
 ```toml
 [project]
-name = "gaas-{domain}"
+name = "assistant-{domain}"
 version = "0.1.0"
 description = "Short description"
 requires-python = ">=3.11"
 dependencies = [
-    "gaas-sdk>=0.1.0",
+    "assistant-sdk>=0.1.0",
     # your dependencies here
 ]
 
-[project.entry-points."gaas.integrations"]
-{domain} = "gaas_{domain}"
+[project.entry-points."assistant.integrations"]
+{domain} = "assistant_{domain}"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/gaas_{domain}"]
+packages = ["src/assistant_{domain}"]
 ```
 
 The entry point key must match your `domain` in `manifest.yaml`. The value is the importable module name.
 
 You also need to add the package to the root `pyproject.toml`:
-- Add `gaas-{domain}` to `[project.dependencies]` (or as an optional extra if the integration has heavy deps like `google-genai`)
+- Add `assistant-{domain}` to `[project.dependencies]` (or as an optional extra if the integration has heavy deps like `google-genai`)
 - Add a source mapping under `[tool.uv.sources]` pointing to the local path
 
 ## manifest.yaml
 
-This is how GaaS discovers your integration. Lives at `src/gaas_{domain}/manifest.yaml`.
+This is how Assistant discovers your integration. Lives at `src/assistant_{domain}/manifest.yaml`.
 
 ### Required fields
 
@@ -221,7 +221,7 @@ The returned dict gets saved as a markdown note (default behavior). Keys become 
 Every platform needs a `const.py` with these four exports:
 
 ```python
-from gaas_sdk.models import ClassificationConfig
+from assistant_sdk.models import ClassificationConfig
 
 DEFAULT_CLASSIFICATIONS: dict[str, ClassificationConfig] = {
     # What questions would a human ask when triaging these items?
@@ -268,10 +268,10 @@ It's fine for `IRREVERSIBLE_ACTIONS` and `SIMPLE_ACTIONS` to start empty. GitHub
 
 ## Runtime API
 
-Everything your integration needs is in `gaas_sdk.runtime`:
+Everything your integration needs is in `assistant_sdk.runtime`:
 
 ```python
-from gaas_sdk import runtime
+from assistant_sdk import runtime
 
 # Queue a task. Returns task ID or None if rejected by policy.
 task_id = runtime.enqueue(payload_dict, priority=5, provenance="rule")
@@ -305,10 +305,10 @@ Lower number = higher priority. The worker always picks the lowest-numbered pend
 
 ## Tests
 
-Tests live in `packages/gaas-{domain}/tests/` and import from `gaas_sdk.*` directly. No `app.*` imports. They run without the app config singleton.
+Tests live in `packages/assistant-{domain}/tests/` and import from `assistant_sdk.*` directly. No `app.*` imports. They run without the app config singleton.
 
 ```bash
-uv run pytest packages/gaas-{domain}/tests/ -v
+uv run pytest packages/assistant-{domain}/tests/ -v
 ```
 
 What to test, in priority order:

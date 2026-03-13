@@ -1,6 +1,6 @@
 # Safety Model
 
-GaaS has three core safety principles. Every feature in the system must respect all of them.
+Assistant has three core safety principles. Every feature in the system must respect all of them.
 
 **Reversibility.** Every autonomous action must be undoable. Draft instead of send. Archive instead of delete. Search local notes instead of sending data to Google. If an action cannot be undone, it requires human approval.
 
@@ -21,7 +21,7 @@ Not all reversibility is equal. Unarchiving an email is trivial. Resubscribing t
 
 When adding a new action to the system, you categorize it into a tier *before* you write any code or tests. The tier drives everything downstream: what testing strategy to use, whether the action needs human approval, and whether it can be triggered by LLM classification at all.
 
-Some reversibility is also time-dependent. Deleting an email is recoverable within a 30-day retention window, then it isn't. Turning off a heat pump is reversible unless the pipes freeze overnight. The four tiers are a starting point. As GaaS expands into new domains the model will need to account for difficulty, time windows, and context.
+Some reversibility is also time-dependent. Deleting an email is recoverable within a 30-day retention window, then it isn't. Turning off a heat pump is reversible unless the pipes freeze overnight. The four tiers are a starting point. As Assistant expands into new domains the model will need to account for difficulty, time windows, and context.
 
 ## Provenance
 

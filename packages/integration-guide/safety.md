@@ -1,6 +1,6 @@
 # Safety Model
 
-This is the part you can't skip. GaaS exists because autonomous AI actions need safety boundaries. Every integration participates in the safety model whether it wants to or not.
+This is the part you can't skip. Assistant exists because autonomous AI actions need safety boundaries. Every integration participates in the safety model whether it wants to or not.
 
 ## Reversibility tiers
 

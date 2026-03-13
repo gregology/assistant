@@ -9,8 +9,8 @@ import logging
 from collections.abc import Mapping
 
 from app.loader import get_manifests, get_modules
-from gaas_sdk import runtime
-from gaas_sdk.protocols import TaskHandler
+from assistant_sdk import runtime
+from assistant_sdk.protocols import TaskHandler
 
 log = logging.getLogger(__name__)
 

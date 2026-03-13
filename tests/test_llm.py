@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-import gaas_sdk.runtime
+import assistant_sdk.runtime
 from app.llm import (
     LLMConversation,
     LLMResponse,
@@ -211,6 +211,6 @@ class TestLLMConversation:
 class TestSharedBackendViaRuntime:
     def test_runtime_conversations_share_backend(self):
         """Conversations created via runtime.create_llm_conversation share a backend."""
-        conv1 = gaas_sdk.runtime.create_llm_conversation(model="default")
-        conv2 = gaas_sdk.runtime.create_llm_conversation(model="default")
+        conv1 = assistant_sdk.runtime.create_llm_conversation(model="default")
+        conv2 = assistant_sdk.runtime.create_llm_conversation(model="default")
         assert conv1._backend is conv2._backend

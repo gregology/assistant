@@ -1,6 +1,6 @@
 # Decisions Log
 
-This document records the _why_ behind GaaS's architecture. Every entry is a decision that was made deliberately. If you're refactoring and find yourself about to undo one of these, read the rationale first.
+This document records the _why_ behind Assistant's architecture. Every entry is a decision that was made deliberately. If you're refactoring and find yourself about to undo one of these, read the rationale first.
 
 Decisions are grouped by area. Within each area they're roughly chronological but that's not strict.
 
@@ -10,7 +10,7 @@ Decisions are grouped by area. Within each area they're roughly chronological bu
 
 ### Sender-benefit vs receiver-benefit framing
 
-Most inbox traffic exists to serve the sender, not the receiver. A terms of service update email exists because legal needs a paper trail. It was not written for you. GaaS automates triage to get sender-benefit traffic out of the way. The longer-term goal is transforming sender-benefit messages into receiver-benefit information (e.g. diffing a ToS update to surface what actually changed).
+Most inbox traffic exists to serve the sender, not the receiver. A terms of service update email exists because legal needs a paper trail. It was not written for you. Assistant automates triage to get sender-benefit traffic out of the way. The longer-term goal is transforming sender-benefit messages into receiver-benefit information (e.g. diffing a ToS update to surface what actually changed).
 
 This framing drives feature prioritization. If a feature doesn't help the user reclaim attention, it doesn't belong.
 
@@ -48,11 +48,11 @@ Tasks are YAML files that move between `pending/`, `active/`, `done/`, `failed/`
 
 Two reasons. First, human inspectability. `ls data/queue/pending/` shows exactly what's waiting. `cat` any file to see the full task payload. No tooling required. Second, RAM is better spent on LLM inference than a queueing system.
 
-The tradeoff is that the queue can't handle thousands of concurrent tasks efficiently. That's fine. GaaS processes dozens of emails and PRs per run, not millions.
+The tradeoff is that the queue can't handle thousands of concurrent tasks efficiently. That's fine. Assistant processes dozens of emails and PRs per run, not millions.
 
 ### Markdown with YAML frontmatter for all persistent state
 
-Every piece of state (emails, PRs, issues, classification results) lives in markdown files with YAML frontmatter. You can open any file in a text editor and see exactly what GaaS knows about that item.
+Every piece of state (emails, PRs, issues, classification results) lives in markdown files with YAML frontmatter. You can open any file in a text editor and see exactly what Assistant knows about that item.
 
 This was chosen over a database because the data is inherently document-shaped and the access patterns are simple (read by key, list directory, move between directories). The human readability is the primary benefit. The secondary benefit is that notes integrate with tools like Obsidian without any export step.
 
@@ -70,7 +70,7 @@ Why: it means `ls pending/ | head` shows you the next task. No parsing needed fo
 
 `os.rename()` is atomic on POSIX. If two workers race for the same file, one gets `FileNotFoundError` and returns `None`. No locks, no transactions.
 
-Why: correctness without complexity. The concurrent dequeue simulation test verifies this actually works. This pattern won't work on NFS or across machines, but GaaS runs on a single host.
+Why: correctness without complexity. The concurrent dequeue simulation test verifies this actually works. This pattern won't work on NFS or across machines, but Assistant runs on a single host.
 
 ### Task conservation invariant
 
@@ -92,7 +92,7 @@ Priority 9 for unauthenticated emails ensures the user's important messages are 
 
 ### TypedDicts for task payloads and queue records
 
-`TaskPayload` and `TaskRecord` in `gaas_sdk.task` define the canonical shape of task dicts. They're structural (TypedDict), not runtime-enforced. mypy and IDEs can catch key typos; handler signatures document what they receive.
+`TaskPayload` and `TaskRecord` in `assistant_sdk.task` define the canonical shape of task dicts. They're structural (TypedDict), not runtime-enforced. mypy and IDEs can catch key typos; handler signatures document what they receive.
 
 The base `TaskPayload` only covers fields shared across all task types: `type` (required) and `integration` (not required — `script.run` tasks omit it). Per-task-type fields (`uid`, `org`, `repo`, `inputs`, `on_result`, etc.) are accessed via `.get()` and intentionally not declared. Adding per-type subtypes is optional and can happen incrementally without breaking the base contract.
 
@@ -254,7 +254,7 @@ Why: simplifies safety analysis. Each automation has a single, clearly defined p
 
 ### All matching automations fire
 
-Unlike some rule engines where the first match wins, GaaS fires every automation whose conditions are satisfied. Users design non-conflicting rule sets.
+Unlike some rule engines where the first match wins, Assistant fires every automation whose conditions are satisfied. Users design non-conflicting rule sets.
 
 Why: first-match-wins creates implicit ordering dependencies that are hard to reason about. Fire-all means each automation is independent and can be understood in isolation. The tradeoff is that users need to avoid conflicting actions (e.g., `archive` and `trash` on the same email).
 
@@ -328,7 +328,7 @@ Why: the storage pattern is the same everywhere. Only the domain logic differs. 
 
 ### `GitHubEntityStore` base class for PR and issue stores
 
-`PullRequestStore` and `IssueStore` share identical logic for `find`, `find_anywhere`, `active_keys`, `update`, `move_to_synced`, and `restore_to_active` -- all keyed by `(org, repo, number)`. The `GitHubEntityStore` base class in `packages/gaas-github/src/gaas_github/entity_store.py` provides these methods. Each subclass overrides only `save()` with entity-specific field mappings.
+`PullRequestStore` and `IssueStore` share identical logic for `find`, `find_anywhere`, `active_keys`, `update`, `move_to_synced`, and `restore_to_active` -- all keyed by `(org, repo, number)`. The `GitHubEntityStore` base class in `packages/assistant-github/src/assistant_github/entity_store.py` provides these methods. Each subclass overrides only `save()` with entity-specific field mappings.
 
 Why: the two stores were 106 and 105 lines of nearly identical code. Divergence risk was high -- a bug fix in one might not propagate to the other. The base class lives at the integration level (not in the SDK) because it's GitHub-specific infrastructure, not a core pattern.
 
@@ -358,7 +358,7 @@ Double underscore again because org names and repo names can contain single char
 
 ### Three-channel discovery model
 
-Integrations are discovered through three channels: builtin directory (`app/integrations/`), custom directory (user-configured), and Python entry points (`gaas.integrations` group). Priority: builtin > custom > entry points.
+Integrations are discovered through three channels: builtin directory (`app/integrations/`), custom directory (user-configured), and Python entry points (`assistant.integrations` group). Priority: builtin > custom > entry points.
 
 The original two-directory model followed HA's pattern. Entry-point discovery was added when email and GitHub were extracted into installable packages under `packages/`. Entry points let packages register themselves without being copied into `app/integrations/`. The priority order means users can shadow an installed package with a local override during development, same as HA's `custom_components/` behavior.
 
@@ -378,11 +378,11 @@ Why: custom integrations can define their own config fields without modifying co
 
 Each integration owns its pipeline stages. `evaluate.py`, `classify.py`, `act.py` -- each lives inside the integration package with platform-specific logic (snapshot construction, prompt rendering, action execution, value resolution).
 
-However, the automation evaluation engine and classification schema builder are **infrastructure**, not pipeline logic. They operate on `AutomationConfig` and `ClassificationConfig` and have no integration-specific knowledge. They live in `gaas_sdk.evaluate` and `gaas_sdk.classify` respectively, in the same category as `resolve_provenance` and `YoloAction`.
+However, the automation evaluation engine and classification schema builder are **infrastructure**, not pipeline logic. They operate on `AutomationConfig` and `ClassificationConfig` and have no integration-specific knowledge. They live in `assistant_sdk.evaluate` and `assistant_sdk.classify` respectively, in the same category as `resolve_provenance` and `YoloAction`.
 
 The line: if it operates on core config types and is identical across all platforms (evaluation engine, schema building, provenance), it goes in the SDK. If it touches platform-specific data (snapshots, prompts, stores, actions, value resolution), it stays in the integration.
 
-This was originally "everything stays in the integration" but was refined when three-way duplication of the evaluation engine across platforms created a maintenance burden. The evaluation engine is the safety-critical dispatch boundary -- having a single authoritative copy reduces the risk of divergence in safety-critical code. Integrations import from `gaas_sdk.evaluate` and `gaas_sdk.classify`.
+This was originally "everything stays in the integration" but was refined when three-way duplication of the evaluation engine across platforms created a maintenance burden. The evaluation engine is the safety-critical dispatch boundary -- having a single authoritative copy reduces the risk of divergence in safety-critical code. Integrations import from `assistant_sdk.evaluate` and `assistant_sdk.classify`.
 
 ### Pipeline handler duplication is accepted — extract when a fourth integration lands
 
@@ -414,9 +414,9 @@ Four approaches were considered: (1) warning only, (2) fail-safe only, (3) confi
 
 This is consistent with the existing pattern: scripts default to irreversible, services default to irreversible, unknown action types default to irreversible. Missing `const.py` follows the same "guilty until proven innocent" approach.
 
-### Custom integrations use `gaas_ext.{domain}` namespace
+### Custom integrations use `assistant_ext.{domain}` namespace
 
-Custom integration packages are loaded into `gaas_ext.*` via `importlib.util.spec_from_file_location()`. A synthetic namespace package is created in `sys.modules`.
+Custom integration packages are loaded into `assistant_ext.*` via `importlib.util.spec_from_file_location()`. A synthetic namespace package is created in `sys.modules`.
 
 Why: avoids stdlib shadowing (a custom integration called `email` would shadow Python's `email` module) and cross-integration leakage. Relative imports within the custom integration still work because the package structure is preserved.
 
@@ -430,7 +430,7 @@ Why: the domain determines the handler namespace (`email.inbox.check`). If it do
 
 `check_dependencies()` tries to import each declared dependency. If it fails, the integration is skipped with a warning.
 
-Why: auto-installing packages at runtime is a side effect that can break environments. GaaS is explicit about what's installed. If you want an integration, install its deps with `uv add`.
+Why: auto-installing packages at runtime is a side effect that can break environments. Assistant is explicit about what's installed. If you want an integration, install its deps with `uv add`.
 
 ---
 
@@ -440,25 +440,25 @@ Why: auto-installing packages at runtime is a side effect that can break environ
 
 Integrations were tightly coupled to 7 `app.*` modules. Every handler file imported from `app.config`, `app.evaluate`, `app.classify`, `app.store`, `app.queue`, `app.llm`. That made them impossible to develop, test, or distribute independently.
 
-The `gaas-sdk` package extracts the contracts layer: models, evaluation engine, classification utilities, NoteStore, manifest dataclasses, provenance resolution, runtime registration, and shared action partitioning. Integrations depend on `gaas-sdk` instead of `app.*`.
+The `assistant-sdk` package extracts the contracts layer: models, evaluation engine, classification utilities, NoteStore, manifest dataclasses, provenance resolution, runtime registration, and shared action partitioning. Integrations depend on `assistant-sdk` instead of `app.*`.
 
 The alternative was each integration copying what it needs from `app.*`. No shared package. Simple, but then you have three copies of the evaluate engine drifting apart. Bug fixes need to land in multiple places. The SDK is small (~400 lines total across 8 modules) and the extraction boundary is clean, so the coordination cost of a shared package is low.
 
 ### Runtime registration instead of dependency injection or ABC contracts
 
-Integration code needs to enqueue tasks, look up config, create LLM conversations. Previously that meant `from app.config import config` and `from app import queue`. The runtime registration pattern replaces this: integrations call `gaas_sdk.runtime.enqueue()`, `runtime.get_integration()`, etc. The app registers real implementations at startup.
+Integration code needs to enqueue tasks, look up config, create LLM conversations. Previously that meant `from app.config import config` and `from app import queue`. The runtime registration pattern replaces this: integrations call `assistant_sdk.runtime.enqueue()`, `runtime.get_integration()`, etc. The app registers real implementations at startup.
 
 Two alternatives were considered:
 
 **Dependency injection via constructor args.** Every handler function would receive a `context` object with `enqueue`, `get_config`, etc. Clean in theory. In practice it means changing every handler signature, threading context through 5+ levels of the check->collect->classify->evaluate->act pipeline, and updating every test. The handler registry pattern (simple function that takes a task dict) is one of the better parts of the current design.
 
-**Abstract base classes for integration contracts.** Define `class BaseIntegration(ABC)` with abstract methods. This works well for frameworks like Django but fights the current architecture. GaaS integrations are bags of handler functions registered by name, not class hierarchies. Forcing them into an OOP shape would mean rewriting the handler registry, the manifest system, and the worker dispatch.
+**Abstract base classes for integration contracts.** Define `class BaseIntegration(ABC)` with abstract methods. This works well for frameworks like Django but fights the current architecture. Assistant integrations are bags of handler functions registered by name, not class hierarchies. Forcing them into an OOP shape would mean rewriting the handler registry, the manifest system, and the worker dispatch.
 
 ### Installable packages over namespace packages
 
 Email, GitHub, and Gemini ship as independent packages under `packages/` with their own `pyproject.toml` files. Each registers as a Python entry point.
 
-The alternative was namespace packages (`gaas.sdk`, `gaas.email`, etc.) in a single package. This avoids multi-package complexity but has rough edges with editable installs, and doesn't give you independent installability. You still can't `pip install gaas-email` without pulling the whole repo. The point was making integrations distributable.
+The alternative was namespace packages (`assistant.sdk`, `assistant.email`, etc.) in a single package. This avoids multi-package complexity but has rough edges with editable installs, and doesn't give you independent installability. You still can't `pip install assistant-email` without pulling the whole repo. The point was making integrations distributable.
 
 ### Services as a manifest declaration
 
@@ -542,7 +542,7 @@ The structural benefit: the evaluate step is a pure function from frontmatter da
 
 GitHub API calls go through `subprocess.run(["gh", "api", ...])`. Not `httpx`, not PyGithub, not the REST API directly.
 
-Deliberate tradeoff. The `gh` CLI handles authentication (OAuth device flow, SSH keys, token storage), rate limiting, and pagination. Using it means GaaS doesn't need to implement any of that. The cost is a hard dependency on `gh` being installed and authenticated, but anyone working with GitHub repositories almost certainly has it already.
+Deliberate tradeoff. The `gh` CLI handles authentication (OAuth device flow, SSH keys, token storage), rate limiting, and pagination. Using it means Assistant doesn't need to implement any of that. The cost is a hard dependency on `gh` being installed and authenticated, but anyone working with GitHub repositories almost certainly has it already.
 
 ### IMAP folder auto-discovery
 
@@ -594,7 +594,7 @@ Why: time-based rules are a natural fit for calendar events. Checking "has this 
 
 `log.human()` sits between INFO (20) and WARNING (30). A filter ensures only HUMAN-level messages hit the daily markdown file. `log.info()` for operational details stays in the normal log output.
 
-Why: the human log answers "what did GaaS do today?" The operational log answers "why did the IMAP connection fail?" Different audiences, different files.
+Why: the human log answers "what did Assistant do today?" The operational log answers "why did the IMAP connection fail?" Different audiences, different files.
 
 ### `O_APPEND` for concurrent writes
 
@@ -654,7 +654,7 @@ No SQLite, no Postgres, no Redis. The filesystem handles task queueing and data 
 
 Uses the OpenAI-compatible `/v1/chat/completions` endpoint directly via `httpx`. No `openai` package, no `anthropic` package, no LLM-specific SDK.
 
-Why: backend-agnostic by design. Ollama, llama.cpp, vLLM, and OpenAI all speak the same endpoint format. Adding an SDK would couple GaaS to a specific provider.
+Why: backend-agnostic by design. Ollama, llama.cpp, vLLM, and OpenAI all speak the same endpoint format. Adding an SDK would couple Assistant to a specific provider.
 
 ### `httpx` over `requests`
 
@@ -726,7 +726,7 @@ Why: scripts can be long-running. A 5-minute ToS research script shouldn't block
 
 ### Preamble-injected logging helpers
 
-Every script gets a bash preamble prepended with `log_human`, `log_info`, and `log_warn` functions. These write `LEVEL\tMESSAGE` records to a temp file (`$GAAS_LOG`) using `\x1e` (ASCII Record Separator) as the record delimiter.
+Every script gets a bash preamble prepended with `log_human`, `log_info`, and `log_warn` functions. These write `LEVEL\tMESSAGE` records to a temp file (`$ASSISTANT_LOG`) using `\x1e` (ASCII Record Separator) as the record delimiter.
 
 Why `\x1e` instead of newlines: multi-line log messages (heredocs) need to pass through cleanly. The Record Separator character never appears in natural text. After the script completes, the executor reads the file, splits on `\x1e`, and routes each record to the appropriate Python logger.
 
@@ -744,9 +744,9 @@ See `docs/architecture/web-ui.md` for the full research and architecture documen
 
 ### No built-in authentication
 
-GaaS does not implement authentication or user management. The web UI is open by default.
+Assistant does not implement authentication or user management. The web UI is open by default.
 
-GaaS is a personal assistant running on your own infrastructure. Adding auth creates maintenance burden, dependency surface area, and configuration complexity that's disproportionate to the threat model. A personal tool running on localhost doesn't need a user database.
+Assistant is a personal assistant running on your own infrastructure. Adding auth creates maintenance burden, dependency surface area, and configuration complexity that's disproportionate to the threat model. A personal tool running on localhost doesn't need a user database.
 
 Users who need access control should use infrastructure-level solutions: reverse proxy with basic auth (Caddy, nginx), VPN/tailnet (Tailscale, WireGuard), or firewall rules. This is the same model Home Assistant used before HASS.io, Grafana in local mode, and Prometheus.
 
@@ -764,7 +764,7 @@ The tradeoff: we need to solve YAML round-tripping (preserving comments and form
 
 Phase 1 is a config viewer. Phase 2 adds editing for flat sections. Phase 3 adds complex editing and onboarding.
 
-Starting read-only follows Grafana's pattern and matches GaaS's trust principles. A viewer carries zero risk of mangling user files. It validates the template structure before any file mutation code exists. Each phase is independently shippable and useful.
+Starting read-only follows Grafana's pattern and matches Assistant's trust principles. A viewer carries zero risk of mangling user files. It validates the template structure before any file mutation code exists. Each phase is independently shippable and useful.
 
 The alternative was building editing from the start. We rejected that because it front-loads the hardest problems (YAML round-tripping, complex nested form state, validation) before the basic UI framework is proven.
 
@@ -790,9 +790,9 @@ StrictYAML was considered but rejects custom YAML tags (`!secret`, `!yolo`). Tha
 
 ### Default port 6767, not 8000
 
-GaaS binds to port 6767 instead of the uvicorn default of 8000.
+Assistant binds to port 6767 instead of the uvicorn default of 8000.
 
-Port 8000 conflicts with llama.cpp's default server port. Since GaaS is designed to work with local LLM inference and llama.cpp is a common backend, running both on 8000 means one of them has to be reconfigured every time. Making GaaS the one that moves is the right call: llama.cpp's port is baked into model server scripts, docker-compose files, and other tooling that's harder to change. GaaS is one line in the supervisor.
+Port 8000 conflicts with llama.cpp's default server port. Since Assistant is designed to work with local LLM inference and llama.cpp is a common backend, running both on 8000 means one of them has to be reconfigured every time. Making Assistant the one that moves is the right call: llama.cpp's port is baked into model server scripts, docker-compose files, and other tooling that's harder to change. Assistant is one line in the supervisor.
 
 6767 was chosen because it's not claimed by any well-known service and is easy to remember.
 
@@ -810,4 +810,4 @@ Why: the UI allows multiple concurrent POST requests (e.g. updating an LLM profi
 
 The web process calls `reload_config()` immediately after any successful configuration write.
 
-Why: GaaS uses a module-level `config` singleton loaded at startup. While the UI writes to `config.yaml` on disk, the running web server's memory remains stale. Explicitly reloading the singleton ensures that the Dashboard, navigation, and subsequent config views reflect the changes (like updated log paths or integration names) without requiring a full process restart. Note that the worker and scheduler processes still require a full restart to pick up changes, as they are separate processes.
+Why: Assistant uses a module-level `config` singleton loaded at startup. While the UI writes to `config.yaml` on disk, the running web server's memory remains stale. Explicitly reloading the singleton ensures that the Dashboard, navigation, and subsequent config views reflect the changes (like updated log paths or integration names) without requiring a full process restart. Note that the worker and scheduler processes still require a full restart to pick up changes, as they are separate processes.

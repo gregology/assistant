@@ -1,13 +1,13 @@
 [project]
-name = "gaas"
+name = "assistant"
 version = "0.1.0"
 description = "AI-powered personal assistant — email, PRs, issues, safely"
 requires-python = ">=3.11"
 dependencies = [
-    "gaas-sdk",
-    "gaas-email",
-    "gaas-github",
-    "gaas-gemini",
+    "assistant-sdk",
+    "assistant-email",
+    "assistant-github",
+    "assistant-gemini",
     "fastapi[standard]>=0.129.0",
     "jinja2>=3.1.6",
     "jsonschema>=4.23",
@@ -18,7 +18,7 @@ dependencies = [
 ]
 
 [project.scripts]
-gaas = "app.cli:main"
+assistant = "app.cli:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -44,13 +44,13 @@ dev = [
 ]
 
 [tool.uv.sources]
-gaas-sdk = { path = "packages/gaas-sdk", editable = true }
-gaas-email = { path = "packages/gaas-email", editable = true }
-gaas-github = { path = "packages/gaas-github", editable = true }
-gaas-gemini = { path = "packages/gaas-gemini", editable = true }
+assistant-sdk = { path = "packages/assistant-sdk", editable = true }
+assistant-email = { path = "packages/assistant-email", editable = true }
+assistant-github = { path = "packages/assistant-github", editable = true }
+assistant-gemini = { path = "packages/assistant-gemini", editable = true }
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "packages/gaas-email/tests", "packages/gaas-gemini/tests", "packages/gaas-github/tests", "packages/gaas-sdk/tests"]
+testpaths = ["tests", "packages/assistant-email/tests", "packages/assistant-gemini/tests", "packages/assistant-github/tests", "packages/assistant-sdk/tests"]
 pythonpath = ["."]
 addopts = "--import-mode=importlib"
 
@@ -59,12 +59,12 @@ strict = true
 plugins = ["pydantic.mypy"]
 warn_return_any = true
 warn_unused_configs = true
-exclude = ["packages/gaas-gemini/", "packages/.*/tests/"]
+exclude = ["packages/assistant-gemini/", "packages/.*/tests/"]
 explicit_package_bases = true
-mypy_path = ["packages/gaas-sdk/src", "packages/gaas-email/src"]
+mypy_path = ["packages/assistant-sdk/src", "packages/assistant-email/src"]
 
 [[tool.mypy.overrides]]
-module = "gaas_sdk.*"
+module = "assistant_sdk.*"
 strict = true
 
 [[tool.mypy.overrides]]
@@ -89,18 +89,18 @@ module = [
 ignore_missing_imports = true
 
 [tool.importlinter]
-root_packages = ["app", "gaas_sdk", "gaas_email", "gaas_github", "gaas_gemini"]
+root_packages = ["app", "assistant_sdk", "assistant_email", "assistant_github", "assistant_gemini"]
 
 [[tool.importlinter.contracts]]
 name = "SDK does not import app"
 type = "forbidden"
-source_modules = ["gaas_sdk"]
+source_modules = ["assistant_sdk"]
 forbidden_modules = ["app"]
 
 [[tool.importlinter.contracts]]
 name = "Integrations do not import app"
 type = "forbidden"
-source_modules = ["gaas_email", "gaas_github", "gaas_gemini"]
+source_modules = ["assistant_email", "assistant_github", "assistant_gemini"]
 forbidden_modules = ["app"]
 
 [tool.ruff]
@@ -114,9 +114,9 @@ ignore = ["ANN401", "ANN204"]
 "tests/**/*.py" = ["ANN"]
 "packages/*/tests/**/*.py" = ["ANN"]
 "app/**/*.py" = ["ANN001", "ANN002", "ANN003", "ANN201", "ANN202"]
-"packages/gaas-email/**/*.py" = ["ANN001", "ANN002", "ANN003", "ANN201", "ANN202"]
-"packages/gaas-github/**/*.py" = ["ANN001", "ANN002", "ANN003", "ANN201", "ANN202"]
-"packages/gaas-gemini/**/*.py" = ["ANN001", "ANN002", "ANN003", "ANN201", "ANN202"]
+"packages/assistant-email/**/*.py" = ["ANN001", "ANN002", "ANN003", "ANN201", "ANN202"]
+"packages/assistant-github/**/*.py" = ["ANN001", "ANN002", "ANN003", "ANN201", "ANN202"]
+"packages/assistant-gemini/**/*.py" = ["ANN001", "ANN002", "ANN003", "ANN201", "ANN202"]
 
 [tool.ruff.lint.flake8-type-checking]
 runtime-evaluated-base-classes = ["pydantic.BaseModel"]

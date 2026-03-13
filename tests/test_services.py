@@ -7,10 +7,10 @@ from unittest.mock import patch
 import yaml
 
 from app.loader import _load_manifest
-from gaas_sdk.actions import is_service_action, enqueue_actions
-from gaas_sdk.evaluate import MISSING
-from gaas_sdk.manifest import ServiceManifest
-from gaas_sdk.models import ServiceAction, SimpleAction
+from assistant_sdk.actions import is_service_action, enqueue_actions
+from assistant_sdk.evaluate import MISSING
+from assistant_sdk.manifest import ServiceManifest
+from assistant_sdk.models import ServiceAction, SimpleAction
 
 
 def _make_resolver(**fields):
@@ -116,7 +116,7 @@ class TestEnqueueServiceActions:
     def test_service_action_enqueued(self):
         """Service actions are enqueued with correct type and integration."""
         resolver = _make_resolver(domain="test.com")
-        with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
+        with patch("assistant_sdk.runtime._enqueue") as mock_enqueue:
             mock_enqueue.return_value = "task_1"
             enqueue_actions(
                 actions=[ServiceAction(service={
@@ -137,7 +137,7 @@ class TestEnqueueServiceActions:
     def test_service_input_resolution(self):
         """{{ field }} references in service inputs are resolved."""
         resolver = _make_resolver(domain="test.com")
-        with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
+        with patch("assistant_sdk.runtime._enqueue") as mock_enqueue:
             mock_enqueue.return_value = "task_1"
             enqueue_actions(
                 actions=[ServiceAction(service={
@@ -155,7 +155,7 @@ class TestEnqueueServiceActions:
     def test_invalid_service_call_format(self, caplog):
         """Invalid call format (not 3 parts) logs warning and doesn't enqueue."""
         resolver = _make_resolver()
-        with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
+        with patch("assistant_sdk.runtime._enqueue") as mock_enqueue:
             with caplog.at_level(logging.WARNING):
                 enqueue_actions(
                     actions=[ServiceAction(service={"call": "invalid"})],
@@ -170,7 +170,7 @@ class TestEnqueueServiceActions:
     def test_service_malformed_call_two_parts(self, caplog):
         """Two-part call format (missing service name) logs warning and doesn't enqueue."""
         resolver = _make_resolver()
-        with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
+        with patch("assistant_sdk.runtime._enqueue") as mock_enqueue:
             with caplog.at_level(logging.WARNING):
                 enqueue_actions(
                     actions=[ServiceAction(service={"call": "only.two_parts"})],
@@ -185,7 +185,7 @@ class TestEnqueueServiceActions:
     def test_mixed_service_and_platform(self):
         """Service + platform actions produce separate tasks."""
         resolver = _make_resolver()
-        with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
+        with patch("assistant_sdk.runtime._enqueue") as mock_enqueue:
             mock_enqueue.return_value = "task_1"
             enqueue_actions(
                 actions=[
@@ -205,7 +205,7 @@ class TestEnqueueServiceActions:
     def test_default_on_result_for_service(self):
         """Service tasks include default on_result routing."""
         resolver = _make_resolver()
-        with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
+        with patch("assistant_sdk.runtime._enqueue") as mock_enqueue:
             mock_enqueue.return_value = "task_1"
             enqueue_actions(
                 actions=[ServiceAction(service={
@@ -224,7 +224,7 @@ class TestEnqueueServiceActions:
         """Service action can override on_result routing."""
         resolver = _make_resolver()
         custom_routes = [{"type": "note", "path": "research/"}]
-        with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
+        with patch("assistant_sdk.runtime._enqueue") as mock_enqueue:
             mock_enqueue.return_value = "task_1"
             enqueue_actions(
                 actions=[ServiceAction(service={
@@ -245,7 +245,7 @@ class TestServiceHumanLog:
     def test_human_log_from_config(self):
         """Config-level human_log is resolved and included in payload."""
         resolver = _make_resolver(domain="questrade.com")
-        with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
+        with patch("assistant_sdk.runtime._enqueue") as mock_enqueue:
             mock_enqueue.return_value = "task_1"
             enqueue_actions(
                 actions=[ServiceAction(service={
@@ -263,14 +263,14 @@ class TestServiceHumanLog:
 
     def test_human_log_from_manifest_fallback(self):
         """Manifest-level human_log is used when config doesn't specify one."""
-        from gaas_sdk import runtime
+        from assistant_sdk import runtime
         runtime.set_service_log_template(
             "service.gemini.web_research",
             "Web research: {{ prompt | truncate(80) }}",
         )
         try:
             resolver = _make_resolver()
-            with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
+            with patch("assistant_sdk.runtime._enqueue") as mock_enqueue:
                 mock_enqueue.return_value = "task_1"
                 enqueue_actions(
                     actions=[ServiceAction(service={
@@ -289,14 +289,14 @@ class TestServiceHumanLog:
 
     def test_config_human_log_overrides_manifest(self):
         """Config human_log takes precedence over manifest default."""
-        from gaas_sdk import runtime
+        from assistant_sdk import runtime
         runtime.set_service_log_template(
             "service.gemini.web_research",
             "Web research: {{ prompt | truncate(80) }}",
         )
         try:
             resolver = _make_resolver(domain="example.com")
-            with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
+            with patch("assistant_sdk.runtime._enqueue") as mock_enqueue:
                 mock_enqueue.return_value = "task_1"
                 enqueue_actions(
                     actions=[ServiceAction(service={
@@ -317,7 +317,7 @@ class TestServiceHumanLog:
     def test_no_human_log_omitted_from_payload(self):
         """When no human_log is configured, the key is absent from payload."""
         resolver = _make_resolver()
-        with patch("gaas_sdk.runtime._enqueue") as mock_enqueue:
+        with patch("assistant_sdk.runtime._enqueue") as mock_enqueue:
             mock_enqueue.return_value = "task_1"
             enqueue_actions(
                 actions=[ServiceAction(service={

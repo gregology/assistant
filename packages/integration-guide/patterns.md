@@ -146,12 +146,12 @@ Return values for the following classifications:
 
 The `salt` is a random hex string generated per classification call (`secrets.token_hex(4)`). The `scrub` filter removes any occurrences of the `END UNTRUSTED` marker from the untrusted content. This is the dual-barrier defense: the salt makes it harder to guess the delimiter, and the scrub filter removes any attempts to close it early.
 
-Use `make_jinja_env()` from `gaas_sdk.classify` to get a properly configured Jinja2 environment with the `scrub` filter registered.
+Use `make_jinja_env()` from `assistant_sdk.classify` to get a properly configured Jinja2 environment with the `scrub` filter registered.
 
 Your classify handler looks roughly like:
 
 ```python
-from gaas_sdk.classify import build_schema, make_jinja_env
+from assistant_sdk.classify import build_schema, make_jinja_env
 
 def handle(task: dict):
     # ... load integration, platform, note ...
@@ -181,8 +181,8 @@ def handle(task: dict):
 The evaluate handler is the most standardized part of the pipeline. It follows the same pattern everywhere:
 
 ```python
-from gaas_sdk.evaluate import evaluate_automations, resolve_action_provenance, unwrap_actions, MISSING
-from gaas_sdk.actions import enqueue_actions
+from assistant_sdk.evaluate import evaluate_automations, resolve_action_provenance, unwrap_actions, MISSING
+from assistant_sdk.actions import enqueue_actions
 
 def handle(task: dict):
     # Load note, build snapshot, build resolver

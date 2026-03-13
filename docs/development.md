@@ -46,16 +46,16 @@ uv run pytest -v
 This runs tests from five locations (configured in `pyproject.toml`):
 
 - `tests/` - core app tests and safety tests
-- `packages/gaas-email/tests/` - email integration tests
-- `packages/gaas-gemini/tests/` - Gemini integration tests
-- `packages/gaas-github/tests/` - GitHub integration tests
-- `packages/gaas-sdk/tests/` - SDK tests (provenance, store, runtime)
+- `packages/assistant-email/tests/` - email integration tests
+- `packages/assistant-gemini/tests/` - Gemini integration tests
+- `packages/assistant-github/tests/` - GitHub integration tests
+- `packages/assistant-sdk/tests/` - SDK tests (provenance, store, runtime)
 
 To run a subset:
 
 ```bash
 uv run pytest tests/safety               # Safety invariant tests only
-uv run pytest packages/gaas-email/tests/  # Email package tests only
+uv run pytest packages/assistant-email/tests/  # Email package tests only
 ```
 
 The test suite uses [Hypothesis](https://hypothesis.readthedocs.io/) for property-based testing of safety invariants. A minimal `config.yaml` is created automatically by `tests/conftest.py` if one doesn't exist.
@@ -79,4 +79,4 @@ See `docs/architecture/web-ui.md` for the full architecture rationale.
 
 ## Project layout
 
-Packages live under `packages/` and are installed as editable via `uv sync`. They register themselves as integrations through Python entry points (`gaas.integrations` group), which the app discovers at startup via `app/loader.py`. Each package has its own `pyproject.toml` with dependencies and entry point declarations.
+Packages live under `packages/` and are installed as editable via `uv sync`. They register themselves as integrations through Python entry points (`assistant.integrations` group), which the app discovers at startup via `app/loader.py`. Each package has its own `pyproject.toml` with dependencies and entry point declarations.

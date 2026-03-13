@@ -1,0 +1,1 @@
+"""Assistant Email (IMAP) integration."""

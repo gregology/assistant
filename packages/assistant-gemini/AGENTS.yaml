@@ -1,0 +1,33 @@
+context:
+  - match: ["**/*.py"]
+    on: [edit, create]
+    when: before
+    content: |
+      Integration code imports from assistant_sdk.*, never from app.*.
+      The import-linter config in pyproject.toml enforces this boundary.
+      Run `uv run lint-imports` to verify after changes.
+
+  - match: ["**/manifest.yaml"]
+    on: [edit, create]
+    when: before
+    content: |
+      manifest.yaml required fields: domain (must match package name), name, version.
+      Optional: entry_task, dependencies, config_schema (JSON Schema), platforms
+      (each with name, entry_task, config_schema), services (each with name,
+      handler, input_schema, and optionally reversible, human_log, description).
+      Services are irreversible by default. Only set reversible: true for services
+      that are both read-only AND do not transmit data beyond the system boundary.
+
+decisions:
+  - decision: Two-pass research pattern (grounded search then structured output)
+    rationale: |
+      Gemini API cannot combine Google Search grounding with structured JSON output
+      in a single call. Pass 1 uses GoogleSearch tool for free-text research + source
+      URLs. Pass 2 reformats into caller-provided JSON schema. Encapsulated in
+      GeminiClient so the handler stays simple.
+    alternatives:
+      - option: Single API call with grounding + structured output
+        reason_rejected: Not possible with current Gemini API
+    revisit_when: Gemini adds support for grounding + structured output in one call
+    date: 2025-01-01
+    match: ["**/client.py", "**/web_research.py"]

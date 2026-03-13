@@ -1,6 +1,6 @@
 # System Architecture
 
-GaaS runs as two processes that communicate through the filesystem.
+Assistant runs as two processes that communicate through the filesystem.
 
 ## The two processes
 
@@ -63,13 +63,13 @@ classification:
 (optional body content)
 ```
 
-The generic `NoteStore` class (`gaas_sdk.store`) handles reading, writing, and moving these files. Platform-specific stores like `EmailStore`, `PullRequestStore`, and `IssueStore` wrap it with domain methods, but the underlying storage is always markdown with frontmatter.
+The generic `NoteStore` class (`assistant_sdk.store`) handles reading, writing, and moving these files. Platform-specific stores like `EmailStore`, `PullRequestStore`, and `IssueStore` wrap it with domain methods, but the underlying storage is always markdown with frontmatter.
 
-This means every piece of state in the system is human-readable. You can open any file in a text editor and see exactly what GaaS knows about an email or an issue, including the raw classification results.
+This means every piece of state in the system is human-readable. You can open any file in a text editor and see exactly what Assistant knows about an email or an issue, including the raw classification results.
 
 ## Integrations and platforms
 
-Integrations are installable Python packages discovered through three channels: a builtin directory (`app/integrations/`), a user-configurable custom directory, and Python entry points (`gaas.integrations` group). Email and GitHub ship as packages under `packages/` and register via entry points. The `app/integrations/` directory holds the handler registry and loader, plus any builtin overrides.
+Integrations are installable Python packages discovered through three channels: a builtin directory (`app/integrations/`), a user-configurable custom directory, and Python entry points (`assistant.integrations` group). Email and GitHub ship as packages under `packages/` and register via entry points. The `app/integrations/` directory holds the handler registry and loader, plus any builtin overrides.
 
 Following the Home Assistant pattern, each integration contains **platforms** that handle specific resource types. The GitHub integration has `pull_requests` and `issues` platforms. The email integration has an `inbox` platform.
 
@@ -101,7 +101,7 @@ There is no mandatory pipeline shape. Email uses a five-stage pipeline: `check -
 
 Some actions are cross-cutting -- they can be triggered from any integration's automations. Scripts and services are the two cross-cutting action types.
 
-The shared action layer (`gaas_sdk.actions`, re-exported via `app/actions/`) handles these. Each platform's evaluate handler calls `enqueue_actions()`, which partitions the action list: script actions become individual `script.run` queue tasks, service actions become individual `service.{domain}.{service_name}` queue tasks, and platform actions get bundled into the platform's act task as before. The partitioning is transparent to the rest of the pipeline.
+The shared action layer (`assistant_sdk.actions`, re-exported via `app/actions/`) handles these. Each platform's evaluate handler calls `enqueue_actions()`, which partitions the action list: script actions become individual `script.run` queue tasks, service actions become individual `service.{domain}.{service_name}` queue tasks, and platform actions get bundled into the platform's act task as before. The partitioning is transparent to the rest of the pipeline.
 
 Script tasks run as first-class queue citizens with independent failure tracking, timeout enforcement, and in-script logging via preamble-injected helper functions (`log_human`, `log_info`, `log_warn`). Service tasks run the handler function declared in the integration's manifest. When a service handler returns data, the worker stores the full result in the completed task YAML first, then routes it via `on_result` descriptors in the task payload (`app/result_routes.py`). The default route saves results as a markdown note under `{notes_dir}/services/{domain}/{service_name}/` with frontmatter metadata and a human log breadcrumb. If routing fails, the result is preserved in `done/` and can be re-routed.
 
@@ -119,7 +119,7 @@ Tasks enqueue downstream tasks with explicit priorities:
 
 ## LLM abstraction
 
-GaaS is backend-agnostic for LLM inference. Config defines named profiles (`default`, `fast`, etc.) with different `base_url`, `model`, `token`, and `parameters`. Integrations reference profiles by name.
+Assistant is backend-agnostic for LLM inference. Config defines named profiles (`default`, `fast`, etc.) with different `base_url`, `model`, `token`, and `parameters`. Integrations reference profiles by name.
 
 The `LLMConversation` class manages multi-turn conversations and supports structured output with JSON schema validation. If the LLM returns something that doesn't match the schema, it retries up to three times.
 

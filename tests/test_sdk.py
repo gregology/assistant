@@ -1,32 +1,32 @@
-"""Tests for gaas_sdk package imports and runtime registration."""
+"""Tests for assistant_sdk package imports and runtime registration."""
 
 import pytest
 
-from gaas_sdk.models import (
+from assistant_sdk.models import (
     YoloAction,
     AutomationConfig,
 )
-from gaas_sdk.manifest import (
+from assistant_sdk.manifest import (
     ServiceManifest,
 )
-from gaas_sdk.actions import is_service_action
-from gaas_sdk import runtime
+from assistant_sdk.actions import is_service_action
+from assistant_sdk import runtime
 
 
 class TestSDKImports:
-    """Verify all public API is importable from gaas_sdk."""
+    """Verify all public API is importable from assistant_sdk."""
 
     def test_top_level_imports(self):
-        import gaas_sdk
-        assert hasattr(gaas_sdk, "YoloAction")
-        assert hasattr(gaas_sdk, "AutomationConfig")
-        assert hasattr(gaas_sdk, "NoteStore")
-        assert hasattr(gaas_sdk, "MISSING")
-        assert hasattr(gaas_sdk, "build_schema")
-        assert hasattr(gaas_sdk, "IntegrationManifest")
-        assert hasattr(gaas_sdk, "ServiceManifest")
-        assert hasattr(gaas_sdk, "is_service_action")
-        assert hasattr(gaas_sdk, "runtime")
+        import assistant_sdk
+        assert hasattr(assistant_sdk, "YoloAction")
+        assert hasattr(assistant_sdk, "AutomationConfig")
+        assert hasattr(assistant_sdk, "NoteStore")
+        assert hasattr(assistant_sdk, "MISSING")
+        assert hasattr(assistant_sdk, "build_schema")
+        assert hasattr(assistant_sdk, "IntegrationManifest")
+        assert hasattr(assistant_sdk, "ServiceManifest")
+        assert hasattr(assistant_sdk, "is_service_action")
+        assert hasattr(assistant_sdk, "runtime")
 
     def test_models_are_same_as_app(self):
         from app.config import YoloAction as AppYoloAction
@@ -78,7 +78,7 @@ class TestRuntimeRegistration:
 
     def test_runtime_not_registered_error(self):
         """Calling before register raises RuntimeNotRegistered."""
-        import gaas_sdk.runtime as rt
+        import assistant_sdk.runtime as rt
         old = rt._enqueue
         try:
             rt._enqueue = None

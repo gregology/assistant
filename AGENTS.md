@@ -1,4 +1,4 @@
-# Assistant (Assistant)
+# Assistant
 
 An AI-powered personal assistant that processes emails, pull requests, issues, and other inputs using LLMs, safely. Think of it as OpenClaw but with elastic bands around the pinchers: same category of tool, but with safety and auditability as first-class concerns rather than afterthoughts.
 

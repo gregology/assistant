@@ -47,6 +47,9 @@ class MessageList:
     def append(self, message: Message) -> None:
         self._messages.append(message)
 
+    def pop(self) -> Message:
+        return self._messages.pop()
+
     def all(self) -> list[Message]:
         return list(self._messages)
 
@@ -259,7 +262,7 @@ class LLMConversation:
             )
 
         # All retries exhausted — remove the dangling user message
-        self.messages._messages.pop()
+        self.messages.pop()
         raise SchemaValidationError(
             f"Failed to get valid structured output after "
             f"{self.MAX_RETRIES} attempts",

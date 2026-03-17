@@ -59,6 +59,20 @@ class TestMessageList:
             {"role": "user", "content": "prompt"},
         ]
 
+    def test_pop_returns_and_removes_last(self):
+        ml = MessageList()
+        ml.append(Message(role=Role.USER, content="first"))
+        ml.append(Message(role=Role.ASSISTANT, content="second"))
+        popped = ml.pop()
+        assert popped.content == "second"
+        assert len(ml) == 1
+        assert ml.last().content == "first"
+
+    def test_pop_empty_raises_index_error(self):
+        ml = MessageList()
+        with pytest.raises(IndexError):
+            ml.pop()
+
     def test_len_and_iter(self):
         ml = MessageList()
         ml.append(Message(role=Role.USER, content="a"))

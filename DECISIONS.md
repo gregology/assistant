@@ -394,6 +394,14 @@ When to revisit: when a fourth integration (e.g., Linear, Slack) is added. At th
 
 Until then, when fixing a bug in the evaluation flow, grep for the same pattern across all three platforms and apply the fix to each. This is the cost of isolation.
 
+### Declined: extract generic handler helpers into SDK now (issue #117, 2026-03-16)
+
+Issue #117 proposed extracting generic `evaluate_handler()` and `classify_handler()` helpers into the SDK immediately, reducing each platform's handler to ~15 lines of wiring. The proposal was well-structured (phased: tests first, then evaluate extraction, then classify extraction, then guide update) and correctly identified the duplication.
+
+Declined because the decision above ("extract when a fourth integration lands") still applies. The trigger condition — a fourth integration — has not been met. The three reasons for deferral remain valid: the abstraction boundary is unclear (email's `authentication.*` and `calendar.*` resolver prefixes don't fit a generic pattern), premature extraction risks coupling the SDK to a handler shape that may not suit future integrations, and the current maintenance cost (~300 lines per platform, grep-and-fix workflow) is acceptable at three platforms.
+
+When a fourth integration is added, this issue should be revisited as the starting point for the extraction design.
+
 ### `const.py` loaded via `spec_from_file_location`, not `import_module`
 
 Platform const modules are loaded using `importlib.util.spec_from_file_location` for both builtin and custom modules. This bypasses the package `__init__.py`, avoiding circular imports when `const.py` is loaded during config validation (which happens at module import time, before the full integration packages are initialized).

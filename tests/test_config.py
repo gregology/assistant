@@ -121,3 +121,11 @@ class TestQueuePolicyConfig:
             defaults=TaskPolicyConfig(deduplicate_pending=False),
         )
         assert policy.defaults.deduplicate_pending is False
+
+    def test_retention_default(self):
+        policy = QueuePolicyConfig()
+        assert policy.retention == "7d"
+
+    def test_retention_custom(self):
+        policy = QueuePolicyConfig(retention="30d")
+        assert policy.retention == "30d"

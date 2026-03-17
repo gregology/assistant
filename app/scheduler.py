@@ -8,8 +8,9 @@ from typing import Any
 from fastapi import FastAPI
 from fastapi_crons import Crons
 
+from app import queue
 from app.config import config
-from app.queue_policy import policy_enqueue
+from app.queue_policy import _parse_duration_seconds, policy_enqueue
 from app.integrations import ENTRY_TASKS
 
 log = logging.getLogger(__name__)
@@ -83,6 +84,14 @@ def _register_platform_schedules(
         log.info("Registered schedule: %s [%s]", name, expr)
 
 
+def _make_prune_job(retention_seconds: int) -> Callable[[], None]:
+    """Create a scheduled job that prunes old done/failed task files."""
+    def job() -> None:
+        log.info("Running scheduled queue prune (retention: %ds)", retention_seconds)
+        queue.prune_completed(retention_seconds)
+    return job
+
+
 def init_schedules(app: FastAPI) -> Crons:
     crons = Crons(app)
 
@@ -93,5 +102,13 @@ def init_schedules(app: FastAPI) -> Crons:
         if expr is None:
             continue
         _register_platform_schedules(crons, integration, expr)
+
+    # Daily pruning of completed/failed tasks past retention
+    retention_seconds = _parse_duration_seconds(config.queue_policies.retention)
+    crons.cron("0 0 * * *", name="queue_prune")(
+        _make_prune_job(retention_seconds)
+    )
+    retention = config.queue_policies.retention
+    log.info("Registered queue prune schedule [0 0 * * *], retention: %s", retention)
 
     return crons

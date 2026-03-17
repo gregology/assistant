@@ -68,7 +68,8 @@ integrations:
     api_key: !secret gemini_api_key
     model: gemini-3-pro-preview 
 
-queue_policies:                          # Optional: dedup + rate limiting
+queue_policies:                          # Optional: dedup + rate limiting + retention
+  retention: 7d                          # How long to keep done/failed task files (default: 7d)
   defaults:
     deduplicate_pending: true            # Skip enqueue if identical payload pending
   overrides:

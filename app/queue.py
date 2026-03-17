@@ -92,14 +92,26 @@ def has_pending_duplicate(fp: str, task_type: str) -> bool:
 
 
 def count_recent(task_type: str, seconds: int) -> int:
-    """Count tasks of a given type across all dirs within a time window."""
+    """Count tasks of a given type across all dirs within a time window.
+
+    Exploits timestamp-sorted filenames: within each directory, files are
+    sorted newest-first by their embedded timestamp so we can stop scanning
+    once we pass the cutoff.
+    """
     cutoff = _now().timestamp() - seconds
     count = 0
     pattern = f"*--*--{task_type}.yaml"
 
     for d in DIRS:
         dir_path = BASE_DIR / d
-        for f in dir_path.glob(pattern):
+        # Sort by timestamp component (index 1 in prefix) for correct early-stop.
+        # Filenames: {priority}_{timestamp}_{uuid}--{fp}--{type}.yaml
+        files = sorted(
+            dir_path.glob(pattern),
+            reverse=True,
+            key=lambda f: f.name.split("_", 2)[1] if "_" in f.name else "",
+        )
+        for f in files:
             parsed = parse_filename(f.name)
             if parsed is None:
                 continue
@@ -107,10 +119,12 @@ def count_recent(task_type: str, seconds: int) -> int:
                 ts = datetime.strptime(parsed["timestamp"], "%Y%m%dT%H%M%SZ").replace(
                     tzinfo=UTC
                 )
-                if ts.timestamp() >= cutoff:
-                    count += 1
             except ValueError:
                 continue
+            if ts.timestamp() >= cutoff:
+                count += 1
+            else:
+                break  # older files follow, no need to continue this dir
 
     return count
 
@@ -238,3 +252,35 @@ def recover_stale_active() -> int:
     if recovered:
         log.info("Recovered %d stale task(s) from active/", recovered)
     return recovered
+
+
+def prune_completed(retention_seconds: int) -> int:
+    """Delete files in done/ and failed/ older than retention_seconds.
+
+    Returns the number of files removed.
+    """
+    cutoff = _now().timestamp() - retention_seconds
+    pruned = 0
+
+    for d in ("done", "failed"):
+        dir_path = BASE_DIR / d
+        for f in dir_path.iterdir():
+            if f.suffix != ".yaml":
+                continue
+            parsed = parse_filename(f.name)
+            if parsed is None:
+                continue
+            try:
+                ts = datetime.strptime(
+                    parsed["timestamp"], "%Y%m%dT%H%M%SZ"
+                ).replace(tzinfo=UTC)
+            except ValueError:
+                continue
+            if ts.timestamp() < cutoff:
+                with contextlib.suppress(FileNotFoundError):
+                    f.unlink()
+                pruned += 1
+
+    if pruned:
+        log.info("Pruned %d completed task file(s) past retention", pruned)
+    return pruned

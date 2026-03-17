@@ -147,6 +147,27 @@ class TestCountRecent:
         assert queue.count_recent("email.inbox.check", 3600) == 1
         assert queue.count_recent("github.pull_requests.classify", 3600) == 1
 
+    def test_excludes_old_files(self, queue_dir):
+        """Files with timestamps outside the window are not counted (early-stop)."""
+        import yaml
+
+        # Plant an old file directly in done/
+        name = "5_20200101T000000Z_aaaaaaaa--bbbbbbbb--email.inbox.check.yaml"
+        old_file = queue_dir / "done" / name
+        old_file.write_text(yaml.dump({"status": "done"}))
+
+        # Enqueue a recent one
+        queue.enqueue({"type": "email.inbox.check"})
+
+        assert queue.count_recent("email.inbox.check", 3600) == 1
+
+    def test_counts_across_priorities(self, queue_dir):
+        """Tasks with different priorities but recent timestamps are all counted."""
+        queue.enqueue({"type": "test"}, priority=1)
+        queue.enqueue({"type": "test"}, priority=9)
+
+        assert queue.count_recent("test", 3600) == 2
+
 
 # ---------------------------------------------------------------------------
 # resolve_policy

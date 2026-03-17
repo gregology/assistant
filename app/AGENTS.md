@@ -80,7 +80,7 @@ Script actions become individual `script.run` queue tasks. Service actions becom
 - `YoloAction` accepts `str | dict`, and `!yolo` works on both scalar and mapping YAML nodes
 - Safety validation flags script actions as irreversible unless `ScriptConfig.reversible` is `True`
 - `_validate_script_references()` warns about automation rules referencing undefined scripts (automations are not disabled -- the handler skips unknown scripts at runtime)
-- `QueuePolicyConfig` with `defaults` (`TaskPolicyConfig`) and per-type `overrides` dict
+- `QueuePolicyConfig` with `defaults` (`TaskPolicyConfig`), per-type `overrides` dict, and `retention` (duration string, default `"7d"` — controls how long done/failed task files are kept before pruning)
 - `TaskPolicyConfig`: `deduplicate_pending` (bool, default true) and optional `rate_limit` (`RateLimitConfig` with `max` int and `per` duration string)
 - `queue_policies: QueuePolicyConfig = QueuePolicyConfig()` in `AppConfig` -- defaults mean no behavior change for existing configs
 

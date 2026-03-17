@@ -133,6 +133,20 @@ Both dedup and rate limiting operate on filenames only, never parsing YAML. Dedu
 
 This is why the task ID format includes `--`-separated fingerprint and task type suffixes. The format was designed to support policy checks without the I/O cost of reading and parsing every task file. For a queue with dozens of pending tasks, this is the difference between a glob and dozens of YAML loads.
 
+### Early-stop optimization in `count_recent()`
+
+`count_recent()` sorts files by their embedded timestamp (descending) and stops scanning a directory once a file's timestamp falls before the cutoff. This avoids parsing filenames for tasks that can't possibly be within the rate limit window.
+
+Why a separate optimization from pruning: even with pruning, a directory can accumulate files between prune runs. The early-stop makes `count_recent()` fast regardless of whether pruning has run recently. The two mechanisms are independent — either one helps on its own, and together they address both the scan cost and disk growth.
+
+### Scheduled pruning of done/failed, not at startup
+
+A daily cron job deletes task files in `done/` and `failed/` older than a configurable `retention` period (default 7 days). Pruning runs as a scheduler job, not at startup.
+
+Why not at startup: `recover_stale_active()` runs at startup because stale active tasks represent an inconsistent state that must be resolved before the worker processes new tasks. Pruning has no such urgency — old completed tasks don't affect correctness. Running it daily via the scheduler is simpler and avoids adding latency to startup.
+
+Why only `done/` and `failed/`: these are terminal states. Pruning `pending/` or `active/` would silently discard work. The task conservation invariant (enforced by stateful property tests) accounts for pruning as a valid transition that decrements the expected total.
+
 ---
 
 ## Result Routing

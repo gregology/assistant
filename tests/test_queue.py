@@ -154,6 +154,7 @@ class QueueStateMachine(RuleBasedStateMachine):
     def __init__(self):
         super().__init__()
         self.expected_total = 0
+        self.pruned_total = 0
         self.active_ids: list[str] = []
         # Each run gets its own temp directory
         self._dir = tempfile.mkdtemp()
@@ -193,11 +194,18 @@ class QueueStateMachine(RuleBasedStateMachine):
             task_id = self.active_ids.pop(0)
             queue.fail(task_id, "test failure")
 
+    @rule()
+    def prune_done(self):
+        """Prune with 0 retention — removes all done/failed files."""
+        removed = queue.prune_completed(0)
+        self.pruned_total += removed
+
     @invariant()
     def total_tasks_conserved(self):
         snap = snapshot_tree(queue.BASE_DIR)
-        assert snap["total"] == self.expected_total, (
-            f"Expected {self.expected_total} tasks, found {snap['total']}"
+        assert snap["total"] == self.expected_total - self.pruned_total, (
+            f"Expected {self.expected_total - self.pruned_total} tasks, "
+            f"found {snap['total']} (enqueued={self.expected_total}, pruned={self.pruned_total})"
         )
 
     @invariant()
@@ -336,3 +344,62 @@ class TestRecoverStaleActive:
         assert recovered == 1
         assert not corrupted.exists()
         assert (queue_dir / "failed" / corrupted.name).exists()
+
+
+class TestPruneCompleted:
+    def test_prune_removes_old_done_files(self, queue_dir):
+        """Files in done/ older than retention are deleted."""
+        # Create an old file (timestamp in 2020)
+        old_file = queue_dir / "done" / "5_20200101T000000Z_aaaaaaaa--bbbbbbbb--test.yaml"
+        old_file.write_text(yaml.dump({"status": "done"}))
+
+        pruned = queue.prune_completed(86400)  # 1 day retention
+        assert pruned == 1
+        assert not old_file.exists()
+
+    def test_prune_removes_old_failed_files(self, queue_dir):
+        """Files in failed/ older than retention are deleted."""
+        old_file = queue_dir / "failed" / "5_20200101T000000Z_aaaaaaaa--bbbbbbbb--test.yaml"
+        old_file.write_text(yaml.dump({"status": "failed"}))
+
+        pruned = queue.prune_completed(86400)
+        assert pruned == 1
+        assert not old_file.exists()
+
+    def test_prune_preserves_recent_files(self, queue_dir):
+        """Files newer than retention are kept."""
+        queue.enqueue({"type": "test"})
+        task = queue.dequeue()
+        queue.complete(task["id"])
+
+        pruned = queue.prune_completed(86400)
+        assert pruned == 0
+        assert len(list((queue_dir / "done").iterdir())) == 1
+
+    def test_prune_does_not_touch_pending_or_active(self, queue_dir):
+        """Pending and active directories are never pruned."""
+        queue.enqueue({"type": "test"})
+        queue.dequeue()
+
+        pruned = queue.prune_completed(0)  # 0 retention = prune everything
+        assert pruned == 0
+        # pending has 0 (dequeued), active has 1
+        snap = snapshot_tree(queue_dir)
+        assert snap["counts"]["active"] == 1
+
+    def test_prune_mixed_old_and_new(self, queue_dir):
+        """Only files past retention are removed, recent ones stay."""
+        old_file = queue_dir / "done" / "5_20200101T000000Z_aaaaaaaa--bbbbbbbb--test.yaml"
+        old_file.write_text(yaml.dump({"status": "done"}))
+
+        queue.enqueue({"type": "test"})
+        task = queue.dequeue()
+        queue.complete(task["id"])
+
+        pruned = queue.prune_completed(86400)
+        assert pruned == 1
+        assert not old_file.exists()
+        assert len(list((queue_dir / "done").iterdir())) == 1  # recent file remains
+
+    def test_prune_returns_zero_when_empty(self, queue_dir):
+        assert queue.prune_completed(86400) == 0

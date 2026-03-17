@@ -126,6 +126,7 @@ class TaskPolicyConfig(BaseModel):
 class QueuePolicyConfig(BaseModel):
     defaults: TaskPolicyConfig = TaskPolicyConfig()
     overrides: dict[str, TaskPolicyConfig] = {}
+    retention: str = "7d"
 
 
 # ---------------------------------------------------------------------------

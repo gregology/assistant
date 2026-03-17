@@ -66,8 +66,8 @@ After a full task lifecycle (`enqueue -> dequeue -> complete`): pending is empty
 
 ## Stateful Testing (`test_queue.py`)
 
-`QueueStateMachine` uses Hypothesis `RuleBasedStateMachine` to randomly interleave enqueue, dequeue, complete, and fail operations. Invariants checked after every step:
-- Total task count is conserved
+`QueueStateMachine` uses Hypothesis `RuleBasedStateMachine` to randomly interleave enqueue, dequeue, complete, fail, and prune operations. Invariants checked after every step:
+- Total task count is conserved (accounting for pruned tasks)
 - No task ID appears in two directories simultaneously
 
 ## Fixtures (`conftest.py`)

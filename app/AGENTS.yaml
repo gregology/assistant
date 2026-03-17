@@ -8,7 +8,8 @@ context:
       fingerprint glob, rate limiting via task_type glob + timestamp extraction).
       Atomic dequeue via os.rename() (POSIX atomic). A task must exist in exactly
       one directory at all times (conservation invariant enforced by stateful
-      property tests in test_queue.py).
+      property tests in test_queue.py). Pruning is the one valid transition that
+      removes tasks from done/failed — the stateful tests account for this.
 
 decisions:
   - decision: Filesystem-based queue over Redis/Celery

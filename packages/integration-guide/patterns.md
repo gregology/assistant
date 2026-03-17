@@ -201,7 +201,7 @@ def handle(task: dict):
             classifications, DETERMINISTIC_SOURCES,
         )
         enqueue_actions(
-            actions=unwrap_actions(actions),
+            actions=actions,
             platform_payload={
                 "type": "{domain}.{platform}.act",
                 "integration": integration_id,

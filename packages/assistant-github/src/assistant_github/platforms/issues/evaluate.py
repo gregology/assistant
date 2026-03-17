@@ -107,7 +107,7 @@ def handle(task: TaskRecord) -> None:
         org, repo, number, unwrap_actions(actions), provenance,
     )
     enqueue_actions(
-        actions=unwrap_actions(actions),  # type: ignore[arg-type]
+        actions=actions,
         platform_payload={
             "type": "github.issues.act",
             "integration": integration_id,

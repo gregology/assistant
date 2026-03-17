@@ -9,7 +9,7 @@ from assistant_sdk.actions import (
     resolve_inputs,
 )
 from assistant_sdk.evaluate import MISSING
-from assistant_sdk.models import ScriptAction, ServiceAction, SimpleAction
+from assistant_sdk.models import ScriptAction, ServiceAction, SimpleAction, YoloAction
 
 
 def _make_resolver(**fields):
@@ -195,3 +195,36 @@ class TestEnqueueActions:
             kwargs = mock.call_args[1]
             assert kwargs["provenance"] == "llm"
             assert kwargs["priority"] == 9
+
+    def test_yolo_marker_preserved_in_payload(self):
+        resolver = _make_resolver()
+        with patch("assistant_sdk.runtime._enqueue") as mock:
+            mock.return_value = "t1"
+            enqueue_actions(
+                actions=[YoloAction(value="unsubscribe")],
+                platform_payload={"type": "test.act", "id": "1"},
+                resolve_value=resolver,
+                classification={},
+                provenance="llm",
+            )
+            assert mock.call_count == 1
+            payload = mock.call_args[0][0]
+            assert payload["actions"] == [{"!yolo": "unsubscribe"}]
+
+    def test_yolo_and_plain_actions_mixed(self):
+        resolver = _make_resolver()
+        with patch("assistant_sdk.runtime._enqueue") as mock:
+            mock.return_value = "t1"
+            enqueue_actions(
+                actions=[
+                    SimpleAction(action="archive"),
+                    YoloAction(value="unsubscribe"),
+                ],
+                platform_payload={"type": "test.act", "id": "1"},
+                resolve_value=resolver,
+                classification={},
+                provenance="hybrid",
+            )
+            assert mock.call_count == 1
+            payload = mock.call_args[0][0]
+            assert payload["actions"] == ["archive", {"!yolo": "unsubscribe"}]

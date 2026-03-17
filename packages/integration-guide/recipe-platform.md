@@ -401,7 +401,7 @@ def handle(task: dict):
             msg_id, unwrap_actions(actions), provenance,
         )
         enqueue_actions(
-            actions=unwrap_actions(actions),
+            actions=actions,
             platform_payload={
                 "type": "slack.messages.act",
                 "integration": integration_id,

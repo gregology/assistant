@@ -88,15 +88,15 @@ def _route_note(result: dict[str, Any], task: TaskRecord, route_config: dict[str
 
     # Separate text body from metadata fields
     text = result.get("text", "")
-    fields = {
-        "service": task_type,
-        "integration": payload.get("integration", ""),
-        "inputs": payload.get("inputs", {}),
-        "completed_at": now.isoformat(),
-    }
+    fields = {}
     for key, value in result.items():
         if key != "text":
             fields[key] = value
+    # Audit metadata set after result merge so service data cannot overwrite
+    fields["service"] = task_type
+    fields["integration"] = payload.get("integration", "")
+    fields["inputs"] = payload.get("inputs", {})
+    fields["completed_at"] = now.isoformat()
 
     filepath = store.save(filename, content=text, **fields)
 

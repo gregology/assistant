@@ -224,6 +224,27 @@ class TestRouteNote:
         assert "a1b2c3d4" in filepath.name
         assert filepath.suffix == ".md"
 
+    def test_audit_metadata_not_overwritten_by_result(self, notes_dir):
+        """Service result keys matching audit fields cannot overwrite metadata."""
+        result = {
+            "text": "body",
+            "service": "injected.service",
+            "integration": "injected.integration",
+            "inputs": {"injected": True},
+            "completed_at": "1999-01-01T00:00:00",
+        }
+        task = _make_task()
+        route_config = {"type": "note"}
+
+        with patch("app.result_routes.runtime.get_notes_dir", return_value=notes_dir):
+            filepath = _route_note(result, task, route_config)
+
+        post = frontmatter.load(filepath)
+        assert post["service"] == "service.gemini.web_research"
+        assert post["integration"] == "gemini.default"
+        assert post["inputs"] == {"prompt": "test query"}
+        assert post["completed_at"] != "1999-01-01T00:00:00"
+
     def test_short_id_extraction_new_format(self, notes_dir):
         """short_id is extracted from the UUID portion, not the fingerprint or task type."""
         result = {"text": "test", "sources": []}

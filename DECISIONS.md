@@ -153,6 +153,12 @@ Service tasks that lack explicit `on_result` config fall back to the `note` rout
 
 Why: service handlers exist to produce output (research results, summaries, etc.). Silently discarding that output is always wrong. The `note` fallback ensures service output is persisted even if the user hasn't configured explicit routing. Platform handlers, by contrast, drive pipelines (check → collect → classify → evaluate → act) where the "result" is the next task in the chain, not user-facing output.
 
+### Audit metadata wins over result data in note frontmatter
+
+When `_route_note` builds frontmatter, service result keys are merged first, then audit metadata (`service`, `integration`, `inputs`, `completed_at`) is set unconditionally. If a service handler returns a key like `"service"`, the authoritative metadata overwrites it.
+
+Why: the audit trail must reflect where the result actually came from, not what the service handler claims. Allowing result data to shadow metadata would silently break provenance. The ordering is tested explicitly in `test_audit_metadata_not_overwritten_by_result`.
+
 ### Extensibility via route type dispatch
 
 New route types (e.g., `chat_reply`, `webhook`) are added by implementing a handler function and adding a branch to the dispatcher in `route_results()`. Each route type is independent — a single task can have multiple routes, and a failure in one doesn't affect others.

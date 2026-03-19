@@ -1,4 +1,4 @@
-# Assistant (Assistant)
+# Assistant
 
 Your inbox is full of messages that were written for the sender, not for you. Assistant reads them, classifies them, and acts on rules you define. Archive the noise. Draft replies for the stuff that matters. Every action is logged in plain markdown so you can see exactly what happened and why. Runs locally on your hardware. Nothing leaves your machine. Assistant is your _controllable_ AI personal assistant.
 

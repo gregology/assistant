@@ -20,7 +20,7 @@ register_runtime()
 load_all_modules()
 register_all()
 
-from app.chat_routes import router as chat_router
+from app.chat_routes import router as chat_router  # noqa: E402
 
 app: FastAPI = FastAPI()  # type: ignore[no-redef]
 app.include_router(ui_router)  # type: ignore[attr-defined]

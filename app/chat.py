@@ -8,7 +8,7 @@ chat_message_handler runs in the worker process.
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from datetime import datetime, UTC
 from typing import Any
 
@@ -127,7 +127,8 @@ class ChatService:
         # Unknown command
         msg = ChatMessage(
             role="system",
-            content=f"Unknown command: {command}. Available commands: {', '.join(AVAILABLE_COMMANDS)}",
+            content=f"Unknown command: {command}. "
+            f"Available commands: {', '.join(AVAILABLE_COMMANDS)}",
             type="command",
             timestamp=datetime.now(UTC).isoformat(),
         )

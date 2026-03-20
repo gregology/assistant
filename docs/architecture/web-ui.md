@@ -125,6 +125,7 @@ Proposed endpoints (will evolve):
 
 ```
 GET  /ui/                           # Main UI page
+GET  /ui/chat                       # Chat interface
 GET  /ui/config                     # Full config viewer
 GET  /ui/config/integrations/{id}   # Single integration detail
 GET  /ui/queue                      # Task queue viewer

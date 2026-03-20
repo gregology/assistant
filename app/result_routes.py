@@ -55,7 +55,9 @@ def route_results(result: dict[str, Any], task: TaskRecord) -> None:
             )
 
 
-def _route_chat_reply(result: dict[str, Any], task: TaskRecord, route_config: dict[str, Any]) -> None:
+def _route_chat_reply(
+    result: dict[str, Any], task: TaskRecord, route_config: dict[str, Any],
+) -> None:
     """Handle chat reply result routing.
 
     For the web UI channel, delivery is pull-based (client polls).

@@ -86,17 +86,28 @@ Script actions become individual `script.run` queue tasks. Service actions becom
 
 ### Result Routes (`result_routes.py`)
 
-Routes service handler return values to configured destinations. After a service handler returns data, the worker calls `route_results(result, task)` which reads `on_result` from the task payload and dispatches to route handlers. Currently supports one route type:
+Routes service handler return values to configured destinations. After a service handler returns data, the worker calls `route_results(result, task)` which reads `on_result` from the task payload and dispatches to route handlers. Supports two route types:
 
 - **`note`** — saves result to NoteStore as markdown (frontmatter: service, integration, inputs, sources, timestamps; body: text content) and writes a human log breadcrumb pointing to the file. If the task payload contains a `human_log` string (resolved at enqueue time from config or manifest templates), that string is used in the log breadcrumb instead of the generic "result saved (N chars)" format.
+- **`chat_reply`** — logs a human log entry for the audit trail. Actual response delivery to the web UI is pull-based (client polls for task completion). This is the extensibility point for future channels (Slack, Signal) which would add push-based delivery.
 
 Falls back to the `note` route for service tasks that lack explicit `on_result` config. Routing failures are logged but never propagate — the task already completed successfully, and the result is preserved in the task YAML regardless.
 
-Designed for extensibility: new route types (e.g., `chat_reply` for the future threaded chat interface) are added by implementing a handler function and adding an `elif` branch to the dispatcher.
+New route types are added by implementing a handler function and adding an `elif` branch to the dispatcher.
+
+### Chat (`chat.py`, `chat_routes.py`)
+
+Conversational chat interface. The `ChatService` (in-memory, API process) manages conversation state; `chat_message_handler` runs in the worker to make LLM calls. Messages are routed through the task queue (`chat.message` at priority 1) to serialize LLM access. Commands (e.g., `/clear`) are handled immediately without the LLM. The web UI at `/ui/chat` uses Alpine.js for client-side state, polling the task API for LLM responses.
+
+API endpoints under `/api/chat`:
+- `POST /conversations` — create conversation
+- `GET /conversations/{id}/history` — message history
+- `POST /conversations/{id}/messages` — send message (enqueues task or handles command)
+- `GET /tasks/{task_id}` — poll for task completion
 
 ### Worker (`worker.py`)
 
-Polling loop: dequeue, route to handler by task type string, capture the return value, mark complete or failed, then route results. The handler registry lives in `app/integrations/__init__.py`. After `register_all()`, the worker also registers `script.run` for the shared action layer (`app.actions.script.handle`) and service handlers discovered from integration manifests.
+Polling loop: dequeue, route to handler by task type string, capture the return value, mark complete or failed, then route results. The handler registry lives in `app/integrations/__init__.py`. After `register_all()`, the worker also registers `script.run` for the shared action layer (`app.actions.script.handle`), `chat.message` for the chat interface (`app.chat.chat_message_handler`), and service handlers discovered from integration manifests.
 
 When a handler returns a non-None result (service handlers), the worker: (1) passes the result to `queue.complete()` which stores it in the completed task YAML as an audit record, and (2) calls `route_results()` to persist the output via configured routes. This ordering ensures a routing failure never marks a completed task as failed — the result is preserved in `done/` as the recovery point.
 

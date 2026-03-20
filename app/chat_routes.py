@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from dataclasses import asdict
 from datetime import datetime, UTC
-from pathlib import Path
 from typing import Any
 
 import yaml

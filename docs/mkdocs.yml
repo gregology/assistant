@@ -19,3 +19,4 @@ nav:
   - Code Quality Tools: code-quality-tools.md
 
 docs_dir: .
+site_dir: ../site

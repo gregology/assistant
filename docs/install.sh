@@ -2,7 +2,7 @@
 # Assistant installer / updater
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/gregology/assistant/main/install.sh | bash
+#   curl -fsSL https://assistant.gho.st/install.sh | bash
 #
 # Environment variables:
 #   ASSISTANT_HOME       Install directory (default: ~/.assistant)

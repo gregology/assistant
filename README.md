@@ -35,7 +35,7 @@ The human can determine the level of reversibility they are comfortable with.
 Assistant is in **alpha** so shit will break.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/gregology/assistant/main/install.sh | bash
+curl -fsSL https://assistant.gho.st/install.sh | bash
 ```
 
 ## Documentation

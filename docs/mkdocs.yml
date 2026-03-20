@@ -2,8 +2,22 @@ site_name: Assistant
 
 theme:
   name: material
+  palette:
+    - scheme: default
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
 
 nav:
+  - Home: index.md
   - Why: why.md
   - Design: design.md
   - Architecture:

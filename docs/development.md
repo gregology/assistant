@@ -70,6 +70,7 @@ Pages:
 - `/ui/config` - Full configuration viewer/editor with collapsible sections per integration
 - `/ui/queue` - Task queue browser (pending, active, done, failed)
 - `/ui/logs` - Audit log browser (daily markdown logs)
+- `/ui/chat` - Conversational chat interface (LLM responses via task queue polling)
 
 The config editor supports editing LLM profiles, scripts, directory paths, and integration-level settings. Changes are written back to `config.yaml` using ruamel.yaml to preserve comments and formatting. After saving, a "Restart Required" banner appears. The supervisor detects a restart sentinel file and restarts both processes automatically.
 

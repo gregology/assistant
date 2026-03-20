@@ -1,0 +1,21 @@
+site_name: Assistant
+
+theme:
+  name: material
+
+nav:
+  - Why: why.md
+  - Design: design.md
+  - Architecture:
+      - Overview: architecture/overview.md
+      - Safety Model: architecture/safety-model.md
+      - Human Log: architecture/human-log.md
+      - Web UI: architecture/web-ui.md
+  - API: api.md
+  - Development: development.md
+  - Testing:
+      - Guide: testing/guide.md
+      - Philosophy: testing/philosophy.md
+  - Code Quality Tools: code-quality-tools.md
+
+docs_dir: .

@@ -46,7 +46,7 @@ When an action is triggered by LLM classification vs. deterministic rules (e.g. 
 ## Installation
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/gregology/assistant/main/install.sh | bash
+curl -fsSL https://assistant.gho.st/install.sh | bash
 ```
 
 This installs Assistant to `~/.assistant`, creates a `assistant` CLI wrapper in `~/.local/bin`, and offers to run the setup wizard. Re-running the same command on an existing install triggers `assistant update`.
@@ -104,7 +104,7 @@ uv run python -m app.cli <subcommand>
 ## Project Structure
 
 ```
-install.sh         # Curl-pipe-bash installer/updater (thin bootstrapper)
+docs/install.sh    # Curl-pipe-bash installer/updater (served at assistant.gho.st/install.sh)
 packages/
   assistant-sdk/        # Contracts layer: models, evaluate, classify, NoteStore, runtime
   assistant-email/      # Email integration (inbox platform, IMAP)

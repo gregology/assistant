@@ -341,34 +341,34 @@ class TestInstallScript:
     """Validate the install.sh script structure (not execution)."""
 
     def test_install_script_exists(self):
-        assert (PROJECT_ROOT / "install.sh").exists()
+        assert (PROJECT_ROOT / "docs" / "install.sh").exists()
 
     def test_install_script_is_executable(self):
 
-        mode = (PROJECT_ROOT / "install.sh").stat().st_mode
+        mode = (PROJECT_ROOT / "docs" / "install.sh").stat().st_mode
         assert mode & 0o111, "install.sh should be executable"
 
     def test_install_script_has_function_wrapping(self):
         """All code should be in main() for partial-download protection."""
-        content = (PROJECT_ROOT / "install.sh").read_text()
+        content = (PROJECT_ROOT / "docs" / "install.sh").read_text()
         assert "main()" in content
         assert 'main "$@"' in content
 
     def test_install_script_has_set_euo(self):
         """Script should use strict error handling."""
-        content = (PROJECT_ROOT / "install.sh").read_text()
+        content = (PROJECT_ROOT / "docs" / "install.sh").read_text()
         assert "set -euo pipefail" in content
 
     def test_install_script_checks_prerequisites(self):
         """Script should check for required tools."""
-        content = (PROJECT_ROOT / "install.sh").read_text()
+        content = (PROJECT_ROOT / "docs" / "install.sh").read_text()
         assert "check_git" in content
         assert "check_python" in content
         assert "check_uv" in content
 
     def test_install_script_has_banner(self):
         """Script should include ASCII art banner."""
-        content = (PROJECT_ROOT / "install.sh").read_text()
+        content = (PROJECT_ROOT / "docs" / "install.sh").read_text()
         assert "Assistant" in content
         assert "AI-powered personal assistant" in content
 
@@ -377,7 +377,7 @@ class TestInstallScript:
         if subprocess.run(["which", "shellcheck"], capture_output=True).returncode != 0:
             pytest.skip("shellcheck not installed")
         result = subprocess.run(
-            ["shellcheck", "-e", "SC2034", str(PROJECT_ROOT / "install.sh")],
+            ["shellcheck", "-e", "SC2034", str(PROJECT_ROOT / "docs" / "install.sh")],
             capture_output=True,
             text=True,
         )

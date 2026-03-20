@@ -111,6 +111,7 @@ Tasks enqueue downstream tasks with explicit priorities:
 
 | Priority | Purpose |
 |----------|---------|
+| 1 | Chat messages (interactive, user is waiting) |
 | 3 | Discovery and collection (get data quickly) |
 | 5 | Default |
 | 6 | Classification (process after collection) |

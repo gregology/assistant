@@ -1,14 +1,94 @@
 # Web UI Architecture
 
-Assistant currently requires users to hand-edit `config.yaml`. That works for developers but creates a real barrier for anyone else. Home Assistant solved this well by offering YAML editing, UI forms, and in-UI YAML editors. Users pick their comfort level.
+Assistant's web UI lives alongside the YAML config, not above it. The YAML file stays as the source of truth. The UI reads it, displays it, and writes back to it while preserving comments and formatting.
 
-The goal is to add a web UI that lives alongside the YAML config, not above it. The YAML file stays as the source of truth. The UI reads it, displays it, and can write back to it while preserving comments and formatting.
+## What's built
 
-## Research
+The UI is a server-rendered application using **HTMX + Jinja2 + DaisyUI + Alpine.js**. No JavaScript build toolchain — DaisyUI, HTMX, and Alpine.js all load from CDN.
+
+### Config viewing
+
+The full config is rendered as collapsible HTML with:
+
+- Collapsible sections per integration and platform
+- Provenance badges on automation rules (`rule`, `llm`, `hybrid`)
+- Expanded classification shorthands (what `human: "is this urgent?"` actually becomes)
+- Inline validation warnings and errors
+- Integration manifests (available platforms, schema docs)
+
+### Config editing
+
+Round-trip YAML editing via `ruamel.yaml` (typ='rt') in `app/ui/yaml_rw.py`. All writes preserve comments, key ordering, block style, and quoting.
+
+Editable config sections:
+
+- **LLM profiles** — create, update, delete (key-value forms)
+- **Directory paths** — notes, task queue, logs, custom integrations
+- **Integration settings** — schedule and LLM profile selection per integration
+- **Scripts** — create, update, delete (name, description, inputs, shell code, timeout, output config)
+
+`!secret` values are displayed as masked placeholders and never resolved in the UI.
+
+A raw YAML escape hatch (`save_raw_yaml` / `read_raw_yaml`) lets power users edit the full config as text.
+
+### Task queue viewer
+
+Available at `/ui/queue`. Shows pending, active, done, and failed task counts with payload inspection.
+
+### Chat interface
+
+Available at `/ui/chat`. Uses Alpine.js for client-side state, polling the task API for LLM responses. Messages are routed through the task queue (`chat.message` at priority 1) to serialize LLM access. Commands (e.g., `/clear`) are handled immediately without the LLM.
+
+### Dashboard features
+
+- **"Run Now" button** for each configured integration — triggers a POST to `/ui/integrations/{integration_id}/run`, wraps the existing `_run_integration` logic, and returns an HTML partial with enqueued task IDs
+- **Alpha status ribbon** — permanent corner ribbon in `base.html` signaling experimental status
+- **"Restart Required" banner** — appears via HTMX Out-of-Band (OOB) swap whenever a config change is saved
+
+### Audit log browser
+
+Available at `/ui/logs`. Browse daily markdown log files with per-day detail view.
+
+## Endpoints
+
+All mutating endpoints validate via Pydantic, write via `ruamel.yaml`, and return the updated HTML partial (for HTMX swap) rather than JSON.
+
+```
+GET  /ui/                                          # Dashboard
+GET  /ui/chat                                      # Chat interface
+GET  /ui/config                                    # Config viewer
+GET  /ui/queue                                     # Task queue viewer
+GET  /ui/logs                                      # Audit log browser
+GET  /ui/logs/{date}                               # Single day's log
+
+POST   /ui/config/llms/{name}                      # Create/update LLM profile
+DELETE /ui/config/llms/{name}                       # Delete LLM profile
+POST   /ui/config/directories                      # Update directory paths
+POST   /ui/config/integrations/{index}/settings     # Update integration settings
+POST   /ui/config/scripts/{name}                    # Create/update script
+DELETE /ui/config/scripts/{name}                    # Delete script
+POST   /ui/config/yaml                              # Raw YAML save
+POST   /ui/integrations/{integration_id}/run        # Trigger integration run
+POST   /ui/system/restart                           # Restart server
+```
+
+## Dependencies
+
+- **Jinja2** — already a project dependency
+- **DaisyUI + Tailwind** — loaded from CDN, no build step
+- **HTMX** — loaded from CDN
+- **Alpine.js** — loaded from CDN (~14KB), used for client-side form state in complex sections and the chat interface
+- **ruamel.yaml** — core dependency (`pyproject.toml`), used for round-trip YAML editing that preserves comments and formatting
+
+No phase requires Node.js, npm, or a JavaScript build step.
+
+## Background
+
+### Research
 
 We looked at how five projects handle the "config file vs UI" problem, evaluated three frontend architecture approaches, and tested two YAML round-tripping libraries.
 
-### How others do it
+#### How others do it
 
 **Home Assistant** went through the most visible version of this struggle. Their Config Flow system generates forms from schemas (voluptuous + selectors). Developers declare a schema, the frontend auto-renders the form. Smart separation between "data" (setup-time credentials) and "options" (runtime tunables).
 
@@ -26,7 +106,7 @@ Lesson: don't force users to pick one. YAML and UI should be peers.
 
 **Portainer** uses an import/export model. Upload a compose file, Portainer ingests it, you edit via UI, you can re-export. The export may not match the original. This is fine for their use case but violates Assistant's "filesystem is the database" principle.
 
-### JSON Schema form generation
+#### JSON Schema form generation
 
 The JS ecosystem has two mature options. **react-jsonschema-form** (RJSF, ~15.6k GitHub stars) takes a JSON Schema + uiSchema and renders a full form with validation. Handles nested objects, arrays, oneOf/anyOf. Requires React. **JSON Forms** (EclipseSource) takes a separate data schema and UI schema, with an elegant renderer/tester priority system for extensibility. Also requires a JS framework.
 
@@ -34,7 +114,7 @@ On the Python/server-side, there's nothing mature. **FastUI** (by the Pydantic t
 
 No existing library takes a JSON Schema (or Pydantic model) and emits server-rendered HTML forms suitable for HTMX. That piece would be custom code.
 
-### YAML round-tripping
+#### YAML round-tripping
 
 **ruamel.yaml** is the only real option. It preserves comments, key ordering, block style, quoting. Must use `typ='rt'` mode. The C extension silently drops comments, so you need the pure-Python path. Deleting list elements can orphan adjacent comments. No stable public API for comment manipulation. But it works.
 
@@ -42,7 +122,7 @@ No existing library takes a JSON Schema (or Pydantic model) and emits server-ren
 
 **PyYAML** (current dependency) strips all comments and formatting. Not viable for round-trip editing.
 
-### Frontend approaches
+#### Frontend approaches
 
 We evaluated three stacks against Assistant's constraints: Python-developer team, FastAPI + Jinja2 already in the project, maintainability over features, no desire for a JavaScript build toolchain.
 
@@ -61,95 +141,7 @@ Alpine.js + HTMX is the sweet spot. HTMX for page structure and data loading, Al
 
 A full SPA produces the best UX for nested forms but the worst maintenance profile. Two languages, two runtimes, two test suites, JS ecosystem churn. Every config schema change requires updating both the API and the frontend. Not worth it for a config editor.
 
-## Chosen approach: phased, Grafana-style
-
-Start read-only. Add editing incrementally. Each phase is independently useful.
-
-### Phase 1: Config viewer (HTMX + Jinja2 + DaisyUI)
-
-Render the full config as collapsible HTML. No YAML writing. No `ruamel.yaml` dependency yet.
-
-What it shows:
-- Full config with collapsible sections per integration and platform
-- Provenance badges on automation rules (`rule`, `llm`, `hybrid`)
-- Expanded classification shorthands (what `human: "is this urgent?"` actually becomes)
-- Inline validation warnings and errors
-- Integration manifests (available platforms, schema docs)
-- Task queue status (pending/active/done/failed counts, inspect payloads)
-- Audit log browser (daily markdown logs)
-
-Why start here: a viewer carries zero risk of mangling user files. It validates the template structure and component choices. It is immediately useful for anyone debugging their config. And it forces us to build the schema-to-HTML rendering that editing will need.
-
-DaisyUI provides collapse/accordion for nested sections, tabs for switching between integrations, badges for provenance. It loads via CDN on top of Tailwind. No build step.
-
-### Phase 2: Simple editing (add Alpine.js)
-
-Add editing for flat config sections where the form complexity is low:
-- LLM profiles (key-value forms)
-- Directory paths (text inputs)
-- Integration-level config (schedule, LLM profile selection)
-- Script definitions (name, description, inputs, shell code via textarea)
-
-Add `ruamel.yaml` dependency here. Implement round-trip save that preserves comments and formatting. Add an inline YAML editor (raw textarea showing the relevant YAML section) as an escape hatch for power users who'd rather type YAML.
-
-`!secret` values are displayed as masked placeholders. Never resolved in the UI.
-
-### Phase 3: Complex editing + onboarding (Alpine.js components)
-
-- Classification editor: add/edit/remove with type selector (confidence/boolean/enum)
-- Automation rule builder: when/then pairs with operator selection, provenance preview
-- Integration setup wizard: step-by-step config creation, like HA's Config Flow
-- Dry-run mode: preview what an automation rule would match against recent items
-
-The onboarding wizard naturally emerges from the editing components. A "new integration" flow reuses the same forms. This is also where enabling the UI during install makes sense. The install procedure could optionally run the Phase 3 wizard to generate the initial `config.yaml`.
-
-### UI Features
-
-### Triggering integrations from the Dashboard
-
-The Dashboard provides a "Run Now" button for each configured integration. This uses HTMX to trigger a POST request to `/ui/integrations/{integration_id}/run`.
-
-Why: manual triggering is the most common user request for debugging and immediate feedback. While the scheduler handles periodic runs, the UI must provide a "pull" mechanism. The UI route wraps the existing `_run_integration` logic and returns an HTML partial with the enqueued task IDs for immediate user feedback.
-
-### Alpha status visibility
-
-The UI includes a high-visibility "ALPHA" corner ribbon and fixed "Restart Required" banner.
-
-Why: clear visual signaling prevents users from mistaking an experimental tool for a production-ready one. The ribbon is a permanent fixture in `base.html`, while the banner uses HTMX Out-of-Band (OOB) swaps to appear or update whenever a configuration change is saved.
-
-## API layer
-
-The UI talks to FastAPI endpoints that read/write config. The endpoints are the validation boundary. Direct file editing by the UI is not allowed. This aligns with HA's position that the API boundary is the right abstraction layer.
-
-Proposed endpoints (will evolve):
-
-```
-GET  /ui/                           # Main UI page
-GET  /ui/chat                       # Chat interface
-GET  /ui/config                     # Full config viewer
-GET  /ui/config/integrations/{id}   # Single integration detail
-GET  /ui/queue                      # Task queue viewer
-GET  /ui/logs                       # Audit log browser
-GET  /ui/logs/{date}                # Single day's log
-
-# Phase 2+
-POST /ui/config/llms/{name}         # Create/update LLM profile
-DELETE /ui/config/llms/{name}       # Delete LLM profile
-POST /ui/config/integrations/{id}   # Update integration config
-POST /ui/config/scripts/{name}      # Create/update script
-```
-
-All mutating endpoints validate via Pydantic, write via `ruamel.yaml`, and return the updated HTML partial (for HTMX swap) rather than JSON.
-
-### What this means for new dependencies
-
-Phase 1 adds nothing. Jinja2 is already a dependency. DaisyUI and HTMX are loaded from CDN (or vendored as static files).
-
-Phase 2 adds `ruamel.yaml` and Alpine.js (CDN/vendored).
-
-No phase requires Node.js, npm, or a JavaScript build step.
-
-## Alternatives we considered but rejected
+## Alternatives considered
 
 ### FastUI (Pydantic-native)
 
@@ -163,9 +155,10 @@ The strongest form-editing experience. RJSF handles nested JSON Schema forms wit
 
 Works for flat config. Gets painful for deeply nested forms because every add/remove/conditional-show requires a server round-trip and a dedicated partial template. Estimate: 15-20 Jinja2 partials and corresponding endpoints just for the automation rule editor. Adding Alpine for client-side form state in complex sections is a better tradeoff.
 
-## Open questions
+## Future work
 
-- Should the UI be an optional dependency group (`uv sync --group ui`) or always available?
-- Should Phase 1 ship with the task queue viewer, or is that a separate effort?
-- How much of the onboarding wizard (Phase 3) should be CLI-based vs UI-based?
-- Should the inline YAML editor use a syntax highlighting library (CodeMirror, Monaco) or a plain textarea?
+- Classification editor: add/edit/remove with type selector (confidence/boolean/enum)
+- Automation rule builder: when/then pairs with operator selection, provenance preview
+- Integration setup wizard: step-by-step config creation, like HA's Config Flow
+- Dry-run mode: preview what an automation rule would match against recent items
+- Onboarding wizard: reuse editing components for initial `config.yaml` generation

@@ -786,15 +786,13 @@ The UI reads config from `config.yaml` and writes back to it. The YAML file is t
 
 This was a deliberate rejection of Home Assistant's approach where Config Flow replaced YAML for most integrations. HA's ADR-0010 caused significant community friction: power users lost version control, bulk editing, and diffing. We looked at Grafana's model instead, where file-provisioned content is displayed in the UI without being "owned" by it.
 
-The tradeoff: we need to solve YAML round-tripping (preserving comments and formatting when the UI writes back). `ruamel.yaml` handles this. PyYAML (current dependency) strips comments. The round-trip problem doesn't exist in Phase 1 (read-only viewer) which is another reason to ship that first.
+The tradeoff: we needed to solve YAML round-tripping (preserving comments and formatting when the UI writes back). `ruamel.yaml` handles this. PyYAML strips comments. This was solved by building round-trip editing via `ruamel.yaml` (typ='rt') in `app/ui/yaml_rw.py`.
 
-### Phased delivery: read-only first, editing later
+### Incremental delivery: viewer first, then editing
 
-Phase 1 is a config viewer. Phase 2 adds editing for flat sections. Phase 3 adds complex editing and onboarding.
+The UI was built incrementally: config viewer first, then editing for flat sections (LLM profiles, directories, scripts, integration settings), then the chat interface and task queue viewer.
 
-Starting read-only follows Grafana's pattern and matches Assistant's trust principles. A viewer carries zero risk of mangling user files. It validates the template structure before any file mutation code exists. Each phase is independently shippable and useful.
-
-The alternative was building editing from the start. We rejected that because it front-loads the hardest problems (YAML round-tripping, complex nested form state, validation) before the basic UI framework is proven.
+Starting read-only followed Grafana's pattern and matched Assistant's trust principles. A viewer carried zero risk of mangling user files and validated the template structure before any file mutation code existed. Each increment was independently shippable and useful.
 
 ### HTMX + Alpine.js + DaisyUI, not an SPA
 
@@ -806,9 +804,9 @@ HTMX + Alpine.js is the middle ground. HTMX handles navigation and data persiste
 
 ### `ruamel.yaml` for round-trip editing
 
-When Phase 2 lands, `ruamel.yaml` replaces PyYAML for config writing (not reading, which stays on PyYAML for now). `ruamel.yaml` preserves comments, key ordering, block style, and quoting when modifying and re-serializing YAML.
+`ruamel.yaml` is a core dependency used for config writing. It preserves comments, key ordering, block style, and quoting when modifying and re-serializing YAML. PyYAML is still used for reading.
 
-Gotchas we're aware of: must use `typ='rt'` mode (without it, comments are silently dropped). The C extension kills comment preservation. Deleting list elements can orphan adjacent comments. No stable public API for comment manipulation. Prefer modifying values in-place over delete-and-recreate.
+Gotchas: must use `typ='rt'` mode (without it, comments are silently dropped). The C extension kills comment preservation. Deleting list elements can orphan adjacent comments. No stable public API for comment manipulation. Prefer modifying values in-place over delete-and-recreate.
 
 StrictYAML was considered but rejects custom YAML tags (`!secret`, `!yolo`). That's a dealbreaker.
 

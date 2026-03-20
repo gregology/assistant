@@ -129,7 +129,7 @@ app/
   actions/         # Re-exports from assistant_sdk.actions + script executor
   integrations/    # Handler registry, entry-point loader, custom integration support
   ui/              # Web UI: routes, presenters, YAML editor, Jinja2 templates
-tests/                 # 18 test files + safety/ (see docs/testing/guide.md for full listing)
+tests/                 # 20 test files + safety/ (see docs/testing/guide.md for full listing)
   test_cli.py          # CLI, setup wizard, and doctor tests
   test_ui_routes.py    # Web UI route handler tests
   test_ui_presenters.py  # Web UI presenter tests

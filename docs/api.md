@@ -43,8 +43,8 @@ curl -X POST http://localhost:6767/integrations/github.my_repos/issues/run
 
 ```
 POST /api/chat/conversations
-GET  /api/chat/conversations/{id}/history
-POST /api/chat/conversations/{id}/messages
+GET  /api/chat/conversations/{conversation_id}/history
+POST /api/chat/conversations/{conversation_id}/messages
 GET  /api/chat/tasks/{task_id}
 ```
 

@@ -996,8 +996,8 @@
 </code></pre></div>
 <h3 id="chat">Chat<a class="headerlink" href="#chat" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>POST /api/chat/conversations
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>GET  /api/chat/conversations/{id}/history
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>POST /api/chat/conversations/{id}/messages
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>GET  /api/chat/conversations/{conversation_id}/history
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>POST /api/chat/conversations/{conversation_id}/messages
 <a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>GET  /api/chat/tasks/{task_id}
 </code></pre></div>
 <p>Conversational chat interface. Create a conversation, send messages, and poll for LLM responses. Messages starting with <code>/</code> are commands (e.g., <code>/clear</code>) handled immediately without the LLM.</p>

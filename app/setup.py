@@ -331,7 +331,7 @@ def _yaml_entry(key: str, value: Any, indent: int = 0) -> str:
 
 
 _TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
-_jinja_env = Environment(
+_jinja_env = Environment(  # nosec B701 — plaintext templates, not HTML
     loader=FileSystemLoader(_TEMPLATES_DIR),
     trim_blocks=True,
     lstrip_blocks=True,

@@ -192,7 +192,7 @@ def _regenerate_wrapper() -> None:
 
     assistant_home = os.environ.get("ASSISTANT_HOME", str(PROJECT_ROOT))
     templates_dir = Path(__file__).resolve().parent / "templates"
-    env = Environment(loader=FileSystemLoader(templates_dir), keep_trailing_newline=True)
+    env = Environment(loader=FileSystemLoader(templates_dir), keep_trailing_newline=True)  # nosec B701
     template = env.get_template("wrapper.sh.jinja")
     content = template.render(assistant_home=assistant_home)
     wrapper.write_text(content)

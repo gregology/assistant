@@ -144,7 +144,8 @@ def _load_config_yaml() -> dict[str, Any] | None:
 
     for tag in ("!secret", "!yolo"):
         _PermissiveLoader.add_constructor(
-            tag, lambda loader, node: loader.construct_scalar(node)  # type: ignore[arg-type]
+            tag,
+            lambda loader, node: loader.construct_scalar(node),  # type: ignore[arg-type]
         )
 
     with open(config_path) as f:
@@ -266,8 +267,8 @@ def _probe_llm_urls(base_url: str, model: str) -> bool:
     import urllib.request
 
     urls_to_try = [
-        f"{base_url.rstrip('/')}/api/tags",   # Ollama
-        f"{base_url.rstrip('/')}/v1/models",   # OpenAI-compatible
+        f"{base_url.rstrip('/')}/api/tags",  # Ollama
+        f"{base_url.rstrip('/')}/v1/models",  # OpenAI-compatible
     ]
     for url in urls_to_try:
         try:

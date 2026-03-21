@@ -248,9 +248,11 @@ class TestSafetyValidation:
         automations = [
             AutomationConfig(
                 when={"classification.human": "> 0.8"},
-                then=[YoloAction(
-                    {"script": {"name": "research_tos", "inputs": {"domain": "{{ domain }}"}}}
-                )],
+                then=[
+                    YoloAction(
+                        {"script": {"name": "research_tos", "inputs": {"domain": "{{ domain }}"}}}
+                    )
+                ],
             ),
         ]
         integration, platform = _make_integration("test", automations)
@@ -419,6 +421,7 @@ class TestSafetyValidation:
 
         class FutureAction:
             """A hypothetical new action type not in the isinstance chain."""
+
             pass
 
         action = FutureAction()
@@ -503,10 +506,7 @@ class TestMissingConstFailSafe:
             caplog.at_level(logging.WARNING, logger="app.config"),
         ):
             _validate_automation_safety([integration])
-        assert any(
-            "Safety constants unavailable for email.inbox" in msg
-            for msg in caplog.messages
-        )
+        assert any("Safety constants unavailable for email.inbox" in msg for msg in caplog.messages)
 
     def test_simple_action_from_llm_blocked_when_const_missing(self):
         """With missing const.py, all SimpleActions from LLM provenance are

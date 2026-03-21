@@ -33,6 +33,7 @@ class ScriptActionDict(TypedDict):
 class ServiceActionDict(TypedDict):
     service: dict[str, Any]
 
+
 log = logging.getLogger(__name__)
 
 _jinja_env = SandboxedEnvironment(undefined=ChainableUndefined)
@@ -136,6 +137,7 @@ def _unwrap_yolo(action: ActionType | YoloAction) -> tuple[ActionType, bool]:
     """Unwrap a potential YoloAction, returning (inner_action, is_yolo)."""
     if isinstance(action, YoloAction):
         from assistant_sdk.models import _normalize_action
+
         return _normalize_action(action.value), True
     return action, False
 
@@ -160,11 +162,15 @@ def _enqueue_script(
     script_name = script_ref.get("name", "") if isinstance(script_ref, dict) else script_ref
     raw_inputs = script_ref.get("inputs", {}) if isinstance(script_ref, dict) else {}
     resolved_inputs = resolve_inputs(raw_inputs, resolve_value, classification)
-    runtime.enqueue({
-        "type": "script.run",
-        "script_name": script_name,
-        "inputs": resolved_inputs,
-    }, priority=priority, provenance=provenance)
+    runtime.enqueue(
+        {
+            "type": "script.run",
+            "script_name": script_name,
+            "inputs": resolved_inputs,
+        },
+        priority=priority,
+        provenance=provenance,
+    )
     log.info("Enqueued script.run for script=%s inputs=%s", script_name, resolved_inputs)
 
 
@@ -198,11 +204,20 @@ def _enqueue_service(
     )
     if raw_human_log:
         payload["human_log"] = _render_template(
-            raw_human_log, resolve_value, classification, extra=resolved_inputs,
+            raw_human_log,
+            resolve_value,
+            classification,
+            extra=resolved_inputs,
         )
     runtime.enqueue(payload, priority=priority, provenance=provenance)
-    log.info("Enqueued service.%s.%s for integration=%s.%s inputs=%s",
-             svc_type, service_name, svc_type, svc_name, resolved_inputs)
+    log.info(
+        "Enqueued service.%s.%s for integration=%s.%s inputs=%s",
+        svc_type,
+        service_name,
+        svc_type,
+        svc_name,
+        resolved_inputs,
+    )
 
 
 def enqueue_actions(

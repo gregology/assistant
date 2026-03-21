@@ -17,12 +17,8 @@ from assistant_sdk.models import DictAction, ScriptAction, ServiceAction, Simple
 
 CLASSIFICATIONS = {
     "human": ClassificationConfig(prompt="is this human?"),
-    "user_agreement_update": ClassificationConfig(
-        prompt="user agreement?", type="boolean"
-    ),
-    "requires_response": ClassificationConfig(
-        prompt="requires response?", type="boolean"
-    ),
+    "user_agreement_update": ClassificationConfig(prompt="user agreement?", type="boolean"),
+    "requires_response": ClassificationConfig(prompt="requires response?", type="boolean"),
     "priority": ClassificationConfig(
         prompt="priority?", type="enum", values=["low", "medium", "high", "critical"]
     ),
@@ -75,17 +71,18 @@ _DEFAULT_EMAIL = _MockEmail()
 def _make_email_resolver(email):
     def resolve_value(key, classification):
         if key.startswith("classification."):
-            cls_key = key[len("classification."):]
+            cls_key = key[len("classification.") :]
             return classification.get(cls_key, MISSING)
         if key.startswith("authentication."):
-            auth_key = key[len("authentication."):]
+            auth_key = key[len("authentication.") :]
             return email.authentication.get(auth_key, MISSING)
         if key.startswith("calendar."):
             if email.calendar is None:
                 return MISSING
-            cal_key = key[len("calendar."):]
+            cal_key = key[len("calendar.") :]
             return email.calendar.get(cal_key, MISSING)
         return getattr(email, key, MISSING)
+
     return resolve_value
 
 
@@ -160,6 +157,4 @@ def test_missing_key_never_matches(result):
     actions = evaluate_automations(
         [automation_with_missing], _DEFAULT_RESOLVER, result, CLASSIFICATIONS
     )
-    assert actions == [], (
-        f"Automation with nonexistent key fired: actions={actions}"
-    )
+    assert actions == [], f"Automation with nonexistent key fired: actions={actions}"

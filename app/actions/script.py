@@ -134,7 +134,8 @@ def execute(script_def: Any, inputs: dict[str, str]) -> str | None:
         if result.returncode != 0:
             log.warning(
                 "Script exited with code %d: stderr=%s",
-                result.returncode, result.stderr.strip(),
+                result.returncode,
+                result.stderr.strip(),
             )
 
         return _read_captured_output(script_def, output_file)

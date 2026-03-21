@@ -13,8 +13,10 @@ class TestServiceManifest:
 
     def test_reversible(self):
         s = ServiceManifest(
-            name="search", description="Web search",
-            handler=".services.search", reversible=True,
+            name="search",
+            description="Web search",
+            handler=".services.search",
+            reversible=True,
         )
         assert s.reversible is True
 
@@ -53,9 +55,15 @@ class TestIntegrationManifest:
     def test_with_services(self):
         svc = ServiceManifest(name="s1", description="d", handler=".h")
         m = IntegrationManifest(
-            domain="gemini", name="Gemini", version="1.0.0",
-            entry_task="check", dependencies=[], config_schema={},
-            platforms={}, path=Path("/test"), builtin=False,
+            domain="gemini",
+            name="Gemini",
+            version="1.0.0",
+            entry_task="check",
+            dependencies=[],
+            config_schema={},
+            platforms={},
+            path=Path("/test"),
+            builtin=False,
             services={"s1": svc},
         )
         assert "s1" in m.services

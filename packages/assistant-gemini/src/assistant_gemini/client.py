@@ -45,10 +45,12 @@ class GeminiClient:
             for chunk in getattr(metadata, "grounding_chunks", []) or []:
                 web = getattr(chunk, "web", None)
                 if web:
-                    sources.append({
-                        "title": getattr(web, "title", ""),
-                        "url": getattr(web, "uri", ""),
-                    })
+                    sources.append(
+                        {
+                            "title": getattr(web, "title", ""),
+                            "url": getattr(web, "uri", ""),
+                        }
+                    )
 
         return text, sources
 

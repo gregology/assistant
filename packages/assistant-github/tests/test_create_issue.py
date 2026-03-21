@@ -17,11 +17,13 @@ def _make_task(inputs: dict) -> dict:
 
 class TestCreateIssueHandler:
     def test_creates_issue_and_returns_result(self):
-        task = _make_task({
-            "repo": "myorg/myrepo",
-            "title": "Bug report",
-            "body": "Steps to reproduce",
-        })
+        task = _make_task(
+            {
+                "repo": "myorg/myrepo",
+                "title": "Bug report",
+                "body": "Steps to reproduce",
+            }
+        )
         with patch("assistant_github.services.create_issue.GitHubClient") as MockClient:
             MockClient.return_value.create_issue.return_value = {
                 "number": 42,
@@ -36,7 +38,10 @@ class TestCreateIssueHandler:
         assert result["repo"] == "myrepo"
 
         MockClient.return_value.create_issue.assert_called_once_with(
-            "myorg", "myrepo", "Bug report", "Steps to reproduce",
+            "myorg",
+            "myrepo",
+            "Bug report",
+            "Steps to reproduce",
         )
 
     def test_missing_repo(self):
@@ -63,9 +68,13 @@ class TestCreateIssueHandler:
         task = _make_task({"repo": "org/repo", "title": "Bug"})
         with patch("assistant_github.services.create_issue.GitHubClient") as MockClient:
             MockClient.return_value.create_issue.return_value = {
-                "number": 1, "url": "",
+                "number": 1,
+                "url": "",
             }
             handle(task)
         MockClient.return_value.create_issue.assert_called_once_with(
-            "org", "repo", "Bug", "",
+            "org",
+            "repo",
+            "Bug",
+            "",
         )

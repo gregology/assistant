@@ -61,13 +61,19 @@ def handle(task: TaskRecord) -> None:
 
     # Enqueue collect for every inbox email (upsert: creates new or refreshes mutable fields).
     for _mid, uid in inbox_by_mid.items():
-        runtime.enqueue({
-            "type": "email.inbox.collect",
-            "integration": integration_id,
-            "uid": uid,
-        }, priority=3)
+        runtime.enqueue(
+            {
+                "type": "email.inbox.collect",
+                "integration": integration_id,
+                "uid": uid,
+            },
+            priority=3,
+        )
 
     log.info(
         "email.inbox.check: %d in inbox, %d in notes, %d moved to synced/, %d collect tasks queued",
-        len(inbox_mids), len(note_mids), len(synced), len(inbox_by_mid),
+        len(inbox_mids),
+        len(note_mids),
+        len(synced),
+        len(inbox_by_mid),
     )

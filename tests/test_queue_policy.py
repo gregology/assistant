@@ -206,7 +206,7 @@ class TestResolvePolicy:
                     "service.gemini.web_research": TaskPolicyConfig(
                         rate_limit=RateLimitConfig(max=10, per="1h"),
                     )
-                }
+                },
             )
             policy = resolve_policy("service.gemini.web_research")
             assert policy.deduplicate_pending is False  # inherited from configured default

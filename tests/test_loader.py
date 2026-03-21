@@ -53,9 +53,7 @@ def custom_dir(tmp_path):
     }
     (integration_dir / "manifest.yaml").write_text(yaml.dump(manifest))
 
-    (integration_dir / "__init__.py").write_text(
-        "HANDLERS = {'check': lambda task: None}\n"
-    )
+    (integration_dir / "__init__.py").write_text("HANDLERS = {'check': lambda task: None}\n")
 
     return tmp_path
 
@@ -158,15 +156,11 @@ class TestDiscoverIntegrations:
         assert "no_manifest" not in manifests
 
     def test_nonexistent_custom_dir(self, builtin_dir):
-        manifests = discover_integrations(
-            builtin_dir, Path("/nonexistent/path")
-        )
+        manifests = discover_integrations(builtin_dir, Path("/nonexistent/path"))
         assert "email" in manifests
 
     def test_no_builtin_dir(self, tmp_path, custom_dir):
-        manifests = discover_integrations(
-            tmp_path / "nonexistent", custom_dir
-        )
+        manifests = discover_integrations(tmp_path / "nonexistent", custom_dir)
         assert "mock_thing" in manifests
         # Entry-point integrations are still discovered even without builtin dir
         assert "email" in manifests
@@ -317,9 +311,7 @@ class TestCheckDependencies:
     def test_installed_dependency(self, tmp_path):
         d = tmp_path / "has_dep"
         d.mkdir()
-        (d / "manifest.yaml").write_text(
-            "domain: has_dep\ndependencies:\n  - yaml\n"
-        )
+        (d / "manifest.yaml").write_text("domain: has_dep\ndependencies:\n  - yaml\n")
         manifest = _load_manifest(d, builtin=False)
         # yaml (pyyaml) is installed
         assert check_dependencies(manifest) == []
@@ -447,9 +439,7 @@ class TestLoadConfig:
             },
         }
         (ext_dir / "manifest.yaml").write_text(yaml.dump(manifest))
-        (ext_dir / "__init__.py").write_text(
-            "HANDLERS = {'check': lambda task: None}\n"
-        )
+        (ext_dir / "__init__.py").write_text("HANDLERS = {'check': lambda task: None}\n")
 
         # Create config referencing the custom directory
         config_path = tmp_path / "config.yaml"

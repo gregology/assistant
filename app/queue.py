@@ -116,9 +116,7 @@ def count_recent(task_type: str, seconds: int) -> int:
             if parsed is None:
                 continue
             try:
-                ts = datetime.strptime(parsed["timestamp"], "%Y%m%dT%H%M%SZ").replace(
-                    tzinfo=UTC
-                )
+                ts = datetime.strptime(parsed["timestamp"], "%Y%m%dT%H%M%SZ").replace(tzinfo=UTC)
             except ValueError:
                 continue
             if ts.timestamp() >= cutoff:
@@ -271,9 +269,7 @@ def prune_completed(retention_seconds: int) -> int:
             if parsed is None:
                 continue
             try:
-                ts = datetime.strptime(
-                    parsed["timestamp"], "%Y%m%dT%H%M%SZ"
-                ).replace(tzinfo=UTC)
+                ts = datetime.strptime(parsed["timestamp"], "%Y%m%dT%H%M%SZ").replace(tzinfo=UTC)
             except ValueError:
                 continue
             if ts.timestamp() < cutoff:

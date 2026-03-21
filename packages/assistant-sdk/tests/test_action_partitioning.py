@@ -17,6 +17,7 @@ def _make_resolver(**fields):
         if key in fields:
             return fields[key]
         return MISSING
+
     return resolve_value
 
 
@@ -87,7 +88,9 @@ class TestResolveScriptInputs:
     def test_classification_field(self):
         resolver = _make_resolver()
         result = resolve_inputs(
-            {"s": "{{ classification.score }}"}, resolver, {"score": 0.9},
+            {"s": "{{ classification.score }}"},
+            resolver,
+            {"score": 0.9},
         )
         assert result == {"s": "0.9"}
 
@@ -119,9 +122,9 @@ class TestEnqueueActions:
         with patch("assistant_sdk.runtime._enqueue") as mock:
             mock.return_value = "t1"
             enqueue_actions(
-                actions=[ScriptAction(
-                    script={"name": "research", "inputs": {"d": "{{ domain }}"}}
-                )],
+                actions=[
+                    ScriptAction(script={"name": "research", "inputs": {"d": "{{ domain }}"}})
+                ],
                 platform_payload={"type": "test.act", "id": "1"},
                 resolve_value=resolver,
                 classification={},
@@ -138,9 +141,9 @@ class TestEnqueueActions:
         with patch("assistant_sdk.runtime._enqueue") as mock:
             mock.return_value = "t1"
             enqueue_actions(
-                actions=[ServiceAction(
-                    service={"call": "gemini.research.web_search", "inputs": {}}
-                )],
+                actions=[
+                    ServiceAction(service={"call": "gemini.research.web_search", "inputs": {}})
+                ],
                 platform_payload={"type": "test.act", "id": "1"},
                 resolve_value=resolver,
                 classification={},

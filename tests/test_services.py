@@ -18,6 +18,7 @@ def _make_resolver(**fields):
         if key in fields:
             return fields[key]
         return MISSING
+
     return resolve_value
 
 
@@ -119,10 +120,14 @@ class TestEnqueueServiceActions:
         with patch("assistant_sdk.runtime._enqueue") as mock_enqueue:
             mock_enqueue.return_value = "task_1"
             enqueue_actions(
-                actions=[ServiceAction(service={
-                    "call": "gemini.default.web_research",
-                    "inputs": {"prompt": "research {{ domain }}"},
-                })],
+                actions=[
+                    ServiceAction(
+                        service={
+                            "call": "gemini.default.web_research",
+                            "inputs": {"prompt": "research {{ domain }}"},
+                        }
+                    )
+                ],
                 platform_payload={"type": "email.inbox.act", "uid": "123"},
                 resolve_value=resolver,
                 classification={},
@@ -140,10 +145,14 @@ class TestEnqueueServiceActions:
         with patch("assistant_sdk.runtime._enqueue") as mock_enqueue:
             mock_enqueue.return_value = "task_1"
             enqueue_actions(
-                actions=[ServiceAction(service={
-                    "call": "gemini.default.web_research",
-                    "inputs": {"prompt": "{{ domain }}"},
-                })],
+                actions=[
+                    ServiceAction(
+                        service={
+                            "call": "gemini.default.web_research",
+                            "inputs": {"prompt": "{{ domain }}"},
+                        }
+                    )
+                ],
                 platform_payload={"type": "email.inbox.act", "uid": "123"},
                 resolve_value=resolver,
                 classification={},
@@ -208,10 +217,14 @@ class TestEnqueueServiceActions:
         with patch("assistant_sdk.runtime._enqueue") as mock_enqueue:
             mock_enqueue.return_value = "task_1"
             enqueue_actions(
-                actions=[ServiceAction(service={
-                    "call": "gemini.default.web_research",
-                    "inputs": {"prompt": "test"},
-                })],
+                actions=[
+                    ServiceAction(
+                        service={
+                            "call": "gemini.default.web_research",
+                            "inputs": {"prompt": "test"},
+                        }
+                    )
+                ],
                 platform_payload={"type": "email.inbox.act", "uid": "123"},
                 resolve_value=resolver,
                 classification={},
@@ -227,11 +240,15 @@ class TestEnqueueServiceActions:
         with patch("assistant_sdk.runtime._enqueue") as mock_enqueue:
             mock_enqueue.return_value = "task_1"
             enqueue_actions(
-                actions=[ServiceAction(service={
-                    "call": "gemini.default.web_research",
-                    "inputs": {"prompt": "test"},
-                    "on_result": custom_routes,
-                })],
+                actions=[
+                    ServiceAction(
+                        service={
+                            "call": "gemini.default.web_research",
+                            "inputs": {"prompt": "test"},
+                            "on_result": custom_routes,
+                        }
+                    )
+                ],
                 platform_payload={"type": "email.inbox.act", "uid": "123"},
                 resolve_value=resolver,
                 classification={},
@@ -248,11 +265,15 @@ class TestServiceHumanLog:
         with patch("assistant_sdk.runtime._enqueue") as mock_enqueue:
             mock_enqueue.return_value = "task_1"
             enqueue_actions(
-                actions=[ServiceAction(service={
-                    "call": "gemini.default.web_research",
-                    "inputs": {"prompt": "test"},
-                    "human_log": "Privacy Policy update for {{ domain }}",
-                })],
+                actions=[
+                    ServiceAction(
+                        service={
+                            "call": "gemini.default.web_research",
+                            "inputs": {"prompt": "test"},
+                            "human_log": "Privacy Policy update for {{ domain }}",
+                        }
+                    )
+                ],
                 platform_payload={"type": "email.inbox.act", "uid": "123"},
                 resolve_value=resolver,
                 classification={},
@@ -264,6 +285,7 @@ class TestServiceHumanLog:
     def test_human_log_from_manifest_fallback(self):
         """Manifest-level human_log is used when config doesn't specify one."""
         from assistant_sdk import runtime
+
         runtime.set_service_log_template(
             "service.gemini.web_research",
             "Web research: {{ prompt | truncate(80) }}",
@@ -273,10 +295,14 @@ class TestServiceHumanLog:
             with patch("assistant_sdk.runtime._enqueue") as mock_enqueue:
                 mock_enqueue.return_value = "task_1"
                 enqueue_actions(
-                    actions=[ServiceAction(service={
-                        "call": "gemini.default.web_research",
-                        "inputs": {"prompt": "research something important"},
-                    })],
+                    actions=[
+                        ServiceAction(
+                            service={
+                                "call": "gemini.default.web_research",
+                                "inputs": {"prompt": "research something important"},
+                            }
+                        )
+                    ],
                     platform_payload={"type": "email.inbox.act", "uid": "123"},
                     resolve_value=resolver,
                     classification={},
@@ -290,6 +316,7 @@ class TestServiceHumanLog:
     def test_config_human_log_overrides_manifest(self):
         """Config human_log takes precedence over manifest default."""
         from assistant_sdk import runtime
+
         runtime.set_service_log_template(
             "service.gemini.web_research",
             "Web research: {{ prompt | truncate(80) }}",
@@ -299,11 +326,15 @@ class TestServiceHumanLog:
             with patch("assistant_sdk.runtime._enqueue") as mock_enqueue:
                 mock_enqueue.return_value = "task_1"
                 enqueue_actions(
-                    actions=[ServiceAction(service={
-                        "call": "gemini.default.web_research",
-                        "inputs": {"prompt": "test"},
-                        "human_log": "Custom: {{ domain }}",
-                    })],
+                    actions=[
+                        ServiceAction(
+                            service={
+                                "call": "gemini.default.web_research",
+                                "inputs": {"prompt": "test"},
+                                "human_log": "Custom: {{ domain }}",
+                            }
+                        )
+                    ],
                     platform_payload={"type": "email.inbox.act", "uid": "123"},
                     resolve_value=resolver,
                     classification={},
@@ -320,10 +351,14 @@ class TestServiceHumanLog:
         with patch("assistant_sdk.runtime._enqueue") as mock_enqueue:
             mock_enqueue.return_value = "task_1"
             enqueue_actions(
-                actions=[ServiceAction(service={
-                    "call": "gemini.default.web_research",
-                    "inputs": {"prompt": "test"},
-                })],
+                actions=[
+                    ServiceAction(
+                        service={
+                            "call": "gemini.default.web_research",
+                            "inputs": {"prompt": "test"},
+                        }
+                    )
+                ],
                 platform_payload={"type": "email.inbox.act", "uid": "123"},
                 resolve_value=resolver,
                 classification={},

@@ -111,8 +111,7 @@ class TestChatServiceHandleMessage:
 
     def test_task_payload_structure(self, svc):
         cid = svc.create_conversation()
-        with patch("app.chat.config") as mock_config, \
-             patch("app.chat.queue") as mock_queue:
+        with patch("app.chat.config") as mock_config, patch("app.chat.queue") as mock_queue:
             mock_config.chat.llm = "default"
             mock_config.chat.system_prompt = "Be helpful."
             mock_queue.enqueue.return_value = "task-1"
@@ -145,24 +144,30 @@ class TestChatServiceReceiveReply:
 class TestChatServiceReceiveStructuredReply:
     def test_reply_only(self, svc):
         cid = svc.create_conversation()
-        messages = svc.receive_structured_reply(cid, {
-            "reply": "Just a response.",
-            "proposal": None,
-        })
+        messages = svc.receive_structured_reply(
+            cid,
+            {
+                "reply": "Just a response.",
+                "proposal": None,
+            },
+        )
         assert len(messages) == 1
         assert messages[0].role == "assistant"
         assert messages[0].content == "Just a response."
 
     def test_reply_with_proposal(self, svc):
         cid = svc.create_conversation()
-        messages = svc.receive_structured_reply(cid, {
-            "reply": "I'll create that.",
-            "proposal": {
-                "action": "create_github_issue",
-                "parameters": {"title": "Test", "repo": "org/repo"},
-                "description": "Create issue: Test",
+        messages = svc.receive_structured_reply(
+            cid,
+            {
+                "reply": "I'll create that.",
+                "proposal": {
+                    "action": "create_github_issue",
+                    "parameters": {"title": "Test", "repo": "org/repo"},
+                    "description": "Create issue: Test",
+                },
             },
-        })
+        )
         assert len(messages) == 2
         assert messages[0].type == "chat"
         assert messages[0].content == "I'll create that."
@@ -176,14 +181,17 @@ class TestChatServiceReceiveStructuredReply:
 
     def test_proposal_persisted_to_store(self, svc, store):
         cid = svc.create_conversation()
-        messages = svc.receive_structured_reply(cid, {
-            "reply": "Ok.",
-            "proposal": {
-                "action": "test_action",
-                "parameters": {},
-                "description": "Do something",
+        messages = svc.receive_structured_reply(
+            cid,
+            {
+                "reply": "Ok.",
+                "proposal": {
+                    "action": "test_action",
+                    "parameters": {},
+                    "description": "Do something",
+                },
             },
-        })
+        )
         proposal_id = messages[1].metadata["proposal_id"]
         found = store.find_proposal(cid, proposal_id)
         assert found is not None
@@ -195,6 +203,7 @@ class TestChatServiceHandleProposalResponse:
     def _clean_registry(self):
         """Isolate ACTION_REGISTRY mutations."""
         from app.chat import ACTION_REGISTRY
+
         original = dict(ACTION_REGISTRY)
         yield
         ACTION_REGISTRY.clear()
@@ -202,14 +211,17 @@ class TestChatServiceHandleProposalResponse:
 
     def test_reject_proposal(self, svc):
         cid = svc.create_conversation()
-        messages = svc.receive_structured_reply(cid, {
-            "reply": "Ok.",
-            "proposal": {
-                "action": "test_action",
-                "parameters": {},
-                "description": "Do something",
+        messages = svc.receive_structured_reply(
+            cid,
+            {
+                "reply": "Ok.",
+                "proposal": {
+                    "action": "test_action",
+                    "parameters": {},
+                    "description": "Do something",
+                },
             },
-        })
+        )
         proposal_id = messages[1].metadata["proposal_id"]
         result = svc.handle_proposal_response(cid, proposal_id, "reject")
         assert result["type"] == "immediate"
@@ -217,14 +229,17 @@ class TestChatServiceHandleProposalResponse:
 
     def test_approve_unknown_action(self, svc):
         cid = svc.create_conversation()
-        messages = svc.receive_structured_reply(cid, {
-            "reply": "Ok.",
-            "proposal": {
-                "action": "test_action",
-                "parameters": {},
-                "description": "Do something",
+        messages = svc.receive_structured_reply(
+            cid,
+            {
+                "reply": "Ok.",
+                "proposal": {
+                    "action": "test_action",
+                    "parameters": {},
+                    "description": "Do something",
+                },
             },
-        })
+        )
         proposal_id = messages[1].metadata["proposal_id"]
         result = svc.handle_proposal_response(cid, proposal_id, "approve")
         assert result["type"] == "immediate"
@@ -232,16 +247,20 @@ class TestChatServiceHandleProposalResponse:
 
     def test_approve_registered_action_enqueues(self, svc):
         from app.chat import ACTION_REGISTRY
+
         ACTION_REGISTRY["test_action"] = "service.test.action"
         cid = svc.create_conversation()
-        messages = svc.receive_structured_reply(cid, {
-            "reply": "Ok.",
-            "proposal": {
-                "action": "test_action",
-                "parameters": {"key": "val"},
-                "description": "Do something",
+        messages = svc.receive_structured_reply(
+            cid,
+            {
+                "reply": "Ok.",
+                "proposal": {
+                    "action": "test_action",
+                    "parameters": {"key": "val"},
+                    "description": "Do something",
+                },
             },
-        })
+        )
         proposal_id = messages[1].metadata["proposal_id"]
         with patch("app.chat.queue") as mock_queue:
             mock_queue.enqueue.return_value = "task-xyz"
@@ -254,14 +273,17 @@ class TestChatServiceHandleProposalResponse:
 
     def test_invalid_option(self, svc):
         cid = svc.create_conversation()
-        messages = svc.receive_structured_reply(cid, {
-            "reply": "Ok.",
-            "proposal": {
-                "action": "test_action",
-                "parameters": {},
-                "description": "Do something",
+        messages = svc.receive_structured_reply(
+            cid,
+            {
+                "reply": "Ok.",
+                "proposal": {
+                    "action": "test_action",
+                    "parameters": {},
+                    "description": "Do something",
+                },
             },
-        })
+        )
         proposal_id = messages[1].metadata["proposal_id"]
         with pytest.raises(ValueError, match="Invalid option"):
             svc.handle_proposal_response(cid, proposal_id, "invalid_opt")
@@ -281,6 +303,7 @@ class TestBuildActionPrompt:
     def _clean_metadata(self):
         """Isolate ACTION_METADATA mutations."""
         from app.chat import ACTION_METADATA
+
         original = dict(ACTION_METADATA)
         ACTION_METADATA.clear()
         yield
@@ -289,10 +312,12 @@ class TestBuildActionPrompt:
 
     def test_empty_when_no_actions(self):
         from app.chat import _build_action_prompt
+
         assert _build_action_prompt() == ""
 
     def test_includes_action_name_and_description(self):
         from app.chat import _build_action_prompt, ACTION_METADATA
+
         ACTION_METADATA["service.github.create_issue"] = {
             "description": "Create a GitHub issue",
             "input_schema": {
@@ -313,13 +338,13 @@ class TestBuildActionPrompt:
 
     def test_system_prompt_includes_actions(self, svc):
         from app.chat import ACTION_METADATA
+
         ACTION_METADATA["service.test.action"] = {
             "description": "Test action",
             "input_schema": {"properties": {"x": {"type": "string"}}, "required": []},
         }
         cid = svc.create_conversation()
-        with patch("app.chat.config") as mock_config, \
-             patch("app.chat.queue") as mock_queue:
+        with patch("app.chat.config") as mock_config, patch("app.chat.queue") as mock_queue:
             mock_config.chat.system_prompt = "Be helpful."
             mock_config.chat.llm = "default"
             mock_queue.enqueue.return_value = "task-1"
@@ -335,6 +360,7 @@ class TestBuildLLMMessages:
     def _no_actions(self):
         """Isolate from globally registered actions."""
         from app.chat import ACTION_METADATA
+
         original = dict(ACTION_METADATA)
         ACTION_METADATA.clear()
         yield
@@ -343,8 +369,7 @@ class TestBuildLLMMessages:
 
     def test_includes_system_prompt_and_chat_messages(self, svc):
         cid = svc.create_conversation()
-        with patch("app.chat.config") as mock_config, \
-             patch("app.chat.queue") as mock_queue:
+        with patch("app.chat.config") as mock_config, patch("app.chat.queue") as mock_queue:
             mock_config.chat.system_prompt = "Be helpful."
             mock_config.chat.llm = "default"
             mock_queue.enqueue.return_value = "task-1"
@@ -358,8 +383,7 @@ class TestBuildLLMMessages:
 
     def test_excludes_commands_from_llm_messages(self, svc):
         cid = svc.create_conversation()
-        with patch("app.chat.config") as mock_config, \
-             patch("app.chat.queue") as mock_queue:
+        with patch("app.chat.config") as mock_config, patch("app.chat.queue") as mock_queue:
             mock_config.chat.system_prompt = None
             mock_config.chat.llm = "default"
             mock_queue.enqueue.return_value = "task-1"
@@ -377,8 +401,7 @@ class TestBuildLLMMessages:
 
     def test_no_system_prompt(self, svc):
         cid = svc.create_conversation()
-        with patch("app.chat.config") as mock_config, \
-             patch("app.chat.queue") as mock_queue:
+        with patch("app.chat.config") as mock_config, patch("app.chat.queue") as mock_queue:
             mock_config.chat.system_prompt = None
             mock_config.chat.llm = "default"
             mock_queue.enqueue.return_value = "task-1"
@@ -419,14 +442,17 @@ class TestChatMessageHandler:
 
     def test_structured_response_with_proposal(self):
         import json
-        structured = json.dumps({
-            "reply": "I'll create that issue.",
-            "proposal": {
-                "action": "create_github_issue",
-                "parameters": {"title": "Test"},
-                "description": "Create issue: Test",
-            },
-        })
+
+        structured = json.dumps(
+            {
+                "reply": "I'll create that issue.",
+                "proposal": {
+                    "action": "create_github_issue",
+                    "parameters": {"title": "Test"},
+                    "description": "Create issue: Test",
+                },
+            }
+        )
         mock_response = MagicMock()
         mock_response.content = structured
 
@@ -441,6 +467,7 @@ class TestChatMessageHandler:
 
     def test_structured_response_without_proposal(self):
         import json
+
         structured = json.dumps({"reply": "Just a chat response.", "proposal": None})
         mock_response = MagicMock()
         mock_response.content = structured
@@ -467,6 +494,7 @@ class TestChatMessageHandler:
 
     def test_falls_back_when_reply_key_missing(self):
         import json
+
         mock_response = MagicMock()
         mock_response.content = json.dumps({"something_else": "no reply key"})
 
@@ -479,6 +507,7 @@ class TestChatMessageHandler:
 
     def test_passes_response_format_to_backend(self):
         import json
+
         mock_response = MagicMock()
         mock_response.content = json.dumps({"reply": "Hi", "proposal": None})
 

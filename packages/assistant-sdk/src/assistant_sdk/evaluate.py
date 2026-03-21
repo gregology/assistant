@@ -117,7 +117,7 @@ def _check_single_condition(
 ) -> bool:
     """Check a single condition against its resolved value."""
     if key.startswith("classification."):
-        cls_key = key[len("classification."):]
+        cls_key = key[len("classification.") :]
         if cls_key not in classifications:
             return False
         return check_condition(value, condition, classifications[cls_key])

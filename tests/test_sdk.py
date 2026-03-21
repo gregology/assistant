@@ -18,6 +18,7 @@ class TestSDKImports:
 
     def test_top_level_imports(self):
         import assistant_sdk
+
         assert hasattr(assistant_sdk, "YoloAction")
         assert hasattr(assistant_sdk, "AutomationConfig")
         assert hasattr(assistant_sdk, "NoteStore")
@@ -30,9 +31,11 @@ class TestSDKImports:
 
     def test_models_are_same_as_app(self):
         from app.config import YoloAction as AppYoloAction
+
         assert YoloAction is AppYoloAction
 
         from app.config import AutomationConfig as AppAutomationConfig
+
         assert AutomationConfig is AppAutomationConfig
 
 
@@ -79,6 +82,7 @@ class TestRuntimeRegistration:
     def test_runtime_not_registered_error(self):
         """Calling before register raises RuntimeNotRegistered."""
         import assistant_sdk.runtime as rt
+
         old = rt._enqueue
         try:
             rt._enqueue = None

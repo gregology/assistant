@@ -32,10 +32,11 @@ AVAILABLE_COMMANDS = ["/clear"]
 @dataclass
 class ChatMessage:
     """A single message in a chat conversation."""
-    role: str          # "user", "assistant", "system"
+
+    role: str  # "user", "assistant", "system"
     content: str
-    type: str          # "chat", "command", "confirmation", "response"
-    timestamp: str     # ISO 8601
+    type: str  # "chat", "command", "confirmation", "response"
+    timestamp: str  # ISO 8601
     metadata: dict[str, Any] | None = field(default=None)
 
 
@@ -93,7 +94,9 @@ class ChatService:
         return {"type": "chat", "task_id": task_id}
 
     def check_task_processed(
-        self, task_id: str, conversation_id: str = "",
+        self,
+        task_id: str,
+        conversation_id: str = "",
     ) -> list[ChatMessage] | None:
         """Return cached messages if this task was already processed.
 
@@ -118,41 +121,61 @@ class ChatService:
             self._processed_tasks.popitem(last=False)
 
     def receive_reply(
-        self, conversation_id: str, content: str, task_id: str = "",
+        self,
+        conversation_id: str,
+        content: str,
+        task_id: str = "",
     ) -> list[ChatMessage]:
         """Record a plain-text assistant reply. Returns a list of messages."""
         now = datetime.now(UTC).isoformat()
         metadata = {"task_id": task_id} if task_id else None
         msg = ChatMessage(
-            role="assistant", content=content, type="chat", timestamp=now,
+            role="assistant",
+            content=content,
+            type="chat",
+            timestamp=now,
             metadata=metadata,
         )
         if self._store.exists(conversation_id):
             self._store.append(
-                conversation_id, msg.role, msg.type, msg.content,
+                conversation_id,
+                msg.role,
+                msg.type,
+                msg.content,
                 metadata=metadata,
             )
         return [msg]
 
     def receive_service_result(
-        self, conversation_id: str, text: str, task_id: str = "",
+        self,
+        conversation_id: str,
+        text: str,
+        task_id: str = "",
     ) -> list[ChatMessage]:
         """Record the result of a service task. Returns a list of messages."""
         now = datetime.now(UTC).isoformat()
         metadata = {"task_id": task_id} if task_id else None
         msg = ChatMessage(
-            role="system", content=text, type="system", timestamp=now,
+            role="system",
+            content=text,
+            type="system",
+            timestamp=now,
             metadata=metadata,
         )
         if self._store.exists(conversation_id):
             self._store.append(
-                conversation_id, msg.role, msg.type, msg.content,
+                conversation_id,
+                msg.role,
+                msg.type,
+                msg.content,
                 metadata=metadata,
             )
         return [msg]
 
     def receive_structured_reply(
-        self, conversation_id: str, structured: dict[str, Any],
+        self,
+        conversation_id: str,
+        structured: dict[str, Any],
         task_id: str = "",
     ) -> list[ChatMessage]:
         """Process a structured LLM response with an optional proposal.
@@ -165,13 +188,19 @@ class ChatService:
         # Always store the assistant's reply
         reply_metadata = {"task_id": task_id} if task_id else None
         reply_msg = ChatMessage(
-            role="assistant", content=structured["reply"], type="chat",
-            timestamp=now, metadata=reply_metadata,
+            role="assistant",
+            content=structured["reply"],
+            type="chat",
+            timestamp=now,
+            metadata=reply_metadata,
         )
         messages.append(reply_msg)
         if self._store.exists(conversation_id):
             self._store.append(
-                conversation_id, reply_msg.role, reply_msg.type, reply_msg.content,
+                conversation_id,
+                reply_msg.role,
+                reply_msg.type,
+                reply_msg.content,
                 metadata=reply_metadata,
             )
 
@@ -199,15 +228,20 @@ class ChatService:
             messages.append(confirmation_msg)
             if self._store.exists(conversation_id):
                 self._store.append(
-                    conversation_id, confirmation_msg.role,
-                    confirmation_msg.type, confirmation_msg.content,
+                    conversation_id,
+                    confirmation_msg.role,
+                    confirmation_msg.type,
+                    confirmation_msg.content,
                     metadata=confirmation_msg.metadata,
                 )
 
         return messages
 
     def handle_proposal_response(
-        self, conversation_id: str, proposal_id: str, option: str,
+        self,
+        conversation_id: str,
+        proposal_id: str,
+        option: str,
     ) -> dict[str, Any]:
         """Handle a user's response to a proposal confirmation.
 
@@ -231,24 +265,30 @@ class ChatService:
         # Validate the option is in the allowed set
         valid_options = {o["id"] for o in metadata.get("options", [])}
         if option not in valid_options:
-            raise ValueError(
-                f"Invalid option '{option}'. Valid: {valid_options}"
-            )
+            raise ValueError(f"Invalid option '{option}'. Valid: {valid_options}")
 
         # Record the user's response
         self._store.append(
-            conversation_id, "user", "response", option,
+            conversation_id,
+            "user",
+            "response",
+            option,
             metadata={"proposal_id": proposal_id, "option": option},
         )
 
         # Rejections are immediate
         if option == "reject":
             msg = ChatMessage(
-                role="system", content="Action cancelled.",
-                type="system", timestamp=datetime.now(UTC).isoformat(),
+                role="system",
+                content="Action cancelled.",
+                type="system",
+                timestamp=datetime.now(UTC).isoformat(),
             )
             self._store.append(
-                conversation_id, msg.role, msg.type, msg.content,
+                conversation_id,
+                msg.role,
+                msg.type,
+                msg.content,
             )
             return {"type": "immediate", "message": msg}
 
@@ -258,11 +298,16 @@ class ChatService:
         service_type = ACTION_REGISTRY.get(action)
         if service_type is None:
             msg = ChatMessage(
-                role="system", content=f"Unknown action: {action}",
-                type="system", timestamp=datetime.now(UTC).isoformat(),
+                role="system",
+                content=f"Unknown action: {action}",
+                type="system",
+                timestamp=datetime.now(UTC).isoformat(),
             )
             self._store.append(
-                conversation_id, msg.role, msg.type, msg.content,
+                conversation_id,
+                msg.role,
+                msg.type,
+                msg.content,
             )
             return {"type": "immediate", "message": msg}
 
@@ -276,22 +321,31 @@ class ChatService:
         }
         task_id = queue.enqueue(payload, priority=2)
         log.human(
-            "Chat action approved: %s (task %s)", action, task_id,
+            "Chat action approved: %s (task %s)",
+            action,
+            task_id,
         )
 
         msg = ChatMessage(
-            role="system", content="Processing...",
-            type="system", timestamp=datetime.now(UTC).isoformat(),
+            role="system",
+            content="Processing...",
+            type="system",
+            timestamp=datetime.now(UTC).isoformat(),
         )
         self._store.append(
-            conversation_id, msg.role, msg.type, msg.content,
+            conversation_id,
+            msg.role,
+            msg.type,
+            msg.content,
         )
         return {"type": "task", "message": msg, "task_id": task_id}
 
     def record_error(self, conversation_id: str, content: str) -> ChatMessage:
         """Record a system error message in the conversation."""
         msg = ChatMessage(
-            role="system", content=content, type="system",
+            role="system",
+            content=content,
+            type="system",
             timestamp=datetime.now(UTC).isoformat(),
         )
         if self._store.exists(conversation_id):
@@ -428,8 +482,7 @@ CHAT_RESPONSE_SCHEMA: dict[str, Any] = {
                 "description": {
                     "type": "string",
                     "description": (
-                        "Human-readable summary of what will happen "
-                        "if the user approves."
+                        "Human-readable summary of what will happen if the user approves."
                     ),
                 },
             },

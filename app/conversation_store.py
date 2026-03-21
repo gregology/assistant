@@ -100,30 +100,38 @@ class ConversationStore:
             lines = path.read_text().splitlines()
             non_empty = [ln for ln in lines if ln.strip()]
             if not non_empty:
-                conversations.append({
-                    "id": cid,
-                    "message_count": 0,
-                    "created_at": datetime.fromtimestamp(
-                        path.stat().st_ctime, tz=UTC,
-                    ).isoformat(),
-                    "last_activity": datetime.fromtimestamp(
-                        path.stat().st_mtime, tz=UTC,
-                    ).isoformat(),
-                })
+                conversations.append(
+                    {
+                        "id": cid,
+                        "message_count": 0,
+                        "created_at": datetime.fromtimestamp(
+                            path.stat().st_ctime,
+                            tz=UTC,
+                        ).isoformat(),
+                        "last_activity": datetime.fromtimestamp(
+                            path.stat().st_mtime,
+                            tz=UTC,
+                        ).isoformat(),
+                    }
+                )
                 continue
             first = json.loads(non_empty[0])
             last = json.loads(non_empty[-1])
-            conversations.append({
-                "id": cid,
-                "message_count": len(non_empty),
-                "created_at": first.get("ts", ""),
-                "last_activity": last.get("ts", ""),
-            })
+            conversations.append(
+                {
+                    "id": cid,
+                    "message_count": len(non_empty),
+                    "created_at": first.get("ts", ""),
+                    "last_activity": last.get("ts", ""),
+                }
+            )
         conversations.sort(key=lambda c: c["last_activity"], reverse=True)
         return conversations
 
     def find_proposal(
-        self, conversation_id: str, proposal_id: str,
+        self,
+        conversation_id: str,
+        proposal_id: str,
     ) -> dict[str, Any] | None:
         """Find a confirmation message by proposal_id, scanning backward."""
         messages = self.read(conversation_id)
@@ -134,7 +142,9 @@ class ConversationStore:
         return None
 
     def has_response(
-        self, conversation_id: str, proposal_id: str,
+        self,
+        conversation_id: str,
+        proposal_id: str,
     ) -> bool:
         """Check whether a response message already exists for a proposal."""
         messages = self.read(conversation_id)

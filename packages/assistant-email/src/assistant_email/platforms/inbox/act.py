@@ -59,15 +59,20 @@ def _is_folder_move(action: Any) -> bool:
 
 
 def _run_action(
-    email: Any, action: Any, yolo: bool, provenance: str,
-    store: "EmailStore | None", message_id: str,
+    email: Any,
+    action: Any,
+    yolo: bool,
+    provenance: str,
+    store: "EmailStore | None",
+    message_id: str,
 ) -> None:
     """Execute a single action with provenance checks and store sync."""
     if _is_blocked(action, provenance, yolo):
         log.warning(
-            "email.inbox.act: BLOCKED irreversible action %r "
-            "(provenance=%s, yolo=%s), skipping",
-            action, provenance, yolo,
+            "email.inbox.act: BLOCKED irreversible action %r (provenance=%s, yolo=%s), skipping",
+            action,
+            provenance,
+            yolo,
         )
         return
     _execute_action(email, action)
@@ -85,7 +90,10 @@ def handle(task: TaskRecord) -> None:
     provenance = task.get("provenance", "unknown")
     log.info(
         "email.inbox.act: uid=%s actions=%s provenance=%s (integration=%s)",
-        uid, actions, provenance, integration_id,
+        uid,
+        actions,
+        provenance,
+        integration_id,
     )
 
     notes_dir = runtime.get_notes_dir()

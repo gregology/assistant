@@ -22,22 +22,24 @@ DEFAULT_CLASSIFICATIONS: dict[str, ClassificationConfig] = {
 
 # Fields that are resolved from the email object itself (IMAP data, headers,
 # authentication results) — not from LLM classification output.
-DETERMINISTIC_SOURCES: frozenset[str] = frozenset({
-    "authentication",
-    "calendar",
-    "domain",
-    "from_address",
-    "has_attachments",
-    "is_answered",
-    "is_calendar_event",
-    "is_forward",
-    "is_noreply",
-    "is_read",
-    "is_reply",
-    "is_starred",
-    "is_unsubscribable",
-    "root_domain",
-})
+DETERMINISTIC_SOURCES: frozenset[str] = frozenset(
+    {
+        "authentication",
+        "calendar",
+        "domain",
+        "from_address",
+        "has_attachments",
+        "is_answered",
+        "is_calendar_event",
+        "is_forward",
+        "is_noreply",
+        "is_read",
+        "is_reply",
+        "is_starred",
+        "is_unsubscribable",
+        "root_domain",
+    }
+)
 
 # Actions that cannot be undone. Automations that would trigger these from
 # non-deterministic (LLM) provenance are blocked at config load time unless

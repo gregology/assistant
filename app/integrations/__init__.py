@@ -38,9 +38,7 @@ def _load_handler(module_name: str, handler_path: str) -> TaskHandler | None:
         return None
 
 
-def _register_integration_handlers(
-    domain: str, module_name: str, handlers: dict[str, str]
-) -> None:
+def _register_integration_handlers(domain: str, module_name: str, handlers: dict[str, str]) -> None:
     """Register integration-level handlers."""
     for suffix, handler_path in handlers.items():
         handler = _load_handler(module_name, handler_path)

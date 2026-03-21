@@ -65,7 +65,9 @@ def policy_enqueue(
     # Dedup check
     if policy.deduplicate_pending and queue.has_pending_duplicate(fp, task_type):
         log.info(
-            "Dedup: skipping %s (fingerprint %s already pending)", task_type, fp,
+            "Dedup: skipping %s (fingerprint %s already pending)",
+            task_type,
+            fp,
         )
         return None
 
@@ -76,7 +78,10 @@ def policy_enqueue(
         if recent >= policy.rate_limit.max:
             log.info(
                 "Rate limit: skipping %s (%d/%d in last %s)",
-                task_type, recent, policy.rate_limit.max, policy.rate_limit.per,
+                task_type,
+                recent,
+                policy.rate_limit.max,
+                policy.rate_limit.per,
             )
             return None
 

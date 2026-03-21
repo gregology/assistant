@@ -56,7 +56,9 @@ def register(
 
 
 def enqueue(
-    payload: dict[str, Any], priority: int = 5, provenance: str | None = None,
+    payload: dict[str, Any],
+    priority: int = 5,
+    provenance: str | None = None,
 ) -> str | None:
     if _enqueue is None:
         raise RuntimeNotRegistered("enqueue")

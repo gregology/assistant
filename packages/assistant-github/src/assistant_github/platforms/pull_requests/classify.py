@@ -56,7 +56,10 @@ def handle(task: TaskRecord) -> None:
     number = task["payload"]["number"]
     log.info(
         "github.pull_requests.classify: %s/%s#%d (integration=%s)",
-        org, repo, number, integration_id,
+        org,
+        repo,
+        number,
+        integration_id,
     )
 
     classifications = platform.classifications or DEFAULT_CLASSIFICATIONS
@@ -76,7 +79,9 @@ def handle(task: TaskRecord) -> None:
     if all(k in existing_cls for k in classifications):
         log.info(
             "github.pull_requests.classify: %s/%s#%d all classifications present, skipping LLM",
-            org, repo, number,
+            org,
+            repo,
+            number,
         )
     else:
         client = GitHubClient()
@@ -95,7 +100,10 @@ def handle(task: TaskRecord) -> None:
 
         log.info(
             "github.pull_requests.classify: %s/%s#%d result=%s",
-            org, repo, number, classification,
+            org,
+            repo,
+            number,
+            classification,
         )
 
         classified_by = {
@@ -106,11 +114,14 @@ def handle(task: TaskRecord) -> None:
         store.update(org, repo, number, classification=classification, classified_by=classified_by)
         log.info("Classified PR **%s/%s#%d**", org, repo, number)
 
-    runtime.enqueue({
-        "type": "github.pull_requests.evaluate",
-        "integration": integration_id,
-        "org": org,
-        "repo": repo,
-        "number": number,
-    }, priority=7)
+    runtime.enqueue(
+        {
+            "type": "github.pull_requests.evaluate",
+            "integration": integration_id,
+            "org": org,
+            "repo": repo,
+            "number": number,
+        },
+        priority=7,
+    )
     log.info("github.pull_requests.classify: queued evaluate for %s/%s#%d", org, repo, number)

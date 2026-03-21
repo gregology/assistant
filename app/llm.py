@@ -94,6 +94,7 @@ class LLMBackend(Protocol):
 
 class ChatCompletionsBackend:
     """Backend using the /v1/chat/completions endpoint format."""
+
     def __init__(
         self,
         base_url: str | None = None,
@@ -177,8 +178,7 @@ class LLMConversation:
         llm_config = config.llms.get(model)
         if llm_config is None:
             raise ValueError(
-                f"Unknown LLM profile '{model}'. "
-                f"Available: {list(config.llms.keys())}"
+                f"Unknown LLM profile '{model}'. Available: {list(config.llms.keys())}"
             )
         self.model = llm_config.model
         self._parameters = llm_config.parameters
@@ -249,9 +249,7 @@ class LLMConversation:
 
             errors = _validate_schema(parsed, schema)
             if not errors:
-                self.messages.append(
-                    Message(role=Role.ASSISTANT, content=raw_content)
-                )
+                self.messages.append(Message(role=Role.ASSISTANT, content=raw_content))
                 return parsed  # type: ignore[no-any-return]
 
             log.warning(
@@ -264,8 +262,7 @@ class LLMConversation:
         # All retries exhausted — remove the dangling user message
         self.messages.pop()
         raise SchemaValidationError(
-            f"Failed to get valid structured output after "
-            f"{self.MAX_RETRIES} attempts",
+            f"Failed to get valid structured output after {self.MAX_RETRIES} attempts",
             raw_content=raw_content,
             errors=errors,
         )

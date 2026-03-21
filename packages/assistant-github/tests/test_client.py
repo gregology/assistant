@@ -228,7 +228,9 @@ class TestCreateIssue:
     def test_returns_number_and_url(self):
         client = GitHubClient()
         with patch.object(client, "_run_gh") as mock:
-            mock.return_value = '{"number": 42, "html_url": "https://github.com/org/repo/issues/42"}'
+            mock.return_value = (
+                '{"number": 42, "html_url": "https://github.com/org/repo/issues/42"}'
+            )
             result = client.create_issue("org", "repo", "Bug title", "Bug body")
         assert result["number"] == 42
         assert result["url"] == "https://github.com/org/repo/issues/42"
@@ -256,7 +258,7 @@ class TestCreateIssue:
     def test_missing_fields_default(self):
         client = GitHubClient()
         with patch.object(client, "_run_gh") as mock:
-            mock.return_value = '{}'
+            mock.return_value = "{}"
             result = client.create_issue("org", "repo", "T")
         assert result["number"] is None
         assert result["url"] == ""

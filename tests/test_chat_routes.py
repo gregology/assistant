@@ -261,14 +261,17 @@ class TestPollTask:
 class TestRespondToProposal:
     def test_reject_returns_immediate(self):
         cid = chat_service.create_conversation()
-        messages = chat_service.receive_structured_reply(cid, {
-            "reply": "Ok.",
-            "proposal": {
-                "action": "test_action",
-                "parameters": {},
-                "description": "Do something",
+        messages = chat_service.receive_structured_reply(
+            cid,
+            {
+                "reply": "Ok.",
+                "proposal": {
+                    "action": "test_action",
+                    "parameters": {},
+                    "description": "Do something",
+                },
             },
-        })
+        )
         proposal_id = messages[1].metadata["proposal_id"]
         resp = client.post(
             f"/api/chat/conversations/{cid}/proposals/{proposal_id}",
@@ -281,17 +284,21 @@ class TestRespondToProposal:
 
     def test_approve_registered_action_returns_task_id(self, queue_dir):
         from app.chat import ACTION_REGISTRY
+
         ACTION_REGISTRY["test_action"] = "service.test.action"
         try:
             cid = chat_service.create_conversation()
-            messages = chat_service.receive_structured_reply(cid, {
-                "reply": "Ok.",
-                "proposal": {
-                    "action": "test_action",
-                    "parameters": {},
-                    "description": "Do something",
+            messages = chat_service.receive_structured_reply(
+                cid,
+                {
+                    "reply": "Ok.",
+                    "proposal": {
+                        "action": "test_action",
+                        "parameters": {},
+                        "description": "Do something",
+                    },
                 },
-            })
+            )
             proposal_id = messages[1].metadata["proposal_id"]
             resp = client.post(
                 f"/api/chat/conversations/{cid}/proposals/{proposal_id}",
@@ -313,14 +320,17 @@ class TestRespondToProposal:
 
     def test_400_for_invalid_option(self):
         cid = chat_service.create_conversation()
-        messages = chat_service.receive_structured_reply(cid, {
-            "reply": "Ok.",
-            "proposal": {
-                "action": "test_action",
-                "parameters": {},
-                "description": "Do something",
+        messages = chat_service.receive_structured_reply(
+            cid,
+            {
+                "reply": "Ok.",
+                "proposal": {
+                    "action": "test_action",
+                    "parameters": {},
+                    "description": "Do something",
+                },
             },
-        })
+        )
         proposal_id = messages[1].metadata["proposal_id"]
         resp = client.post(
             f"/api/chat/conversations/{cid}/proposals/{proposal_id}",
@@ -332,12 +342,14 @@ class TestRespondToProposal:
 class TestChatConfig:
     def test_chat_config_defaults(self):
         from app.config import ChatConfig
+
         cfg = ChatConfig()
         assert cfg.llm == "default"
         assert cfg.system_prompt is None
 
     def test_app_config_has_chat(self):
         from app.config import config
+
         assert hasattr(config, "chat")
         assert config.chat.llm == "default"
 
@@ -345,6 +357,7 @@ class TestChatConfig:
 class TestChatReplyResultRoute:
     def test_chat_reply_handled_without_error(self):
         from app.result_routes import route_results
+
         result = {"content": "Hello from LLM", "conversation_id": "conv-1"}
         task = {
             "id": "1_20260319T100000Z_abc123--def456--chat.message",
@@ -360,6 +373,7 @@ class TestChatReplyResultRoute:
 
     def test_chat_reply_logs_human_entry(self):
         from app.result_routes import route_results
+
         result = {"content": "Hello from LLM", "conversation_id": "conv-1"}
         task = {
             "id": "1_20260319T100000Z_abc123--def456--chat.message",

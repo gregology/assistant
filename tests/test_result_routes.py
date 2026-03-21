@@ -76,10 +76,12 @@ class TestRouteResults:
     def test_multiple_routes(self, notes_dir):
         """Multiple note routes each produce a file."""
         result = {"text": "Multi-route test", "sources": []}
-        task = _make_task(on_result=[
-            {"type": "note"},
-            {"type": "note", "path": "research/"},
-        ])
+        task = _make_task(
+            on_result=[
+                {"type": "note"},
+                {"type": "note", "path": "research/"},
+            ]
+        )
 
         with patch("app.result_routes.runtime.get_notes_dir", return_value=notes_dir):
             route_results(result, task)
@@ -188,8 +190,10 @@ class TestRouteNote:
         task = _make_task(human_log="Privacy Policy update for questrade.com")
         route_config = {"type": "note"}
 
-        with patch("app.result_routes.runtime.get_notes_dir", return_value=notes_dir), \
-             patch("app.result_routes.log") as mock_log:
+        with (
+            patch("app.result_routes.runtime.get_notes_dir", return_value=notes_dir),
+            patch("app.result_routes.log") as mock_log,
+        ):
             _route_note(result, task, route_config)
 
         # The human log call should use the custom message
@@ -203,8 +207,10 @@ class TestRouteNote:
         task = _make_task()  # No human_log
         route_config = {"type": "note"}
 
-        with patch("app.result_routes.runtime.get_notes_dir", return_value=notes_dir), \
-             patch("app.result_routes.log") as mock_log:
+        with (
+            patch("app.result_routes.runtime.get_notes_dir", return_value=notes_dir),
+            patch("app.result_routes.log") as mock_log,
+        ):
             _route_note(result, task, route_config)
 
         mock_log.human.assert_called_once()

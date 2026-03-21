@@ -117,8 +117,11 @@ def _stop_all(children: list[ManagedProcess]) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Assistant process supervisor")
     parser.add_argument("--dev", action="store_true", help="Enable uvicorn --reload")
-    parser.add_argument("--expose", action="store_true",
-                        help="Allow external connections (bind 0.0.0.0 instead of 127.0.0.1)")
+    parser.add_argument(
+        "--expose",
+        action="store_true",
+        help="Allow external connections (bind 0.0.0.0 instead of 127.0.0.1)",
+    )
     parser.add_argument("--port", type=int, default=6767, help="Port number (default: 6767)")
     args = parser.parse_args()
 
@@ -134,7 +137,9 @@ def main() -> None:
     host = "0.0.0.0" if args.expose else "127.0.0.1"  # nosec B104
     log.info(
         "Supervisor running (dev=%s, host=%s, port=%d). Press Ctrl+C to stop.",
-        args.dev, host, args.port,
+        args.dev,
+        host,
+        args.port,
     )
 
     try:

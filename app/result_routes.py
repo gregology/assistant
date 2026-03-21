@@ -56,7 +56,9 @@ def route_results(result: dict[str, Any], task: TaskRecord) -> None:
 
 
 def _route_chat_reply(
-    result: dict[str, Any], task: TaskRecord, route_config: dict[str, Any],
+    result: dict[str, Any],
+    task: TaskRecord,
+    route_config: dict[str, Any],
 ) -> None:
     """Handle chat reply result routing.
 
@@ -130,7 +132,10 @@ def _route_note(result: dict[str, Any], task: TaskRecord, route_config: dict[str
     else:
         text_len = len(text)
         log.human(
-            "%s: result saved (%s chars) → %s", task_type, f"{text_len:,}", rel_path,
+            "%s: result saved (%s chars) → %s",
+            task_type,
+            f"{text_len:,}",
+            rel_path,
         )
 
     return filepath

@@ -241,8 +241,7 @@ def setup_github() -> list[dict[str, Any]]:
         platforms["pull_requests"] = {
             "classifications": {
                 "complexity": (
-                    "how complex is this PR to review?"
-                    " 0 = trivial, 1 = major architectural change"
+                    "how complex is this PR to review? 0 = trivial, 1 = major architectural change"
                 ),
                 "risk": "how risky is this change? 0 = no risk, 1 = high risk of breaking things",
             }

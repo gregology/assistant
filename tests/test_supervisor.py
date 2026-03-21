@@ -52,7 +52,8 @@ class TestManagedProcess:
         mp = ManagedProcess(
             "test",
             [
-                sys.executable, "-c",
+                sys.executable,
+                "-c",
                 "import os, sys; sys.exit(0 if os.environ.get('ASSISTANT_SUPERVISOR')=='1' else 1)",
             ],
         )

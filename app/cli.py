@@ -331,9 +331,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Allow external connections (bind 0.0.0.0)",
     )
-    p_start.add_argument(
-        "--port", type=int, default=6767, help="Port number (default: 6767)"
-    )
+    p_start.add_argument("--port", type=int, default=6767, help="Port number (default: 6767)")
     p_start.set_defaults(func=cmd_start)
 
     # assistant setup
@@ -350,9 +348,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_update.set_defaults(func=cmd_update)
 
     # assistant doctor
-    p_doctor = subparsers.add_parser(
-        "doctor", help="Run diagnostic checks on your installation"
-    )
+    p_doctor = subparsers.add_parser("doctor", help="Run diagnostic checks on your installation")
     p_doctor.set_defaults(func=cmd_doctor)
 
     # assistant version
@@ -365,9 +361,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     # assistant logs
     p_logs = subparsers.add_parser("logs", help="Show recent human-readable logs")
-    p_logs.add_argument(
-        "--tail", type=int, default=None, help="Show last N lines"
-    )
+    p_logs.add_argument("--tail", type=int, default=None, help="Show last N lines")
     p_logs.set_defaults(func=cmd_logs)
 
     return parser

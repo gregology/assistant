@@ -52,33 +52,21 @@ def _make_email(
 
 class TestParseAuthResults:
     def test_all_pass(self):
-        headers = {
-            "authentication-results": (
-                "mx.example.com; spf=pass; dkim=pass; dmarc=pass",
-            )
-        }
+        headers = {"authentication-results": ("mx.example.com; spf=pass; dkim=pass; dmarc=pass",)}
         spf, dkim, dmarc = _parse_auth_results(headers)
         assert spf is True
         assert dkim is True
         assert dmarc is True
 
     def test_all_fail(self):
-        headers = {
-            "authentication-results": (
-                "mx.example.com; spf=fail; dkim=fail; dmarc=fail",
-            )
-        }
+        headers = {"authentication-results": ("mx.example.com; spf=fail; dkim=fail; dmarc=fail",)}
         spf, dkim, dmarc = _parse_auth_results(headers)
         assert spf is False
         assert dkim is False
         assert dmarc is False
 
     def test_partial_pass(self):
-        headers = {
-            "authentication-results": (
-                "mx.example.com; spf=pass; dkim=fail; dmarc=pass",
-            )
-        }
+        headers = {"authentication-results": ("mx.example.com; spf=pass; dkim=fail; dmarc=pass",)}
         spf, dkim, dmarc = _parse_auth_results(headers)
         assert spf is True
         assert dkim is False
@@ -98,18 +86,12 @@ class TestParseAuthResults:
 
 class TestParseUnsubscribeUrl:
     def test_extracts_http_url(self):
-        headers = {
-            "list-unsubscribe": ("<https://example.com/unsubscribe?id=123>",)
-        }
+        headers = {"list-unsubscribe": ("<https://example.com/unsubscribe?id=123>",)}
         url = _parse_unsubscribe_url(headers)
         assert url == "https://example.com/unsubscribe?id=123"
 
     def test_extracts_from_multiple_options(self):
-        headers = {
-            "list-unsubscribe": (
-                "<mailto:unsub@example.com>, <https://example.com/unsub>",
-            )
-        }
+        headers = {"list-unsubscribe": ("<mailto:unsub@example.com>, <https://example.com/unsub>",)}
         url = _parse_unsubscribe_url(headers)
         assert url == "https://example.com/unsub"
 
@@ -129,9 +111,7 @@ class TestParseUnsubscribeUrl:
 class TestParseReceivedDate:
     def test_parses_valid_date(self):
         headers = {
-            "received": (
-                "from mail.example.com by mx.google.com; Tue, 15 Feb 2025 10:30:00 +0000",
-            )
+            "received": ("from mail.example.com by mx.google.com; Tue, 15 Feb 2025 10:30:00 +0000",)
         }
         dt = _parse_received_date(headers)
         assert dt is not None
@@ -479,6 +459,7 @@ class TestImapFlags:
 class TestHasAttachments:
     def _att(self, content_type: str):
         from types import SimpleNamespace
+
         return SimpleNamespace(content_type=content_type)
 
     def test_true_with_pdf_attachment(self):
@@ -494,17 +475,21 @@ class TestHasAttachments:
 
     def test_false_when_only_calendar_attachment(self):
         """Calendar attachments are not counted — is_calendar_event covers those."""
-        email = _make_email(attachments=[
-            self._att("text/calendar"),
-            self._att("application/ics"),
-        ])
+        email = _make_email(
+            attachments=[
+                self._att("text/calendar"),
+                self._att("application/ics"),
+            ]
+        )
         assert email.has_attachments is False
 
     def test_true_when_calendar_plus_other_attachment(self):
-        email = _make_email(attachments=[
-            self._att("text/calendar"),
-            self._att("application/pdf"),
-        ])
+        email = _make_email(
+            attachments=[
+                self._att("text/calendar"),
+                self._att("application/pdf"),
+            ]
+        )
         assert email.has_attachments is True
 
 

@@ -4,6 +4,7 @@ This handler logs what actions would be taken without executing them.
 The SIMPLE_ACTIONS allowlist and reversibility tiers will be defined
 here alongside the actual action implementations.
 """
+
 from __future__ import annotations
 
 import logging
@@ -22,5 +23,9 @@ def handle(task: TaskRecord) -> None:
 
     log.info(
         "github.issues.act: %s/%s#%d — actions=%s provenance=%s (not yet implemented)",
-        org, repo, number, actions, provenance,
+        org,
+        repo,
+        number,
+        actions,
+        provenance,
     )

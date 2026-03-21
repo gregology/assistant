@@ -124,7 +124,10 @@ class TestFindProposal:
         cid = store.create()
         store.append(cid, "assistant", "chat", "I'll do it.")
         store.append(
-            cid, "system", "confirmation", "Confirm?",
+            cid,
+            "system",
+            "confirmation",
+            "Confirm?",
             metadata={"proposal_id": "p123", "action": "test"},
         )
         result = store.find_proposal(cid, "p123")
@@ -139,11 +142,17 @@ class TestFindProposal:
     def test_finds_most_recent(self, store):
         cid = store.create()
         store.append(
-            cid, "system", "confirmation", "First?",
+            cid,
+            "system",
+            "confirmation",
+            "First?",
             metadata={"proposal_id": "p1", "action": "first"},
         )
         store.append(
-            cid, "system", "confirmation", "Second?",
+            cid,
+            "system",
+            "confirmation",
+            "Second?",
             metadata={"proposal_id": "p1", "action": "second"},
         )
         result = store.find_proposal(cid, "p1")

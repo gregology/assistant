@@ -66,19 +66,20 @@ def _snapshot_from_frontmatter(meta: dict[str, Any]) -> EmailSnapshot:
 
 def _make_resolver(snapshot: EmailSnapshot) -> ResolveValue:
     """Return a resolve_value callable for the shared evaluation engine."""
+
     def resolve_value(key: str, classification: dict[str, Any]) -> Any:
         if key.startswith("classification."):
-            cls_key = key[len("classification."):]
+            cls_key = key[len("classification.") :]
             return classification.get(cls_key, MISSING)
 
         if key.startswith("authentication."):
-            auth_key = key[len("authentication."):]
+            auth_key = key[len("authentication.") :]
             return snapshot.authentication.get(auth_key, MISSING)
 
         if key.startswith("calendar."):
             if snapshot.calendar is None:
                 return MISSING
-            cal_key = key[len("calendar."):]
+            cal_key = key[len("calendar.") :]
             return snapshot.calendar.get(cal_key, MISSING)
 
         return getattr(snapshot, key, MISSING)
@@ -111,18 +112,26 @@ def handle(task: TaskRecord) -> None:
     classifications = platform.classifications or DEFAULT_CLASSIFICATIONS
     resolve_value = _make_resolver(snapshot)
     actions = evaluate_automations(
-        platform.automations, resolve_value, classification, classifications,
+        platform.automations,
+        resolve_value,
+        classification,
+        classifications,
     )
 
     if actions:
         provenance = resolve_action_provenance(
-            platform.automations, resolve_value, classification,
-            classifications, DETERMINISTIC_SOURCES,
+            platform.automations,
+            resolve_value,
+            classification,
+            classifications,
+            DETERMINISTIC_SOURCES,
         )
 
         log.info(
             "email.inbox.evaluate: queuing actions for message_id=%s actions=%s provenance=%s",
-            message_id, actions, provenance,
+            message_id,
+            actions,
+            provenance,
         )
         enqueue_actions(
             actions=actions,

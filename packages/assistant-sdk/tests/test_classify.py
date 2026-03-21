@@ -17,9 +17,13 @@ class TestBuildSchema:
         assert schema["properties"]["flag"] == {"type": "boolean"}
 
     def test_enum(self):
-        cls = {"prio": ClassificationConfig(
-            prompt="test", type="enum", values=["low", "high"],
-        )}
+        cls = {
+            "prio": ClassificationConfig(
+                prompt="test",
+                type="enum",
+                values=["low", "high"],
+            )
+        }
         schema = build_schema(cls)
         assert schema["properties"]["prio"] == {
             "type": "string",

@@ -206,6 +206,7 @@ class TestSafetyConstants:
 
     def test_irreversible_actions_subset_of_simple(self):
         from assistant_email.platforms.inbox.const import IRREVERSIBLE_ACTIONS, SIMPLE_ACTIONS
+
         assert IRREVERSIBLE_ACTIONS <= SIMPLE_ACTIONS, (
             f"Irreversible actions not in SIMPLE_ACTIONS: {IRREVERSIBLE_ACTIONS - SIMPLE_ACTIONS}"
         )
@@ -249,8 +250,10 @@ class TestEmailAutomationEvaluation:
         snap = _full_snapshot()
         resolver = _make_resolver(snap)
         classification = {
-            "human": 0.95, "user_agreement_update": False,
-            "requires_response": True, "priority": "high",
+            "human": 0.95,
+            "user_agreement_update": False,
+            "requires_response": True,
+            "priority": "high",
         }
         autos = [
             AutomationConfig(
@@ -265,8 +268,10 @@ class TestEmailAutomationEvaluation:
         snap = _full_snapshot()
         resolver = _make_resolver(snap)
         classification = {
-            "human": 0.5, "user_agreement_update": True,
-            "requires_response": False, "priority": "low",
+            "human": 0.5,
+            "user_agreement_update": True,
+            "requires_response": False,
+            "priority": "low",
         }
         autos = [
             AutomationConfig(
@@ -282,8 +287,10 @@ class TestEmailAutomationEvaluation:
         snap = _snapshot_from_frontmatter(meta)
         resolver = _make_resolver(snap)
         classification = {
-            "human": 0.1, "user_agreement_update": True,
-            "requires_response": False, "priority": "low",
+            "human": 0.1,
+            "user_agreement_update": True,
+            "requires_response": False,
+            "priority": "low",
         }
         autos = [
             AutomationConfig(
@@ -324,7 +331,9 @@ class TestEmailAutomationEvaluation:
         meta = {
             **FULL_FRONTMATTER,
             "authentication": {
-                "dkim_pass": False, "dmarc_pass": False, "spf_pass": False,
+                "dkim_pass": False,
+                "dmarc_pass": False,
+                "spf_pass": False,
             },
         }
         snap = _snapshot_from_frontmatter(meta)

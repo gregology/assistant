@@ -165,9 +165,7 @@ class TestHandle:
             store_instance.reset_mock()
             task = self._make_task([action])
             handle(task)
-            store_instance.move_to_subdir.assert_called_once_with(
-                "<test@example.com>", "synced"
-            )
+            store_instance.move_to_subdir.assert_called_once_with("<test@example.com>", "synced")
 
     @patch("assistant_email.platforms.inbox.act.EmailStore")
     @patch("assistant_email.platforms.inbox.act.runtime")
@@ -236,9 +234,7 @@ class TestHandle:
     @patch("assistant_email.platforms.inbox.act.EmailStore")
     @patch("assistant_email.platforms.inbox.act.runtime")
     @patch("assistant_email.mail.Mailbox")
-    def test_handle_provenance_defaults_to_unknown(
-        self, MockMailbox, mock_runtime, MockStore
-    ):
+    def test_handle_provenance_defaults_to_unknown(self, MockMailbox, mock_runtime, MockStore):
         email = self._mock_email()
         mb = MagicMock()
         mb.get_email.return_value = email
@@ -308,9 +304,7 @@ class TestRuntimeProvenanceCheck:
 
     @patch("assistant_email.platforms.inbox.act.runtime")
     @patch("assistant_email.mail.Mailbox")
-    def test_irreversible_action_blocked_from_llm_provenance(
-        self, MockMailbox, mock_runtime
-    ):
+    def test_irreversible_action_blocked_from_llm_provenance(self, MockMailbox, mock_runtime):
         """Unsubscribe with provenance=llm is skipped at runtime."""
         email = self._mock_email()
         self._setup_mailbox(MockMailbox, mock_runtime, email)
@@ -322,9 +316,7 @@ class TestRuntimeProvenanceCheck:
 
     @patch("assistant_email.platforms.inbox.act.runtime")
     @patch("assistant_email.mail.Mailbox")
-    def test_irreversible_action_blocked_from_hybrid_provenance(
-        self, MockMailbox, mock_runtime
-    ):
+    def test_irreversible_action_blocked_from_hybrid_provenance(self, MockMailbox, mock_runtime):
         """Unsubscribe with provenance=hybrid is skipped at runtime."""
         email = self._mock_email()
         self._setup_mailbox(MockMailbox, mock_runtime, email)
@@ -336,9 +328,7 @@ class TestRuntimeProvenanceCheck:
 
     @patch("assistant_email.platforms.inbox.act.runtime")
     @patch("assistant_email.mail.Mailbox")
-    def test_irreversible_action_allowed_from_rule_provenance(
-        self, MockMailbox, mock_runtime
-    ):
+    def test_irreversible_action_allowed_from_rule_provenance(self, MockMailbox, mock_runtime):
         """Unsubscribe with provenance=rule executes normally."""
         email = self._mock_email()
         self._setup_mailbox(MockMailbox, mock_runtime, email)
@@ -365,16 +355,12 @@ class TestRuntimeProvenanceCheck:
 
     @patch("assistant_email.platforms.inbox.act.runtime")
     @patch("assistant_email.mail.Mailbox")
-    def test_yolo_irreversible_action_executes_from_llm_provenance(
-        self, MockMailbox, mock_runtime
-    ):
+    def test_yolo_irreversible_action_executes_from_llm_provenance(self, MockMailbox, mock_runtime):
         """!yolo-wrapped unsubscribe executes even with provenance=llm."""
         email = self._mock_email()
         self._setup_mailbox(MockMailbox, mock_runtime, email)
 
-        task = self._make_task(
-            [{"!yolo": "unsubscribe"}], provenance="llm"
-        )
+        task = self._make_task([{"!yolo": "unsubscribe"}], provenance="llm")
         handle(task)
 
         email.unsubscribe.assert_called_once()
@@ -396,9 +382,7 @@ class TestRuntimeProvenanceCheck:
 
     @patch("assistant_email.platforms.inbox.act.runtime")
     @patch("assistant_email.mail.Mailbox")
-    def test_irreversible_action_allowed_from_unknown_provenance(
-        self, MockMailbox, mock_runtime
-    ):
+    def test_irreversible_action_allowed_from_unknown_provenance(self, MockMailbox, mock_runtime):
         """provenance=unknown (default) does not block — only llm/hybrid are blocked."""
         email = self._mock_email()
         self._setup_mailbox(MockMailbox, mock_runtime, email)

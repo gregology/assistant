@@ -50,9 +50,7 @@ def get_modules() -> dict[str, object]:
 # ---------------------------------------------------------------------------
 
 
-def _scan_directory(
-    directory: Path, builtin: bool
-) -> dict[str, IntegrationManifest]:
+def _scan_directory(directory: Path, builtin: bool) -> dict[str, IntegrationManifest]:
     """Scan a single directory for integration packages with manifest.yaml."""
     manifests: dict[str, IntegrationManifest] = {}
     if not directory.is_dir():
@@ -84,7 +82,8 @@ def _discover_entry_points() -> dict[str, IntegrationManifest]:
             if not manifest_path.exists():
                 log.warning(
                     "Entry point '%s' has no manifest.yaml at %s",
-                    ep.name, manifest_path.parent,
+                    ep.name,
+                    manifest_path.parent,
                 )
                 continue
             manifest = _load_manifest(manifest_path.parent, builtin=False, skip_dir_check=True)
@@ -135,7 +134,9 @@ def discover_integrations(
 
 
 def _load_manifest(
-    integration_dir: Path, builtin: bool, skip_dir_check: bool = False,
+    integration_dir: Path,
+    builtin: bool,
+    skip_dir_check: bool = False,
 ) -> IntegrationManifest | None:
     """Parse a manifest.yaml file into an IntegrationManifest."""
     manifest_path = integration_dir / "manifest.yaml"
@@ -207,7 +208,6 @@ def _load_manifest(
         builtin=builtin,
         services=services,
     )
-
 
 
 # ---------------------------------------------------------------------------
@@ -333,9 +333,7 @@ def load_const_module(manifest: IntegrationManifest) -> object | None:
 
     if manifest.builtin:
         try:
-            return importlib.import_module(
-                f"app.integrations.{manifest.domain}.const"
-            )
+            return importlib.import_module(f"app.integrations.{manifest.domain}.const")
         except ImportError:
             return None
     else:

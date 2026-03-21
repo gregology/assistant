@@ -168,9 +168,7 @@ def delete_llm_profile(name: str, config_path: Path = _DEFAULT_CONFIG_PATH) -> N
         write_config(data, config_path)
 
 
-def update_directories(
-    updates: dict[str, Any], config_path: Path = _DEFAULT_CONFIG_PATH
-) -> None:
+def update_directories(updates: dict[str, Any], config_path: Path = _DEFAULT_CONFIG_PATH) -> None:
     with _lock_config():
         data = read_config(config_path)
         if "directories" not in data:
@@ -197,9 +195,7 @@ def update_integration_settings(
         data = read_config(config_path)
         integrations = data.get("integrations", [])
         if integration_index < 0 or integration_index >= len(integrations):
-            raise ConfigValidationError(
-                f"Integration index {integration_index} out of range"
-            )
+            raise ConfigValidationError(f"Integration index {integration_index} out of range")
 
         integration = integrations[integration_index]
         if "schedule" in updates:

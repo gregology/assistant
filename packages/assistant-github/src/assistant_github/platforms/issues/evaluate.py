@@ -54,9 +54,10 @@ def _snapshot_from_frontmatter(meta: dict[str, Any]) -> IssueSnapshot:
 
 def _make_resolver(snapshot: IssueSnapshot) -> ResolveValue:
     """Return a resolve_value callable for the shared evaluation engine."""
+
     def resolve_value(key: str, classification: dict[str, Any]) -> Any:
         if key.startswith("classification."):
-            cls_key = key[len("classification."):]
+            cls_key = key[len("classification.") :]
             return classification.get(cls_key, MISSING)
         return getattr(snapshot, key, MISSING)
 
@@ -72,9 +73,7 @@ def handle(task: TaskRecord) -> None:
     number = task["payload"]["number"]
     log.info("github.issues.evaluate: %s/%s#%d (integration=%s)", org, repo, number, integration_id)
 
-    store = IssueStore(
-        path=runtime.get_notes_dir() / "github" / "issues" / integration.name
-    )
+    store = IssueStore(path=runtime.get_notes_dir() / "github" / "issues" / integration.name)
 
     note_path = store.find(org, repo, number)
     if note_path is None:
@@ -90,7 +89,10 @@ def handle(task: TaskRecord) -> None:
     classifications = platform.classifications or DEFAULT_CLASSIFICATIONS
     resolve_value = _make_resolver(snapshot)
     actions = evaluate_automations(
-        platform.automations, resolve_value, classification, classifications,
+        platform.automations,
+        resolve_value,
+        classification,
+        classifications,
     )
 
     if not actions:
@@ -98,13 +100,20 @@ def handle(task: TaskRecord) -> None:
         return
 
     provenance = resolve_action_provenance(
-        platform.automations, resolve_value, classification,
-        classifications, DETERMINISTIC_SOURCES,
+        platform.automations,
+        resolve_value,
+        classification,
+        classifications,
+        DETERMINISTIC_SOURCES,
     )
 
     log.info(
         "github.issues.evaluate: queuing actions for %s/%s#%d actions=%s provenance=%s",
-        org, repo, number, unwrap_actions(actions), provenance,
+        org,
+        repo,
+        number,
+        unwrap_actions(actions),
+        provenance,
     )
     enqueue_actions(
         actions=actions,

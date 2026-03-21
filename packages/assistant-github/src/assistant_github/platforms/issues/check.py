@@ -19,9 +19,7 @@ def handle(task: TaskRecord) -> None:
     log.info("github.issues.check: starting (integration=%s)", integration_id)
 
     client = GitHubClient()
-    store = IssueStore(
-        path=runtime.get_notes_dir() / "github" / "issues" / integration.name
-    )
+    store = IssueStore(path=runtime.get_notes_dir() / "github" / "issues" / integration.name)
 
     # Fetch all issues currently requiring attention from GitHub.
     remote_issues = client.active_issues(integration, platform)
@@ -38,21 +36,29 @@ def handle(task: TaskRecord) -> None:
         store.move_to_synced(org, repo, number)
         log.info(
             "Issue **%s/%s#%d** no longer requires attention — moved to synced/",
-            org, repo, number,
+            org,
+            repo,
+            number,
         )
 
     # Enqueue collect for every active issue.
     for issue in remote_issues:
-        runtime.enqueue({
-            "type": "github.issues.collect",
-            "integration": integration_id,
-            "org": issue["org"],
-            "repo": issue["repo"],
-            "number": issue["number"],
-        }, priority=3)
+        runtime.enqueue(
+            {
+                "type": "github.issues.collect",
+                "integration": integration_id,
+                "org": issue["org"],
+                "repo": issue["repo"],
+                "number": issue["number"],
+            },
+            priority=3,
+        )
 
     log.info(
         "github.issues.check: %d active remotely, %d tracked locally, "
         "%d moved to synced/, %d collect tasks queued",
-        len(active_remote), len(active_local), len(stale), len(remote_issues),
+        len(active_remote),
+        len(active_local),
+        len(stale),
+        len(remote_issues),
     )

@@ -10,10 +10,12 @@ from assistant_sdk.evaluate import MISSING
 
 def _make_resolver(**fields):
     """Create a resolve_value callable that returns fields by name."""
+
     def resolve_value(key, classification):
         if key in fields:
             return fields[key]
         return MISSING
+
     return resolve_value
 
 
@@ -176,7 +178,8 @@ class TestRenderTemplate:
         resolver = _make_resolver()
         result = _render_template(
             "Research: {{ prompt | truncate(80) }}",
-            resolver, {},
+            resolver,
+            {},
             extra={"prompt": "a very long research prompt"},
         )
         assert result == "Research: a very long research prompt"
@@ -184,7 +187,9 @@ class TestRenderTemplate:
     def test_extra_overrides_resolver(self):
         resolver = _make_resolver(prompt="from resolver")
         result = _render_template(
-            "{{ prompt }}", resolver, {},
+            "{{ prompt }}",
+            resolver,
+            {},
             extra={"prompt": "from extra"},
         )
         assert result == "from extra"
@@ -214,9 +219,14 @@ class TestEnqueueActions:
         with patch("assistant_sdk.runtime._enqueue") as mock_enqueue:
             mock_enqueue.return_value = "task_1"
             enqueue_actions(
-                actions=[ScriptAction(script={
-                    "name": "research", "inputs": {"domain": "{{ domain }}"},
-                })],
+                actions=[
+                    ScriptAction(
+                        script={
+                            "name": "research",
+                            "inputs": {"domain": "{{ domain }}"},
+                        }
+                    )
+                ],
                 platform_payload={"type": "email.inbox.act", "uid": "123"},
                 resolve_value=resolver,
                 classification={},

@@ -12,11 +12,7 @@ _project_root = Path(__file__).parent.parent
 _config_path = _project_root / "config.yaml"
 
 if not _config_path.exists():
-    _config_path.write_text(
-        "llms:\n"
-        "  default:\n"
-        "    model: test-model\n"
-    )
+    _config_path.write_text("llms:\n  default:\n    model: test-model\n")
 
 from app import queue  # noqa: E402
 from app.runtime_init import register_runtime  # noqa: E402

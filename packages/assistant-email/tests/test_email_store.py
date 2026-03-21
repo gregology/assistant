@@ -1,4 +1,3 @@
-
 from assistant_email.platforms.inbox.store import EmailStore, _sanitize_message_id
 from assistant_sdk.store import NoteStore
 
@@ -17,6 +16,7 @@ def _seed(store: EmailStore, message_id: str, subdir: str | None = None) -> None
 # ---------------------------------------------------------------------------
 # _sanitize_message_id
 # ---------------------------------------------------------------------------
+
 
 class TestSanitizeMessageId:
     def test_strips_angle_brackets(self):
@@ -42,6 +42,7 @@ class TestSanitizeMessageId:
 # ---------------------------------------------------------------------------
 # known_message_ids
 # ---------------------------------------------------------------------------
+
 
 class TestKnownMessageIds:
     def test_finds_message_id_in_root(self, tmp_path):
@@ -71,8 +72,10 @@ class TestKnownMessageIds:
         _seed(store, "<c@example.com>", subdir="spam")
         _seed(store, "<d@example.com>", subdir="trash")
         assert store.known_message_ids() == {
-            "<a@example.com>", "<b@example.com>",
-            "<c@example.com>", "<d@example.com>",
+            "<a@example.com>",
+            "<b@example.com>",
+            "<c@example.com>",
+            "<d@example.com>",
         }
 
     def test_returns_empty_for_nonexistent_dir(self, tmp_path):
@@ -89,6 +92,7 @@ class TestKnownMessageIds:
 # ---------------------------------------------------------------------------
 # find_by_message_id
 # ---------------------------------------------------------------------------
+
 
 class TestFindByMessageId:
     def test_finds_note_in_root(self, tmp_path):
@@ -130,6 +134,7 @@ class TestFindByMessageId:
 # ---------------------------------------------------------------------------
 # move_to_subdir
 # ---------------------------------------------------------------------------
+
 
 class TestMoveToSubdir:
     def test_moves_note_from_root_to_archive(self, tmp_path):

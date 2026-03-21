@@ -23,7 +23,8 @@ router = APIRouter(prefix="/api/chat")
 
 
 def _extract_conversation_id(
-    result: dict[str, Any], payload: dict[str, Any],
+    result: dict[str, Any],
+    payload: dict[str, Any],
 ) -> str:
     """Extract conversation_id from either the result or on_result config."""
     cid: str = result.get("conversation_id", "")
@@ -80,11 +81,15 @@ async def send_message(conversation_id: str, body: MessageRequest) -> dict[str, 
 
 @router.post("/conversations/{conversation_id}/proposals/{proposal_id}")
 async def respond_to_proposal(
-    conversation_id: str, proposal_id: str, body: ProposalResponse,
+    conversation_id: str,
+    proposal_id: str,
+    body: ProposalResponse,
 ) -> dict[str, Any]:
     try:
         result = chat_service.handle_proposal_response(
-            conversation_id, proposal_id, body.option,
+            conversation_id,
+            proposal_id,
+            body.option,
         )
     except KeyError:
         raise HTTPException(status_code=404, detail="Conversation not found") from None
@@ -115,11 +120,15 @@ async def poll_task(task_id: str) -> dict[str, Any]:
 
         if "structured" in result:
             messages = chat_service.receive_structured_reply(
-                conversation_id, result["structured"], task_id=task_id,
+                conversation_id,
+                result["structured"],
+                task_id=task_id,
             )
         elif "content" in result:
             messages = chat_service.receive_reply(
-                conversation_id, result["content"], task_id=task_id,
+                conversation_id,
+                result["content"],
+                task_id=task_id,
             )
         else:
             # Service task result — use "text" field
@@ -127,7 +136,9 @@ async def poll_task(task_id: str) -> dict[str, Any]:
             if not result.get("text"):
                 log.warning("Task %s result has no text/content/structured key", task_id)
             messages = chat_service.receive_service_result(
-                conversation_id, text, task_id=task_id,
+                conversation_id,
+                text,
+                task_id=task_id,
             )
 
         chat_service.mark_task_processed(task_id, messages)
@@ -147,7 +158,8 @@ async def poll_task(task_id: str) -> dict[str, Any]:
         error = task.get("error", "Unknown error")
         task_type = payload.get("type", "Task")
         msg = chat_service.record_error(
-            conversation_id, f"{task_type} failed: {error}",
+            conversation_id,
+            f"{task_type} failed: {error}",
         )
         chat_service.mark_task_processed(task_id, [msg])
         return {"status": "failed", "messages": [asdict(msg)]}

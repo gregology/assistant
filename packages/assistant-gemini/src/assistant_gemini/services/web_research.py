@@ -66,7 +66,11 @@ def handle(task: TaskRecord) -> dict:
             log.exception("Structured output pass failed, returning raw text")
 
     source_summary = ", ".join(s.get("title", "?")[:40] for s in sources[:3])
-    log.info("Gemini research complete: %d chars, %d sources (%s)",
-             len(text), len(sources), source_summary)
+    log.info(
+        "Gemini research complete: %d chars, %d sources (%s)",
+        len(text),
+        len(sources),
+        source_summary,
+    )
 
     return result

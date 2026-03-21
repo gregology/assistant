@@ -92,6 +92,9 @@ class GitHubEntityStore:
         synced_path.rename(dest)
         log.info(
             "Restored %s %s/%s#%d from synced/ to active",
-            self._entity_type, org, repo, number,
+            self._entity_type,
+            org,
+            repo,
+            number,
         )
         return dest

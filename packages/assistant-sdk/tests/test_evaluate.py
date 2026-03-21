@@ -42,13 +42,15 @@ CLASSIFICATIONS = {
 
 def _make_resolver(**fields):
     """Create a resolve_value callable that resolves classification.* and flat keys."""
+
     def resolve_value(key, classification):
         if key.startswith("classification."):
-            cls_key = key[len("classification."):]
+            cls_key = key[len("classification.") :]
             return classification.get(cls_key, MISSING)
         if key in fields:
             return fields[key]
         return MISSING
+
     return resolve_value
 
 
@@ -189,63 +191,115 @@ class TestConditionsMatch:
     def test_classification_match(self):
         resolver = _make_resolver()
         result = {"score": 0.9}
-        assert conditions_match(
-            {"classification.score": 0.8}, resolver, result, CLASSIFICATIONS,
-        ) is True
+        assert (
+            conditions_match(
+                {"classification.score": 0.8},
+                resolver,
+                result,
+                CLASSIFICATIONS,
+            )
+            is True
+        )
 
     def test_classification_miss(self):
         resolver = _make_resolver()
         result = {"score": 0.3}
-        assert conditions_match(
-            {"classification.score": 0.8}, resolver, result, CLASSIFICATIONS,
-        ) is False
+        assert (
+            conditions_match(
+                {"classification.score": 0.8},
+                resolver,
+                result,
+                CLASSIFICATIONS,
+            )
+            is False
+        )
 
     def test_missing_classification_key_returns_false(self):
         resolver = _make_resolver()
         result = {"score": 0.9}
-        assert conditions_match(
-            {"classification.nonexistent": True}, resolver, result, CLASSIFICATIONS,
-        ) is False
+        assert (
+            conditions_match(
+                {"classification.nonexistent": True},
+                resolver,
+                result,
+                CLASSIFICATIONS,
+            )
+            is False
+        )
 
     def test_missing_result_key_returns_false(self):
         resolver = _make_resolver()
-        assert conditions_match(
-            {"classification.score": 0.8}, resolver, {}, CLASSIFICATIONS,
-        ) is False
+        assert (
+            conditions_match(
+                {"classification.score": 0.8},
+                resolver,
+                {},
+                CLASSIFICATIONS,
+            )
+            is False
+        )
 
     def test_deterministic_match(self):
         resolver = _make_resolver(org="myorg")
-        assert conditions_match(
-            {"org": "myorg"}, resolver, {}, CLASSIFICATIONS,
-        ) is True
+        assert (
+            conditions_match(
+                {"org": "myorg"},
+                resolver,
+                {},
+                CLASSIFICATIONS,
+            )
+            is True
+        )
 
     def test_deterministic_miss(self):
         resolver = _make_resolver(org="myorg")
-        assert conditions_match(
-            {"org": "otherorg"}, resolver, {}, CLASSIFICATIONS,
-        ) is False
+        assert (
+            conditions_match(
+                {"org": "otherorg"},
+                resolver,
+                {},
+                CLASSIFICATIONS,
+            )
+            is False
+        )
 
     def test_mixed_conditions(self):
         resolver = _make_resolver(org="myorg")
         result = {"score": 0.9}
-        assert conditions_match(
-            {"org": "myorg", "classification.score": 0.8},
-            resolver, result, CLASSIFICATIONS,
-        ) is True
+        assert (
+            conditions_match(
+                {"org": "myorg", "classification.score": 0.8},
+                resolver,
+                result,
+                CLASSIFICATIONS,
+            )
+            is True
+        )
 
     def test_mixed_one_fails(self):
         resolver = _make_resolver(org="wrong")
         result = {"score": 0.9}
-        assert conditions_match(
-            {"org": "myorg", "classification.score": 0.8},
-            resolver, result, CLASSIFICATIONS,
-        ) is False
+        assert (
+            conditions_match(
+                {"org": "myorg", "classification.score": 0.8},
+                resolver,
+                result,
+                CLASSIFICATIONS,
+            )
+            is False
+        )
 
     def test_missing_deterministic_key_returns_false(self):
         resolver = _make_resolver()
-        assert conditions_match(
-            {"nonexistent_key": "value"}, resolver, {}, CLASSIFICATIONS,
-        ) is False
+        assert (
+            conditions_match(
+                {"nonexistent_key": "value"},
+                resolver,
+                {},
+                CLASSIFICATIONS,
+            )
+            is False
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -350,7 +404,11 @@ class TestResolveActionProvenance:
         resolver = _make_resolver(org="myorg")
         autos = [AutomationConfig(when={"org": "myorg"}, then=["log"])]
         result = resolve_action_provenance(
-            autos, resolver, {}, CLASSIFICATIONS, self.DETERMINISTIC,
+            autos,
+            resolver,
+            {},
+            CLASSIFICATIONS,
+            self.DETERMINISTIC,
         )
         assert result == "rule"
 
@@ -358,7 +416,11 @@ class TestResolveActionProvenance:
         resolver = _make_resolver()
         autos = [AutomationConfig(when={"classification.score": 0.5}, then=["log"])]
         result = resolve_action_provenance(
-            autos, resolver, {"score": 0.9}, CLASSIFICATIONS, self.DETERMINISTIC,
+            autos,
+            resolver,
+            {"score": 0.9},
+            CLASSIFICATIONS,
+            self.DETERMINISTIC,
         )
         assert result == "llm"
 
@@ -370,7 +432,11 @@ class TestResolveActionProvenance:
             AutomationConfig(when={"classification.score": 0.5}, then=["alert"]),
         ]
         result = resolve_action_provenance(
-            autos, resolver, {"score": 0.9}, CLASSIFICATIONS, self.DETERMINISTIC,
+            autos,
+            resolver,
+            {"score": 0.9},
+            CLASSIFICATIONS,
+            self.DETERMINISTIC,
         )
         assert result == "hybrid"
 
@@ -384,7 +450,11 @@ class TestResolveActionProvenance:
             ),
         ]
         result = resolve_action_provenance(
-            autos, resolver, {"score": 0.9}, CLASSIFICATIONS, self.DETERMINISTIC,
+            autos,
+            resolver,
+            {"score": 0.9},
+            CLASSIFICATIONS,
+            self.DETERMINISTIC,
         )
         assert result == "llm"
 
@@ -392,7 +462,11 @@ class TestResolveActionProvenance:
         resolver = _make_resolver()
         autos = [AutomationConfig(when={"classification.score": 0.99}, then=["log"])]
         result = resolve_action_provenance(
-            autos, resolver, {"score": 0.1}, CLASSIFICATIONS, self.DETERMINISTIC,
+            autos,
+            resolver,
+            {"score": 0.1},
+            CLASSIFICATIONS,
+            self.DETERMINISTIC,
         )
         assert result == "rule"
 

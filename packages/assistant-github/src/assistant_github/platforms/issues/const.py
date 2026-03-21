@@ -16,16 +16,18 @@ DEFAULT_CLASSIFICATIONS: dict[str, ClassificationConfig] = {
 }
 
 # Fields resolved from issue metadata — not from LLM classification output.
-DETERMINISTIC_SOURCES: frozenset[str] = frozenset({
-    "org",
-    "repo",
-    "number",
-    "author",
-    "title",
-    "state",
-    "labels",
-    "comment_count",
-})
+DETERMINISTIC_SOURCES: frozenset[str] = frozenset(
+    {
+        "org",
+        "repo",
+        "number",
+        "author",
+        "title",
+        "state",
+        "labels",
+        "comment_count",
+    }
+)
 
 # Actions that cannot be undone. Empty — no write actions yet.
 IRREVERSIBLE_ACTIONS: frozenset[str] = frozenset()

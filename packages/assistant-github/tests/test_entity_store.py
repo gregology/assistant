@@ -13,6 +13,7 @@ from assistant_github.entity_store import GitHubEntityStore
 
 class ConcreteStore(GitHubEntityStore):
     """Minimal subclass for testing the base class."""
+
     _entity_type = "test"
     _url_path = "test"
 
@@ -20,7 +21,9 @@ class ConcreteStore(GitHubEntityStore):
         org, repo, number = entity["org"], entity["repo"], entity["number"]
         return self._store.save(
             self._filename(org, repo, number),
-            org=org, repo=repo, number=number,
+            org=org,
+            repo=repo,
+            number=number,
             title=entity.get("title", ""),
         )
 

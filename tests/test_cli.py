@@ -221,10 +221,7 @@ class TestDoctorChecks:
 
         config = tmp_path / "config.yaml"
         config.write_text(
-            f"directories:\n"
-            f"  notes: {notes}\n"
-            f"  task_queue: {queue}\n"
-            f"  logs: {logs}\n"
+            f"directories:\n  notes: {notes}\n  task_queue: {queue}\n  logs: {logs}\n"
         )
         monkeypatch.setattr(doctor, "PROJECT_ROOT", tmp_path)
         assert doctor.check_directories() is True

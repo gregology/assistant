@@ -41,9 +41,7 @@ class TestPresentClassification:
         assert view.type == "boolean"
 
     def test_enum_type(self):
-        cfg = ClassificationConfig(
-            prompt="priority?", type="enum", values=["low", "high"]
-        )
+        cfg = ClassificationConfig(prompt="priority?", type="enum", values=["low", "high"])
         view = _present_classification("priority", cfg)
         assert view.type == "enum"
         assert view.values == ["low", "high"]
@@ -58,9 +56,7 @@ class TestPresentAutomation:
         assert not view.yolo
 
     def test_llm_provenance(self):
-        auto = AutomationConfig(
-            when={"classification.human": 0.8}, then=["archive"]
-        )
+        auto = AutomationConfig(when={"classification.human": 0.8}, then=["archive"])
         det = frozenset({"domain"})
         view = _present_automation(auto, "email", "inbox", det)
         assert view.provenance == "llm"
@@ -121,9 +117,7 @@ class TestQueueCounts:
         from app.ui.presenters import _get_queue_counts
 
         task = {"id": "test", "status": "pending", "payload": {"type": "test"}}
-        (queue_dir / "pending" / "test.yaml").write_text(
-            _yaml.dump(task, default_flow_style=False)
-        )
+        (queue_dir / "pending" / "test.yaml").write_text(_yaml.dump(task, default_flow_style=False))
         counts = _get_queue_counts()
         assert counts.pending == 1
         assert counts.total == 1

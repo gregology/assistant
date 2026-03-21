@@ -24,14 +24,14 @@ def handle(task: TaskRecord) -> None:
     issue = client.get_issue(org, repo, number)
     detail = client.get_issue_detail(org, repo, number)
 
-    store = IssueStore(
-        path=runtime.get_notes_dir() / "github" / "issues" / integration.name
-    )
+    store = IssueStore(path=runtime.get_notes_dir() / "github" / "issues" / integration.name)
 
     if store.find_anywhere(org, repo, number) is not None:
         store.restore_to_active(org, repo, number)
         store.update(
-            org, repo, number,
+            org,
+            repo,
+            number,
             title=issue["title"],
             state=issue["state"],
             labels=detail["labels"],
@@ -39,23 +39,28 @@ def handle(task: TaskRecord) -> None:
         )
         log.info("github.issues.collect: updated %s/%s#%d", org, repo, number)
     else:
-        store.save({
+        store.save(
+            {
+                "org": org,
+                "repo": repo,
+                "number": number,
+                "title": issue["title"],
+                "author": issue["author"],
+                "state": issue["state"],
+                "labels": detail["labels"],
+                "comment_count": detail["comment_count"],
+            }
+        )
+        log.info("github.issues.collect: saved new issue %s/%s#%d", org, repo, number)
+
+    runtime.enqueue(
+        {
+            "type": "github.issues.classify",
+            "integration": integration_id,
             "org": org,
             "repo": repo,
             "number": number,
-            "title": issue["title"],
-            "author": issue["author"],
-            "state": issue["state"],
-            "labels": detail["labels"],
-            "comment_count": detail["comment_count"],
-        })
-        log.info("github.issues.collect: saved new issue %s/%s#%d", org, repo, number)
-
-    runtime.enqueue({
-        "type": "github.issues.classify",
-        "integration": integration_id,
-        "org": org,
-        "repo": repo,
-        "number": number,
-    }, priority=6)
+        },
+        priority=6,
+    )
     log.info("github.issues.collect: queued classify for %s/%s#%d", org, repo, number)

@@ -128,7 +128,9 @@ class Email:
         subject = (self.subject[:25] + "…") if len(self.subject) > 25 else self.subject
         log.human(
             "Archived email from **%s** — `%s` (uid %s)",
-            self.from_address, subject, self._uid,
+            self.from_address,
+            subject,
+            self._uid,
         )
 
     def spam(self) -> None:
@@ -172,9 +174,7 @@ class Email:
     @staticmethod
     def _clean(text: str, html: str) -> str:
         if html:
-            return BeautifulSoup(html, "html.parser").get_text(
-                separator="\n", strip=True
-            )
+            return BeautifulSoup(html, "html.parser").get_text(separator="\n", strip=True)
         return text or ""
 
     def __repr__(self) -> str:
@@ -206,7 +206,9 @@ class Mailbox:
             log.info("Discovered folders: %s", self._folders)
 
     def inbox_message_ids(
-        self, limit: int = 500, since: date | None = None,
+        self,
+        limit: int = 500,
+        since: date | None = None,
     ) -> list[tuple[str, str]]:
         """Fetch (uid, message_id) pairs from the inbox using headers-only fetch.
 
@@ -218,9 +220,15 @@ class Mailbox:
         self._ensure_connected()
         assert self._conn is not None
         criteria = AND(date_gte=since) if since else "ALL"
-        messages = list(self._conn.fetch(
-            criteria, headers_only=True, limit=limit, reverse=True, mark_seen=False,
-        ))
+        messages = list(
+            self._conn.fetch(
+                criteria,
+                headers_only=True,
+                limit=limit,
+                reverse=True,
+                mark_seen=False,
+            )
+        )
         result = []
         for msg in messages:
             uid = msg.uid or ""

@@ -59,6 +59,7 @@ class TestNoteStore:
 
     def test_all_returns_empty_for_nonexistent_dir(self):
         from pathlib import Path
+
         store = NoteStore(Path("/tmp/assistant_test_nonexistent_dir"))
         assert store.all() == []
 

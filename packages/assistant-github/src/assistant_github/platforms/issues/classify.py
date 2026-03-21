@@ -57,9 +57,7 @@ def handle(task: TaskRecord) -> None:
     classifications = platform.classifications or DEFAULT_CLASSIFICATIONS
     llm_config = runtime.get_llm_config(integration.llm)
 
-    store = IssueStore(
-        path=runtime.get_notes_dir() / "github" / "issues" / integration.name
-    )
+    store = IssueStore(path=runtime.get_notes_dir() / "github" / "issues" / integration.name)
 
     # Check if all classifications are already present — skip LLM if so.
     note_path = store.find(org, repo, number)
@@ -71,7 +69,9 @@ def handle(task: TaskRecord) -> None:
     if all(k in existing_cls for k in classifications):
         log.info(
             "github.issues.classify: %s/%s#%d all classifications present, skipping LLM",
-            org, repo, number,
+            org,
+            repo,
+            number,
         )
     else:
         client = GitHubClient()
@@ -97,11 +97,14 @@ def handle(task: TaskRecord) -> None:
         store.update(org, repo, number, classification=classification, classified_by=classified_by)
         log.info("Classified issue **%s/%s#%d**", org, repo, number)
 
-    runtime.enqueue({
-        "type": "github.issues.evaluate",
-        "integration": integration_id,
-        "org": org,
-        "repo": repo,
-        "number": number,
-    }, priority=7)
+    runtime.enqueue(
+        {
+            "type": "github.issues.evaluate",
+            "integration": integration_id,
+            "org": org,
+            "repo": repo,
+            "number": number,
+        },
+        priority=7,
+    )
     log.info("github.issues.classify: queued evaluate for %s/%s#%d", org, repo, number)

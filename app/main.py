@@ -48,7 +48,8 @@ async def list_integrations() -> list[dict[str, Any]]:
         platforms = getattr(i, "platforms", None)
         if platforms is not None:
             entry["platforms"] = [
-                name for name in type(platforms).model_fields
+                name
+                for name in type(platforms).model_fields
                 if getattr(platforms, name) is not None
             ]
         results.append(entry)
@@ -119,9 +120,14 @@ def _run_integration(integration_id: str, platform: str | None = None) -> dict[s
     platforms_obj = _resolve_platforms(integration_id, integration)
 
     if platform:
-        task_ids = [_enqueue_single_platform(
-            integration_id, integration.type, platform, platforms_obj,
-        )]
+        task_ids = [
+            _enqueue_single_platform(
+                integration_id,
+                integration.type,
+                platform,
+                platforms_obj,
+            )
+        ]
     else:
         task_ids = _enqueue_all_platforms(integration_id, integration.type, platforms_obj)
 

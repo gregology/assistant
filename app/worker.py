@@ -47,6 +47,7 @@ def main() -> None:
     HANDLERS["script.run"] = script_run_handle
 
     from app.chat import chat_message_handler
+
     HANDLERS["chat.message"] = chat_message_handler
 
     queue.init()
@@ -77,8 +78,7 @@ def main() -> None:
                 route_results(result, task)
             except Exception:
                 log.exception(
-                    "Task %s completed but result routing failed; "
-                    "result preserved in done/",
+                    "Task %s completed but result routing failed; result preserved in done/",
                     task["id"],
                 )
 

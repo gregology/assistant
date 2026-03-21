@@ -20,7 +20,10 @@ def handle(task: TaskRecord) -> None:
     number = task["payload"]["number"]
     log.info(
         "github.pull_requests.collect: %s/%s#%d (integration=%s)",
-        org, repo, number, integration_id,
+        org,
+        repo,
+        number,
+        integration_id,
     )
 
     client = GitHubClient()
@@ -35,7 +38,9 @@ def handle(task: TaskRecord) -> None:
         # If the note was in synced/ (PR requires attention again), restore it.
         store.restore_to_active(org, repo, number)
         store.update(
-            org, repo, number,
+            org,
+            repo,
+            number,
             title=pr["title"],
             status=pr["status"],
             additions=detail["additions"],
@@ -44,23 +49,28 @@ def handle(task: TaskRecord) -> None:
         )
         log.info("github.pull_requests.collect: updated %s/%s#%d", org, repo, number)
     else:
-        store.save({
+        store.save(
+            {
+                "org": org,
+                "repo": repo,
+                "number": number,
+                "title": pr["title"],
+                "author": pr["author"],
+                "additions": detail["additions"],
+                "deletions": detail["deletions"],
+                "changed_files": detail["changed_files"],
+            }
+        )
+        log.info("github.pull_requests.collect: saved new PR %s/%s#%d", org, repo, number)
+
+    runtime.enqueue(
+        {
+            "type": "github.pull_requests.classify",
+            "integration": integration_id,
             "org": org,
             "repo": repo,
             "number": number,
-            "title": pr["title"],
-            "author": pr["author"],
-            "additions": detail["additions"],
-            "deletions": detail["deletions"],
-            "changed_files": detail["changed_files"],
-        })
-        log.info("github.pull_requests.collect: saved new PR %s/%s#%d", org, repo, number)
-
-    runtime.enqueue({
-        "type": "github.pull_requests.classify",
-        "integration": integration_id,
-        "org": org,
-        "repo": repo,
-        "number": number,
-    }, priority=6)
+        },
+        priority=6,
+    )
     log.info("github.pull_requests.collect: queued classify for %s/%s#%d", org, repo, number)

@@ -29,17 +29,19 @@ DEFAULT_CLASSIFICATIONS: dict[str, ClassificationConfig] = {
 
 # Fields resolved from PR metadata — not from LLM classification output.
 # Each entry is the top-level key namespace used in automation `when` conditions.
-DETERMINISTIC_SOURCES: frozenset[str] = frozenset({
-    "org",
-    "repo",
-    "number",
-    "author",
-    "title",
-    "status",
-    "additions",
-    "deletions",
-    "changed_files",
-})
+DETERMINISTIC_SOURCES: frozenset[str] = frozenset(
+    {
+        "org",
+        "repo",
+        "number",
+        "author",
+        "title",
+        "status",
+        "additions",
+        "deletions",
+        "changed_files",
+    }
+)
 
 # Actions that cannot be undone. Empty until write actions are added.
 # Automations that would trigger these from non-deterministic (LLM) provenance

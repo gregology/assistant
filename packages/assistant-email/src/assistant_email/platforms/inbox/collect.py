@@ -35,9 +35,12 @@ def handle(task: TaskRecord) -> None:
         log.info("email.inbox.collect: saved new email uid=%s", uid)
 
     priority = 6 if all(email.authentication.values()) else 9
-    runtime.enqueue({
-        "type": "email.inbox.classify",
-        "integration": integration_id,
-        "uid": uid,
-    }, priority=priority)
+    runtime.enqueue(
+        {
+            "type": "email.inbox.classify",
+            "integration": integration_id,
+            "uid": uid,
+        },
+        priority=priority,
+    )
     log.info("email.inbox.collect: queued classify for uid=%s", uid)

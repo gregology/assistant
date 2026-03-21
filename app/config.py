@@ -48,8 +48,7 @@ def _secret_constructor(loader: yaml.SafeLoader, node: yaml.ScalarNode) -> str:
     secrets = _load_secrets()
     if key not in secrets:
         raise ValueError(
-            f"Secret '{key}' not found in {SECRETS_PATH}. "
-            f"Available secrets: {list(secrets.keys())}"
+            f"Secret '{key}' not found in {SECRETS_PATH}. Available secrets: {list(secrets.keys())}"
         )
     return str(secrets[key])
 
@@ -65,7 +64,8 @@ def _yolo_constructor(loader: yaml.SafeLoader, node: yaml.Node) -> YoloAction:
         mapping: dict[str, Any] = loader.construct_mapping(node, deep=True)  # type: ignore[assignment]
         return YoloAction(mapping)
     raise yaml.constructor.ConstructorError(
-        None, None,
+        None,
+        None,
         f"expected a scalar or mapping node, but found {node.tag}",
         node.start_mark,
     )
@@ -140,9 +140,7 @@ class QueuePolicyConfig(BaseModel):
         import re
 
         if not re.fullmatch(r"(\d+)\s*([mhd])", v.strip().lower()):
-            raise ValueError(
-                f"Invalid retention format: {v!r} (expected e.g. '30m', '1h', '7d')"
-            )
+            raise ValueError(f"Invalid retention format: {v!r} (expected e.g. '30m', '1h', '7d')")
         return v
 
 
@@ -199,8 +197,8 @@ def _build_platform_model(
     for prop_name, prop_def in properties.items():
         fields[prop_name] = _json_schema_to_field(prop_name, prop_def, required_fields)
 
-    domain_part = domain.title().replace('_', '')
-    platform_part = platform_name.title().replace('_', '')
+    domain_part = domain.title().replace("_", "")
+    platform_part = platform_name.title().replace("_", "")
     model_name = f"{domain_part}{platform_part}PlatformConfig"
 
     return create_model(  # type: ignore[call-overload, no-any-return]
@@ -407,22 +405,26 @@ def _validate_automation_safety(
             const = load_platform_const(integration.type, platform_name)
             if const is None:
                 log.warning(
-                    "Safety constants unavailable for %s.%s, "
-                    "treating all actions as irreversible",
+                    "Safety constants unavailable for %s.%s, treating all actions as irreversible",
                     integration.type,
                     platform_name,
                 )
             deterministic_sources: frozenset[str] = getattr(
-                const, "DETERMINISTIC_SOURCES", frozenset(),
+                const,
+                "DETERMINISTIC_SOURCES",
+                frozenset(),
             )
-            irreversible_actions = getattr(
-                const, "IRREVERSIBLE_ACTIONS", _UniversalSet()
+            irreversible_actions = getattr(const, "IRREVERSIBLE_ACTIONS", _UniversalSet())
+            warnings.extend(
+                _filter_platform_automations(
+                    platform,
+                    integration.name,
+                    platform_name,
+                    deterministic_sources,
+                    irreversible_actions,
+                    scripts=scripts,
+                )
             )
-            warnings.extend(_filter_platform_automations(
-                platform, integration.name, platform_name,
-                deterministic_sources, irreversible_actions,
-                scripts=scripts,
-            ))
     return warnings
 
 
@@ -525,9 +527,7 @@ def _validate_service_references(
         call = action.service.get("call", "")
         issue = _check_service_call_reference(call, manifests)
         if issue is not None:
-            warnings.append(
-                f"Automation in '{integration.name}.{platform_name}' {issue}"
-            )
+            warnings.append(f"Automation in '{integration.name}.{platform_name}' {issue}")
     return warnings
 
 
@@ -586,10 +586,7 @@ def load_config(config_path: Path = _CONFIG_PATH) -> tuple[Any, list[str]]:
                 if entry.id == integration_id:  # type: ignore[attr-defined]
                     return entry
             available = [i.id for i in self.integrations]  # type: ignore[attr-defined]
-            raise ValueError(
-                f"Unknown integration {integration_id!r}. "
-                f"Available: {available}"
-            )
+            raise ValueError(f"Unknown integration {integration_id!r}. Available: {available}")
 
         def get_integrations_by_type(self, integration_type: str) -> list[Any]:
             return [i for i in self.integrations if i.type == integration_type]  # type: ignore[attr-defined]
@@ -601,9 +598,7 @@ def load_config(config_path: Path = _CONFIG_PATH) -> tuple[Any, list[str]]:
                 raise ValueError(f"Integration {integration_id!r} has no platforms")
             platform = getattr(platforms, platform_name, None)
             if platform is None:
-                raise ValueError(
-                    f"Platform {platform_name!r} not configured in {integration_id!r}"
-                )
+                raise ValueError(f"Platform {platform_name!r} not configured in {integration_id!r}")
             return platform
 
     cfg = AppConfig(**raw)

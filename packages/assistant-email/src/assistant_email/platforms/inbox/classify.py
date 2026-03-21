@@ -85,9 +85,12 @@ def handle(task: TaskRecord) -> None:
         }
         store.update(message_id, classification=classification, classified_by=classified_by)
 
-    runtime.enqueue({
-        "type": "email.inbox.evaluate",
-        "integration": integration_id,
-        "message_id": message_id,
-    }, priority=7)
+    runtime.enqueue(
+        {
+            "type": "email.inbox.evaluate",
+            "integration": integration_id,
+            "message_id": message_id,
+        },
+        priority=7,
+    )
     log.info("email.inbox.classify: queued evaluate for uid=%s", uid)

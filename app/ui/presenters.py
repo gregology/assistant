@@ -182,13 +182,15 @@ def _load_display_config() -> Any:
 def _present_llm_profiles(cfg: Any, secret_values: frozenset[str]) -> list[LLMProfileView]:
     profiles = []
     for name, llm_cfg in cfg.llms.items():
-        profiles.append(LLMProfileView(
-            name=name,
-            base_url=llm_cfg.base_url,
-            model=llm_cfg.model,
-            token=mask_value("token", llm_cfg.token, secret_values) if llm_cfg.token else "",
-            parameters=llm_cfg.parameters,
-        ))
+        profiles.append(
+            LLMProfileView(
+                name=name,
+                base_url=llm_cfg.base_url,
+                model=llm_cfg.model,
+                token=mask_value("token", llm_cfg.token, secret_values) if llm_cfg.token else "",
+                parameters=llm_cfg.parameters,
+            )
+        )
     return profiles
 
 
@@ -245,9 +247,7 @@ def _present_automation(
 # Platforms & integrations
 # ---------------------------------------------------------------------------
 
-_BASE_INTEGRATION_FIELDS = frozenset(
-    BaseIntegrationConfig.model_fields.keys() | {"platforms"}
-)
+_BASE_INTEGRATION_FIELDS = frozenset(BaseIntegrationConfig.model_fields.keys() | {"platforms"})
 _BASE_PLATFORM_FIELDS = frozenset(BasePlatformConfig.model_fields.keys())
 
 
@@ -267,8 +267,7 @@ def _present_platform(
         fields[fname] = mask_value(fname, str(val) if val is not None else "", secret_values)
 
     classifications = [
-        _present_classification(name, cls_cfg)
-        for name, cls_cfg in platform.classifications.items()
+        _present_classification(name, cls_cfg) for name, cls_cfg in platform.classifications.items()
     ]
 
     automations = [
@@ -312,9 +311,7 @@ def _present_integration(integration: Any, secret_values: frozenset[str]) -> Int
             plat = getattr(platforms_obj, plat_name)
             if plat is None:
                 continue
-            platforms.append(
-                _present_platform(plat_name, plat, integration.type, secret_values)
-            )
+            platforms.append(_present_platform(plat_name, plat, integration.type, secret_values))
 
     return IntegrationView(
         id=integration.id,
@@ -337,16 +334,18 @@ def _present_integration(integration: Any, secret_values: frozenset[str]) -> Int
 def _present_scripts(cfg: Any) -> list[ScriptView]:
     scripts = []
     for name, script_cfg in cfg.scripts.items():
-        scripts.append(ScriptView(
-            name=name,
-            description=script_cfg.description,
-            inputs=script_cfg.inputs,
-            timeout=script_cfg.timeout,
-            reversible=script_cfg.reversible,
-            shell=script_cfg.shell,  # nosec B604
-            output=script_cfg.output,
-            on_output=script_cfg.on_output,
-        ))
+        scripts.append(
+            ScriptView(
+                name=name,
+                description=script_cfg.description,
+                inputs=script_cfg.inputs,
+                timeout=script_cfg.timeout,
+                reversible=script_cfg.reversible,
+                shell=script_cfg.shell,  # nosec B604
+                output=script_cfg.output,
+                on_output=script_cfg.on_output,
+            )
+        )
     return scripts
 
 
@@ -380,13 +379,15 @@ def _get_recent_tasks(directory: str, limit: int = 10) -> list[TaskView]:
         try:
             data = yaml.safe_load(f.read_text())
             payload = data.get("payload", {})
-            tasks.append(TaskView(
-                id=data.get("id", f.stem),
-                status=data.get("status", directory),
-                task_type=payload.get("type", "unknown"),
-                created_at=data.get("created_at", ""),
-                payload=payload,
-            ))
+            tasks.append(
+                TaskView(
+                    id=data.get("id", f.stem),
+                    status=data.get("status", directory),
+                    task_type=payload.get("type", "unknown"),
+                    created_at=data.get("created_at", ""),
+                    payload=payload,
+                )
+            )
         except Exception:
             log.warning("Could not parse task file: %s", f)
     return tasks
@@ -406,10 +407,7 @@ def _get_log_dates() -> list[LogDateView]:
         key=lambda f: f.name,
         reverse=True,
     )
-    return [
-        LogDateView(date=f.stem, filename=f.name)
-        for f in files
-    ]
+    return [LogDateView(date=f.stem, filename=f.name) for f in files]
 
 
 def _read_log_file(date: str) -> str | None:

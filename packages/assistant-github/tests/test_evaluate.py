@@ -75,8 +75,14 @@ class TestPRSnapshot:
 class TestPRResolver:
     def test_resolves_snapshot_fields(self):
         snap = PRSnapshot(
-            org="myorg", repo="myrepo", number=42, author="alice",
-            title="Feature", status="open", additions=50, deletions=10,
+            org="myorg",
+            repo="myrepo",
+            number=42,
+            author="alice",
+            title="Feature",
+            status="open",
+            additions=50,
+            deletions=10,
             changed_files=3,
         )
         resolver = pr_make_resolver(snap)
@@ -86,8 +92,14 @@ class TestPRResolver:
 
     def test_resolves_classification_keys(self):
         snap = PRSnapshot(
-            org="o", repo="r", number=1, author="a",
-            title="T", status="open", additions=0, deletions=0,
+            org="o",
+            repo="r",
+            number=1,
+            author="a",
+            title="T",
+            status="open",
+            additions=0,
+            deletions=0,
             changed_files=0,
         )
         resolver = pr_make_resolver(snap)
@@ -97,8 +109,14 @@ class TestPRResolver:
 
     def test_missing_classification_returns_missing(self):
         snap = PRSnapshot(
-            org="o", repo="r", number=1, author="a",
-            title="T", status="open", additions=0, deletions=0,
+            org="o",
+            repo="r",
+            number=1,
+            author="a",
+            title="T",
+            status="open",
+            additions=0,
+            deletions=0,
             changed_files=0,
         )
         resolver = pr_make_resolver(snap)
@@ -106,8 +124,14 @@ class TestPRResolver:
 
     def test_missing_snapshot_field_returns_missing(self):
         snap = PRSnapshot(
-            org="o", repo="r", number=1, author="a",
-            title="T", status="open", additions=0, deletions=0,
+            org="o",
+            repo="r",
+            number=1,
+            author="a",
+            title="T",
+            status="open",
+            additions=0,
+            deletions=0,
             changed_files=0,
         )
         resolver = pr_make_resolver(snap)
@@ -149,8 +173,14 @@ class TestIssueSnapshot:
 class TestIssueResolver:
     def test_resolves_snapshot_fields(self):
         snap = IssueSnapshot(
-            org="myorg", repo="myrepo", number=10, author="bob",
-            title="Bug", state="open", labels=["bug"], comment_count=5,
+            org="myorg",
+            repo="myrepo",
+            number=10,
+            author="bob",
+            title="Bug",
+            state="open",
+            labels=["bug"],
+            comment_count=5,
         )
         resolver = issue_make_resolver(snap)
         assert resolver("org", {}) == "myorg"
@@ -160,8 +190,14 @@ class TestIssueResolver:
 
     def test_resolves_classification_keys(self):
         snap = IssueSnapshot(
-            org="o", repo="r", number=1, author="a",
-            title="T", state="open", labels=[], comment_count=0,
+            org="o",
+            repo="r",
+            number=1,
+            author="a",
+            title="T",
+            state="open",
+            labels=[],
+            comment_count=0,
         )
         resolver = issue_make_resolver(snap)
         classification = {"urgency": 0.9, "actionable": True}
@@ -177,8 +213,14 @@ class TestIssueResolver:
 class TestPRAutomationEvaluation:
     def test_deterministic_author_match(self):
         snap = PRSnapshot(
-            org="o", repo="r", number=1, author="dependabot",
-            title="Bump", status="open", additions=5, deletions=2,
+            org="o",
+            repo="r",
+            number=1,
+            author="dependabot",
+            title="Bump",
+            status="open",
+            additions=5,
+            deletions=2,
             changed_files=1,
         )
         resolver = pr_make_resolver(snap)
@@ -190,8 +232,14 @@ class TestPRAutomationEvaluation:
 
     def test_deterministic_author_miss(self):
         snap = PRSnapshot(
-            org="o", repo="r", number=1, author="alice",
-            title="Feature", status="open", additions=100, deletions=50,
+            org="o",
+            repo="r",
+            number=1,
+            author="alice",
+            title="Feature",
+            status="open",
+            additions=100,
+            deletions=50,
             changed_files=10,
         )
         resolver = pr_make_resolver(snap)
@@ -203,8 +251,14 @@ class TestPRAutomationEvaluation:
 
     def test_classification_match(self):
         snap = PRSnapshot(
-            org="o", repo="r", number=1, author="alice",
-            title="T", status="open", additions=0, deletions=0,
+            org="o",
+            repo="r",
+            number=1,
+            author="alice",
+            title="T",
+            status="open",
+            additions=0,
+            deletions=0,
             changed_files=0,
         )
         resolver = pr_make_resolver(snap)
@@ -220,8 +274,14 @@ class TestPRAutomationEvaluation:
 
     def test_missing_classification_safe_default(self):
         snap = PRSnapshot(
-            org="o", repo="r", number=1, author="a",
-            title="T", status="open", additions=0, deletions=0,
+            org="o",
+            repo="r",
+            number=1,
+            author="a",
+            title="T",
+            status="open",
+            additions=0,
+            deletions=0,
             changed_files=0,
         )
         resolver = pr_make_resolver(snap)
@@ -236,8 +296,14 @@ class TestPRAutomationEvaluation:
 
     def test_documentation_only_boolean(self):
         snap = PRSnapshot(
-            org="o", repo="r", number=1, author="a",
-            title="T", status="open", additions=0, deletions=0,
+            org="o",
+            repo="r",
+            number=1,
+            author="a",
+            title="T",
+            status="open",
+            additions=0,
+            deletions=0,
             changed_files=0,
         )
         resolver = pr_make_resolver(snap)
@@ -253,8 +319,14 @@ class TestPRAutomationEvaluation:
 
     def test_mixed_deterministic_and_classification(self):
         snap = PRSnapshot(
-            org="o", repo="r", number=1, author="dependabot",
-            title="Bump dep", status="open", additions=2, deletions=2,
+            org="o",
+            repo="r",
+            number=1,
+            author="dependabot",
+            title="Bump dep",
+            status="open",
+            additions=2,
+            deletions=2,
             changed_files=1,
         )
         resolver = pr_make_resolver(snap)
@@ -278,8 +350,14 @@ class TestIssueAutomationEvaluation:
     def test_label_match_scalar_in_list(self):
         """check_deterministic_condition treats list condition as any-of for scalars."""
         snap = IssueSnapshot(
-            org="o", repo="r", number=1, author="a",
-            title="T", state="open", labels=["bug"], comment_count=0,
+            org="o",
+            repo="r",
+            number=1,
+            author="a",
+            title="T",
+            state="open",
+            labels=["bug"],
+            comment_count=0,
         )
         resolver = issue_make_resolver(snap)
         # Use a scalar deterministic field (e.g., author) with list condition
@@ -294,8 +372,14 @@ class TestIssueAutomationEvaluation:
 
     def test_state_match(self):
         snap = IssueSnapshot(
-            org="o", repo="r", number=1, author="a",
-            title="T", state="open", labels=["bug"], comment_count=0,
+            org="o",
+            repo="r",
+            number=1,
+            author="a",
+            title="T",
+            state="open",
+            labels=["bug"],
+            comment_count=0,
         )
         resolver = issue_make_resolver(snap)
         autos = [
@@ -306,8 +390,14 @@ class TestIssueAutomationEvaluation:
 
     def test_urgency_classification(self):
         snap = IssueSnapshot(
-            org="o", repo="r", number=1, author="a",
-            title="T", state="open", labels=[], comment_count=0,
+            org="o",
+            repo="r",
+            number=1,
+            author="a",
+            title="T",
+            state="open",
+            labels=[],
+            comment_count=0,
         )
         resolver = issue_make_resolver(snap)
         classification = {"urgency": 0.95, "actionable": True}
@@ -322,8 +412,14 @@ class TestIssueAutomationEvaluation:
 
     def test_actionable_boolean(self):
         snap = IssueSnapshot(
-            org="o", repo="r", number=1, author="a",
-            title="T", state="open", labels=[], comment_count=0,
+            org="o",
+            repo="r",
+            number=1,
+            author="a",
+            title="T",
+            state="open",
+            labels=[],
+            comment_count=0,
         )
         resolver = issue_make_resolver(snap)
         classification = {"urgency": 0.5, "actionable": True}
@@ -338,8 +434,14 @@ class TestIssueAutomationEvaluation:
 
     def test_no_automations_empty(self):
         snap = IssueSnapshot(
-            org="o", repo="r", number=1, author="a",
-            title="T", state="open", labels=[], comment_count=0,
+            org="o",
+            repo="r",
+            number=1,
+            author="a",
+            title="T",
+            state="open",
+            labels=[],
+            comment_count=0,
         )
         resolver = issue_make_resolver(snap)
         assert evaluate_automations([], resolver, {}, ISSUE_CLASSIFICATIONS) == []
@@ -355,47 +457,58 @@ class TestSafetyConstants:
 
     def test_pr_deterministic_sources_are_snapshot_fields(self):
         snap = PRSnapshot(
-            org="o", repo="r", number=1, author="a",
-            title="T", status="open", additions=0, deletions=0,
+            org="o",
+            repo="r",
+            number=1,
+            author="a",
+            title="T",
+            status="open",
+            additions=0,
+            deletions=0,
             changed_files=0,
         )
         for source in PR_DETERMINISTIC:
             assert hasattr(snap, source), (
-                f"PR DETERMINISTIC_SOURCES has '{source}' "
-                f"but PRSnapshot has no such field"
+                f"PR DETERMINISTIC_SOURCES has '{source}' but PRSnapshot has no such field"
             )
         for field in dataclasses.fields(PRSnapshot):
             assert field.name in PR_DETERMINISTIC, (
-                f"PRSnapshot has field '{field.name}' "
-                f"but it is not in DETERMINISTIC_SOURCES"
+                f"PRSnapshot has field '{field.name}' but it is not in DETERMINISTIC_SOURCES"
             )
 
     def test_issue_deterministic_sources_are_snapshot_fields(self):
         snap = IssueSnapshot(
-            org="o", repo="r", number=1, author="a",
-            title="T", state="open", labels=[], comment_count=0,
+            org="o",
+            repo="r",
+            number=1,
+            author="a",
+            title="T",
+            state="open",
+            labels=[],
+            comment_count=0,
         )
         for source in ISSUE_DETERMINISTIC:
             assert hasattr(snap, source), (
-                f"Issue DETERMINISTIC_SOURCES has '{source}' "
-                f"but IssueSnapshot has no such field"
+                f"Issue DETERMINISTIC_SOURCES has '{source}' but IssueSnapshot has no such field"
             )
         for field in dataclasses.fields(IssueSnapshot):
             assert field.name in ISSUE_DETERMINISTIC, (
-                f"IssueSnapshot has field '{field.name}' "
-                f"but it is not in DETERMINISTIC_SOURCES"
+                f"IssueSnapshot has field '{field.name}' but it is not in DETERMINISTIC_SOURCES"
             )
 
     def test_pr_no_irreversible_actions(self):
         """PR platform is read-only — no irreversible actions defined."""
         from assistant_github.platforms.pull_requests.const import (
-            IRREVERSIBLE_ACTIONS, SIMPLE_ACTIONS,
+            IRREVERSIBLE_ACTIONS,
+            SIMPLE_ACTIONS,
         )
+
         assert len(IRREVERSIBLE_ACTIONS) == 0
         assert len(SIMPLE_ACTIONS) == 0
 
     def test_issue_no_irreversible_actions(self):
         """Issue platform is read-only — no irreversible actions defined."""
         from assistant_github.platforms.issues.const import IRREVERSIBLE_ACTIONS, SIMPLE_ACTIONS
+
         assert len(IRREVERSIBLE_ACTIONS) == 0
         assert len(SIMPLE_ACTIONS) == 0

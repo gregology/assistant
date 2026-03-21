@@ -61,9 +61,13 @@ class GitHubClient:
 
     def get_pr_diff(self, org: str, repo: str, number: int) -> str:
         cmd = [
-            "gh", "api", f"repos/{org}/{repo}/pulls/{number}",
-            "--method", "GET",
-            "-H", "Accept: application/vnd.github.v3.diff",
+            "gh",
+            "api",
+            f"repos/{org}/{repo}/pulls/{number}",
+            "--method",
+            "GET",
+            "-H",
+            "Accept: application/vnd.github.v3.diff",
         ]
         return self._run_gh(cmd, timeout=60)
 
@@ -78,7 +82,8 @@ class GitHubClient:
             base_queries.append("is:pr is:open mentions:@me")
 
         results = self._search_entities(
-            base_queries, integration,
+            base_queries,
+            integration,
             item_filter=None,
         )
         log.info("active_prs: found %d unique PRs across all queries", len(results))
@@ -93,10 +98,7 @@ class GitHubClient:
             "title": result.get("title", ""),
             "author": result.get("user", {}).get("login", ""),
             "state": result.get("state", "unknown"),
-            "labels": [
-                label.get("name", "")
-                for label in result.get("labels", [])
-            ],
+            "labels": [label.get("name", "") for label in result.get("labels", [])],
         }
 
     def get_issue_detail(self, org: str, repo: str, number: int) -> dict[str, Any]:
@@ -106,10 +108,7 @@ class GitHubClient:
             "body": result.get("body", "") or "",
             "author": result.get("user", {}).get("login", ""),
             "state": result.get("state", "unknown"),
-            "labels": [
-                label.get("name", "")
-                for label in result.get("labels", [])
-            ],
+            "labels": [label.get("name", "") for label in result.get("labels", [])],
             "comment_count": result.get("comments", 0),
         }
 
@@ -123,7 +122,8 @@ class GitHubClient:
             base_queries.append("is:issue is:open mentions:@me")
 
         results = self._search_entities(
-            base_queries, integration,
+            base_queries,
+            integration,
             item_filter=lambda item: "pull_request" not in item,
         )
         log.info("active_issues: found %d unique issues across all queries", len(results))
@@ -180,14 +180,23 @@ class GitHubClient:
         return entities
 
     def create_issue(
-        self, org: str, repo: str, title: str, body: str = "",
+        self,
+        org: str,
+        repo: str,
+        title: str,
+        body: str = "",
     ) -> dict[str, Any]:
         """Create an issue in a GitHub repository. Returns {number, url}."""
         cmd = [
-            "gh", "api", f"repos/{org}/{repo}/issues",
-            "--method", "POST",
-            "-f", f"title={title}",
-            "-f", f"body={body}",
+            "gh",
+            "api",
+            f"repos/{org}/{repo}/issues",
+            "--method",
+            "POST",
+            "-f",
+            f"title={title}",
+            "-f",
+            f"body={body}",
         ]
         result = json.loads(self._run_gh(cmd, timeout=30))
         return {
@@ -198,14 +207,16 @@ class GitHubClient:
     def _scope_qualifiers(self, integration: Any) -> list[str]:
         """Build scope qualifiers from the integration's org/repo config."""
         qualifiers = []
-        for org in (integration.orgs or []):
+        for org in integration.orgs or []:
             qualifiers.append(f"org:{org}")
-        for repo in (integration.repos or []):
+        for repo in integration.repos or []:
             qualifiers.append(f"repo:{repo}")
         return qualifiers or [""]
 
     def _gh_api(
-        self, endpoint: str, method: str = "GET",
+        self,
+        endpoint: str,
+        method: str = "GET",
         params: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         cmd = ["gh", "api", endpoint, "--method", method]
@@ -225,10 +236,13 @@ class GitHubClient:
                 f"gh api failed (exit {proc.returncode}): {proc.stderr.strip()}"
             )
             if attempt < MAX_RETRIES:
-                delay = BACKOFF_BASE * (2 ** attempt)
+                delay = BACKOFF_BASE * (2**attempt)
                 log.warning(
                     "gh api failed (attempt %d/%d), retrying in %ds: %s",
-                    attempt + 1, MAX_RETRIES + 1, delay, proc.stderr.strip(),
+                    attempt + 1,
+                    MAX_RETRIES + 1,
+                    delay,
+                    proc.stderr.strip(),
                 )
                 time.sleep(delay)
             else:

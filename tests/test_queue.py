@@ -227,8 +227,10 @@ TestQueueStateMachine.settings = hp_settings(max_examples=50, stateful_step_coun
 class TestAtomicWrites:
     def test_enqueue_no_partial_file_on_error(self, queue_dir):
         """If os.rename fails after temp write, no .yaml file is left in pending/."""
-        with patch("app.queue.os.rename", side_effect=OSError("disk full")), \
-             contextlib.suppress(OSError):
+        with (
+            patch("app.queue.os.rename", side_effect=OSError("disk full")),
+            contextlib.suppress(OSError),
+        ):
             queue.enqueue({"type": "test"})
 
         yaml_files = list((queue_dir / "pending").glob("*.yaml"))

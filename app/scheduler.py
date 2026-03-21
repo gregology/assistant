@@ -49,10 +49,9 @@ def _resolve_cron_expr(schedule: Any) -> str | None:
     return None
 
 
-def _make_job(
-    task_type: str, integration_id: str, platform_name: str
-) -> Callable[[], None]:
+def _make_job(task_type: str, integration_id: str, platform_name: str) -> Callable[[], None]:
     """Create a scheduled job closure that enqueues a task."""
+
     def job() -> None:
         payload = {
             "type": task_type,
@@ -61,12 +60,11 @@ def _make_job(
         }
         log.info("Scheduled job: enqueueing %s", payload)
         policy_enqueue(payload)
+
     return job
 
 
-def _register_platform_schedules(
-    crons: Crons, integration: Any, expr: str
-) -> None:
+def _register_platform_schedules(crons: Crons, integration: Any, expr: str) -> None:
     """Register cron jobs for all enabled platforms in an integration."""
     platforms = getattr(integration, "platforms", None)
     if platforms is None:
@@ -86,9 +84,11 @@ def _register_platform_schedules(
 
 def _make_prune_job(retention_seconds: int) -> Callable[[], None]:
     """Create a scheduled job that prunes old done/failed task files."""
+
     def job() -> None:
         log.info("Running scheduled queue prune (retention: %ds)", retention_seconds)
         queue.prune_completed(retention_seconds)
+
     return job
 
 
@@ -105,9 +105,7 @@ def init_schedules(app: FastAPI) -> Crons:
 
     # Daily pruning of completed/failed tasks past retention
     retention_seconds = parse_duration_seconds(config.queue_policies.retention)
-    crons.cron("0 0 * * *", name="queue_prune")(
-        _make_prune_job(retention_seconds)
-    )
+    crons.cron("0 0 * * *", name="queue_prune")(_make_prune_job(retention_seconds))
     retention = config.queue_policies.retention
     log.info("Registered queue prune schedule [0 0 * * *], retention: %s", retention)
 

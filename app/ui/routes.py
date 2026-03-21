@@ -57,8 +57,7 @@ def _render_error(error_msg: str) -> HTMLResponse:
 
 def _reload_failed_error(exc: Exception) -> HTMLResponse:
     return _render_error(
-        f"Config saved to disk but reload failed: {exc}. "
-        "Restart the server to pick up changes."
+        f"Config saved to disk but reload failed: {exc}. Restart the server to pick up changes."
     )
 
 
@@ -308,9 +307,7 @@ def _build_script_updates(form: ImmutableMultiDict[str, Any]) -> dict[str, Any]:
     updates["description"] = form.get("description", "")
     updates["timeout"] = int(form["timeout"]) if form.get("timeout") else 120
     updates["inputs"] = (
-        [s.strip() for s in form["inputs"].split(",") if s.strip()]
-        if form.get("inputs")
-        else []
+        [s.strip() for s in form["inputs"].split(",") if s.strip()] if form.get("inputs") else []
     )
     updates["output"] = form.get("output", "") or None
     updates["on_output"] = form.get("on_output", "human_log")
@@ -360,6 +357,7 @@ async def remove_script(name: str) -> HTMLResponse:
 @router.post("/integrations/{integration_id}/run", response_class=HTMLResponse)
 async def trigger_integration(integration_id: str) -> HTMLResponse:
     from app.main import _run_integration
+
     try:
         result = _run_integration(integration_id)
         task_ids = result.get("task_ids", [])

@@ -69,11 +69,11 @@ class TestWorkerLoop:
         if result is not None:
             try:
                 from app.result_routes import route_results
+
                 route_results(result, task)
             except Exception:
                 logging.getLogger("app.worker").exception(
-                    "Task %s completed but result routing failed; "
-                    "result preserved in done/",
+                    "Task %s completed but result routing failed; result preserved in done/",
                     task["id"],
                 )
 
@@ -160,18 +160,20 @@ class TestWorkerResilience:
         queue.enqueue({"type": "test"})
         task = queue.dequeue()
 
-        with caplog.at_level(logging.ERROR), \
-             patch("app.worker.handle", side_effect=RuntimeError("handler boom")), \
-             patch("app.queue.fail", side_effect=OSError("disk full")):
-                    try:
-                        handle(task)
-                    except Exception as exc:
-                        try:
-                            queue.fail(task["id"], str(exc))
-                        except Exception:
-                            logging.getLogger("app.worker").exception(
-                                "Failed to record failure for task %s", task["id"]
-                            )
+        with (
+            caplog.at_level(logging.ERROR),
+            patch("app.worker.handle", side_effect=RuntimeError("handler boom")),
+            patch("app.queue.fail", side_effect=OSError("disk full")),
+        ):
+            try:
+                handle(task)
+            except Exception as exc:
+                try:
+                    queue.fail(task["id"], str(exc))
+                except Exception:
+                    logging.getLogger("app.worker").exception(
+                        "Failed to record failure for task %s", task["id"]
+                    )
 
         assert "Failed to record failure" in caplog.text
 

@@ -441,34 +441,29 @@ CHAT_RESPONSE_SCHEMA: dict[str, Any] = {
             "description": "The assistant's conversational reply to the user.",
         },
         "proposal": {
-            "oneOf": [
-                {"type": "null"},
-                {
-                    "type": "object",
-                    "properties": {
-                        "action": {
-                            "type": "string",
-                            "description": "The action type identifier.",
-                        },
-                        "parameters": {
-                            "type": "object",
-                            "description": "Action-specific parameters.",
-                        },
-                        "description": {
-                            "type": "string",
-                            "description": (
-                                "Human-readable summary of what will happen "
-                                "if the user approves."
-                            ),
-                        },
-                    },
-                    "required": ["action", "parameters", "description"],
-                },
-            ],
+            "type": ["object", "null"],
             "description": (
                 "If the user is requesting an action that requires confirmation, "
                 "propose it here. Otherwise null."
             ),
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "description": "The action type identifier.",
+                },
+                "parameters": {
+                    "type": "object",
+                    "description": "Action-specific parameters.",
+                },
+                "description": {
+                    "type": "string",
+                    "description": (
+                        "Human-readable summary of what will happen "
+                        "if the user approves."
+                    ),
+                },
+            },
+            "required": ["action", "parameters", "description"],
         },
     },
     "required": ["reply", "proposal"],
@@ -500,7 +495,11 @@ def chat_message_handler(task: TaskRecord) -> dict[str, Any]:
         token=llm_config.token,
     )
 
-    response_format = _wrap_schema(CHAT_RESPONSE_SCHEMA)
+    # Only request structured output when actions are registered.
+    # Some LLM backends (notably Ollama) hang on oneOf schemas.
+    use_structured = bool(ACTION_METADATA)
+    response_format = _wrap_schema(CHAT_RESPONSE_SCHEMA) if use_structured else None
+
     response = backend.chat(
         messages=messages,
         model=llm_config.model,
@@ -509,12 +508,13 @@ def chat_message_handler(task: TaskRecord) -> dict[str, Any]:
     )
 
     # Try to parse structured output; fall back to plain text
-    try:
-        parsed = json.loads(response.content)
-        if "reply" in parsed:
-            return {"structured": parsed, "conversation_id": conversation_id}
-    except (json.JSONDecodeError, TypeError):
-        log.warning("Chat response was not valid JSON, falling back to plain text")
+    if use_structured:
+        try:
+            parsed = json.loads(response.content)
+            if "reply" in parsed:
+                return {"structured": parsed, "conversation_id": conversation_id}
+        except (json.JSONDecodeError, TypeError):
+            log.warning("Chat response was not valid JSON, falling back to plain text")
 
     return {"content": response.content, "conversation_id": conversation_id}
 

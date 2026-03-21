@@ -39,6 +39,7 @@ dev = [
     "deptry>=0.16",
     "import-linter>=2.0",
     "bandit>=1.7",
+    "pip-audit>=2.7",
     "ruff>=0.4",
     "types-pyyaml>=6.0.12.20250915",
 ]

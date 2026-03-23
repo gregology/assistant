@@ -39,3 +39,21 @@ context:
       3. Deterministic dispatch layer prevents unsafe actions even if prompt barrier fails
       Follow the existing classify.jinja templates as reference. Never remove or weaken
       either barrier. The salt pattern is not optional.
+
+decisions:
+  - decision: "gh CLI as GitHub API client"
+    rationale: |
+      GitHub API calls go through subprocess.run(["gh", "api", ...]). The gh CLI
+      handles authentication (OAuth device flow, SSH keys, token storage), rate
+      limiting, and pagination. The cost is a hard dependency on gh being installed
+      and authenticated, but anyone working with GitHub repos almost certainly has it.
+    alternatives:
+      - option: "httpx or PyGithub"
+        reason_rejected: "Would need to reimplement auth, rate limiting, and pagination"
+    match: ["**/client.py"]
+
+  - decision: "GitHub filename: {org}__{repo}__{number}.md"
+    rationale: |
+      Double underscore because org and repo names can contain hyphens. Human readable
+      and collision-free.
+    match: ["**/entity_store.py", "**/store.py"]

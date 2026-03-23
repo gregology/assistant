@@ -19,3 +19,93 @@ context:
       3. Deterministic dispatch layer prevents unsafe actions even if prompt barrier fails
       Follow the existing classify.jinja templates as reference. Never remove or weaken
       either barrier. The salt pattern is not optional.
+
+decisions:
+  # Core Philosophy
+  - decision: "Sender-benefit vs receiver-benefit framing"
+    rationale: |
+      Most inbox traffic serves the sender, not the receiver. Assistant automates
+      triage to get sender-benefit traffic out of the way. If a feature doesn't help
+      the user reclaim attention, it doesn't belong. The longer-term goal is
+      transforming sender-benefit messages into receiver-benefit information.
+
+  - decision: "Three principles are structural, not aspirational"
+    rationale: |
+      Reversibility, audibility, and accountability are enforced in code, not
+      guidelines. Reversibility via provenance system blocking irreversible actions
+      from non-deterministic sources. Audibility via log.human() writing to daily
+      markdown files. Accountability via separation between LLM classification and
+      deterministic dispatch. If a principle can't be enforced in code, it needs
+      redesign.
+    match: ["**/provenance.py", "**/evaluate.py", "**/human_log.py", "**/act.py"]
+
+  - decision: "The LLM classifies, deterministic code decides"
+    rationale: |
+      The LLM produces classification results (confidence scores, booleans, enums).
+      A pure Python function evaluates when/then rules against those results. The LLM
+      never sees the action space. The dispatch function has no network I/O, no
+      randomness, no LLM calls. This makes the dispatch layer testable with
+      property-based testing for all possible inputs.
+    match: ["**/evaluate.py", "**/classify.py", "**/act.py"]
+
+  # Dependency Choices
+  - decision: "No database dependency"
+    rationale: |
+      No SQLite, no Postgres, no Redis. The filesystem handles task queueing and data
+      storage. Human inspectability is the primary driver. RAM is better spent on LLM
+      inference than a queueing system.
+
+  - decision: "No LLM SDK"
+    rationale: |
+      Uses the OpenAI-compatible /v1/chat/completions endpoint directly via httpx.
+      No openai package, no anthropic package. Backend-agnostic by design — Ollama,
+      llama.cpp, vLLM, and OpenAI all speak the same endpoint format.
+    match: ["**/llm.py"]
+
+  - decision: "httpx over requests"
+    rationale: |
+      Async-capable, already a FastAPI dependency, supports the same API surface as
+      requests.
+    match: ["**/llm.py", "**/client.py"]
+
+  - decision: "imap-tools over raw imaplib"
+    rationale: |
+      Higher-level IMAP abstraction. Handles encoding, folder listing, message
+      parsing. Life is too short for raw IMAP protocol strings.
+    match: ["**/mail.py"]
+
+  - decision: "python-frontmatter for note storage"
+    rationale: |
+      Reads and writes YAML frontmatter in markdown files. Does one thing well.
+    match: ["**/store.py"]
+
+  - decision: "hypothesis for property-based testing"
+    rationale: |
+      Generates random inputs for safety invariants. The RuleBasedStateMachine is
+      particularly valuable for the queue conservation tests.
+    match: ["tests/**/*.py"]
+
+  - decision: "icalendar for calendar parsing"
+    rationale: |
+      Parses .ics attachments. Extracts method, sequence, attendees, start/end times.
+      Standard library doesn't handle iCalendar.
+    match: ["**/mail.py"]
+
+  - decision: "fastapi-crons for scheduling"
+    rationale: |
+      Runs cron jobs inside the FastAPI process. Avoids a separate scheduler process
+      or dependency on system cron. The interval_to_cron() helper converts friendly
+      syntax (every: 30m) to cron expressions.
+    match: ["**/scheduler.py"]
+
+  # Prompt Injection Defense
+  - decision: "Dual-barrier prompt injection defense"
+    rationale: |
+      Two independent barriers. First: random salt markers in Jinja2 templates wrap
+      untrusted content. The salt is secrets.token_hex(4).upper(), different every
+      invocation. A scrub Jinja2 filter strips the closing delimiter from untrusted
+      content. Second: the deterministic dispatch layer limits blast radius to
+      reversible actions regardless of what the LLM does. The prompt barrier is
+      probabilistic; the dispatch barrier is deterministic. Neither is sufficient
+      alone.
+    match: ["**/templates/*.jinja", "**/evaluate.py", "**/classify.py"]

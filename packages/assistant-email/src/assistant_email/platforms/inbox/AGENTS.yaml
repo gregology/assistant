@@ -8,3 +8,12 @@ context:
       reversibility review. unsubscribe is the only irreversible action (RFC 8058
       one-click, cannot be undone). Adding a new action requires classifying it by
       reversibility tier first.
+
+decisions:
+  - decision: "inbox_message_ids() vs known_message_ids()"
+    rationale: |
+      inbox_message_ids() scans only the root directory. known_message_ids() scans
+      the entire tree recursively. The check handler needs both: root-only to know
+      what's active, recursive to avoid re-downloading emails already processed and
+      moved to synced/.
+    match: ["store.py", "check.py"]

@@ -20,3 +20,42 @@ context:
       - Add property-based tests covering the new action
       - Add chaos tests for the new action under garbage inputs
       - Categorize the action's reversibility tier first
+
+decisions:
+  - decision: "Rigor proportional to irreversibility, not complexity"
+    rationale: |
+      A one-line HTTP POST that unsubscribes deserves more testing than 100 lines of
+      email parsing. Every action is categorized by reversibility tier before tests
+      are written. The tier determines the testing strategy.
+    match: ["**/*.py"]
+
+  - decision: "Property-based testing over examples"
+    rationale: |
+      'For all possible classifications, no unknown action is ever produced' is a
+      stronger guarantee than 'for this one test email, archive was produced.'
+      Hypothesis generates 500 examples per run. Safety invariants should hold for all
+      inputs — Hypothesis finds edge cases developers don't think of.
+    match: ["safety/**/*.py"]
+
+  - decision: "Chaos testing for confidently-wrong LLM output"
+    rationale: |
+      The dangerous failure mode is the LLM being confidently wrong, not unavailable.
+      Chaos tests inject maxed confidences, zeroed confidences, flipped booleans,
+      contradictory classifications, out-of-range values, wrong types. The assertion
+      is always: only allowed actions produced, no crashes.
+    match: ["safety/test_chaos.py"]
+
+  - decision: "Filesystem snapshot assertions"
+    rationale: |
+      Assert on the entire directory tree state, not individual files. After a
+      lifecycle: pending empty, active empty, done has one file, total conserved.
+      Per-file assertions miss emergent problems like tasks stuck in intermediate
+      states or duplicated across directories.
+    match: ["test_queue.py"]
+
+  - decision: "Minimal config bootstrap in conftest.py"
+    rationale: |
+      Config loads eagerly at import time. Tests need a valid config.yaml before any
+      app module is imported. conftest.py creates a minimal one if missing. Without
+      this, running tests on a fresh clone fails because config.yaml is gitignored.
+    match: ["conftest.py"]

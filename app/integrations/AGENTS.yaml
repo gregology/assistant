@@ -1,0 +1,177 @@
+decisions:
+  # Plugin System
+  - decision: "Three-channel discovery model"
+    rationale: |
+      Integrations are discovered through builtin directory (app/integrations/),
+      custom directory (user-configured), and Python entry points
+      (assistant.integrations group). Priority: builtin > custom > entry points.
+      Entry-point discovery was added when email and GitHub were extracted into
+      installable packages. The priority order means users can shadow an installed
+      package with a local override during development, same as HA's
+      custom_components/ behavior.
+    match: ["__init__.py", "../loader.py"]
+
+  - decision: "manifest.yaml for discovery, not Python conventions"
+    rationale: |
+      Each integration declares config schema, platforms, dependencies, and entry
+      tasks in manifest.yaml. Python code is only loaded when the worker starts.
+      The manifest can be read without importing the integration's Python code, which
+      matters because integration code may have external dependencies that might not
+      be installed.
+    match: ["**/manifest.yaml", "../loader.py"]
+
+  - decision: "Dynamic Pydantic models from manifest schemas"
+    rationale: |
+      Config schemas in manifest.yaml are JSON Schema. At startup,
+      build_integration_model() constructs Pydantic models dynamically using
+      pydantic.create_model(). Custom integrations can define their own config fields
+      without modifying core code — adding a new integration type is a YAML change,
+      not a Python change.
+    match: ["../loader.py", "../config.py"]
+
+  - decision: "Integration isolation over shared abstractions"
+    rationale: |
+      Each integration owns its pipeline stages (evaluate.py, classify.py, act.py)
+      with platform-specific logic. The evaluation engine and classification schema
+      builder are infrastructure in assistant_sdk. The line: if it operates on core
+      config types and is identical across all platforms, it goes in the SDK. If it
+      touches platform-specific data, it stays in the integration.
+
+  - decision: "Pipeline handler duplication is accepted"
+    rationale: |
+      The evaluate, classify, and check handlers across platforms are 80-93%
+      structurally identical. This is known duplication, not accidental. Three
+      platforms is not enough signal that the pattern is stable. The email resolver's
+      nested dict lookups don't fit neatly into a generic resolver. Premature
+      extraction creates coupling between the SDK and platform handler structure.
+      When fixing a bug, grep for the same pattern across all platforms and apply to
+      each.
+    revisit_when: "When a fourth integration (e.g., Linear, Slack) is added"
+
+  - decision: "Declined: extract generic handler helpers into SDK now (issue #117)"
+    rationale: |
+      Issue #117 proposed extracting generic evaluate_handler() and
+      classify_handler() helpers immediately. Declined because the trigger condition
+      (a fourth integration) has not been met. The three reasons for deferral remain
+      valid: unclear abstraction boundary, premature extraction risk, and acceptable
+      maintenance cost at three platforms.
+    revisit_when: "When a fourth integration is added"
+
+  - decision: "const.py loaded via spec_from_file_location, not import_module"
+    rationale: |
+      Platform const modules use importlib.util.spec_from_file_location for both
+      builtin and custom modules. This bypasses __init__.py, avoiding circular imports
+      when const.py is loaded during config validation (which happens at module import
+      time, before full integration packages are initialized).
+    match: ["../config.py"]
+
+  - decision: "const.py loaded separately from the main module"
+    rationale: |
+      Safety constants are loaded at config validation time. The full integration
+      module (with heavy imports or side effects) is only loaded when the worker
+      starts. Config validation happens in both server and worker — loading the full
+      module in the server would pull in unnecessary dependencies.
+    match: ["../config.py"]
+
+  - decision: "Missing const.py defaults to all-actions-irreversible (fail-safe)"
+    rationale: |
+      When load_platform_const() returns None, safety validation treats all actions as
+      irreversible and all conditions as non-deterministic. A warning is logged. This
+      combines observability with enforcement. Consistent with the pattern: scripts,
+      services, and unknown action types all default to irreversible.
+    alternatives:
+      - option: "Warning only"
+        reason_rejected: "No enforcement — missing const.py silently bypasses safety"
+      - option: "Config validation error"
+        reason_rejected: "Too strict for custom integrations still being developed"
+      - option: "Fail-safe only"
+        reason_rejected: "No observability — custom integration authors won't know what's missing"
+    match: ["../config.py"]
+
+  - decision: "Custom integrations use assistant_ext.{domain} namespace"
+    rationale: |
+      Custom packages are loaded into assistant_ext.* via spec_from_file_location.
+      A synthetic namespace package is created in sys.modules. Avoids stdlib shadowing
+      (a custom integration called 'email' would shadow Python's email module) and
+      cross-integration leakage.
+    match: ["../loader.py"]
+
+  - decision: "Domain must match directory name"
+    rationale: |
+      If manifest.yaml says domain: email but the directory is email_v2/, the manifest
+      is rejected. The domain determines the handler namespace (email.inbox.check) —
+      if it doesn't match the directory, handler registration uses names that don't
+      correspond to the filesystem layout.
+    match: ["../loader.py"]
+
+  - decision: "Dependencies checked, not auto-installed"
+    rationale: |
+      check_dependencies() tries to import each declared dependency. If it fails, the
+      integration is skipped with a warning. Auto-installing packages at runtime is a
+      side effect that can break environments.
+    match: ["../loader.py"]
+
+  # SDK Extraction and Package Architecture
+  - decision: "Shared SDK package instead of copying code"
+    rationale: |
+      Integrations were coupled to 7 app.* modules. The assistant-sdk package extracts
+      the contracts layer: models, evaluation engine, classification utilities,
+      NoteStore, manifest dataclasses, provenance, runtime registration, and action
+      partitioning. The SDK is ~400 lines across 8 modules and the extraction boundary
+      is clean.
+    alternatives:
+      - option: "Each integration copies what it needs from app.*"
+        reason_rejected: "Three copies of the evaluate engine drifting apart, bug fixes in multiple places"
+
+  - decision: "Runtime registration instead of dependency injection or ABC contracts"
+    rationale: |
+      Integrations call assistant_sdk.runtime.enqueue(), runtime.get_integration(),
+      etc. The app registers real implementations at startup.
+    alternatives:
+      - option: "Dependency injection via constructor args"
+        reason_rejected: "Changes every handler signature, threading context through 5+ levels of the pipeline"
+      - option: "Abstract base classes for integration contracts"
+        reason_rejected: "Fights the current architecture — integrations are bags of handler functions, not class hierarchies"
+
+  - decision: "Installable packages over namespace packages"
+    rationale: |
+      Email, GitHub, and Gemini ship as independent packages under packages/ with
+      their own pyproject.toml. Each registers as a Python entry point. Gives
+      independent installability — you can install assistant-email without the whole
+      repo.
+    alternatives:
+      - option: "Namespace packages (assistant.sdk, assistant.email)"
+        reason_rejected: "Rough edges with editable installs, no independent installability"
+
+  - decision: "Services as a manifest declaration"
+    rationale: |
+      Integrations can declare callable services alongside (or instead of) platforms.
+      A service is a handler invoked from automation then clauses. Services are
+      irreversible by default, same as scripts. The service system reuses all existing
+      infrastructure: action partitioning, provenance gating, !yolo overrides. No new
+      safety machinery was needed.
+    match: ["**/manifest.yaml"]
+
+  # Platforms Pattern
+  - decision: "Platforms within integrations, following HA"
+    rationale: |
+      Each integration can have multiple platforms. GitHub has pull_requests and
+      issues. Platforms have their own config schemas, entry tasks, safety constants,
+      and handler sets. Config at the integration level is shared (credentials).
+      Config at the platform level is specific (classifications, automations).
+    match: ["**/manifest.yaml"]
+
+  - decision: "Three-level handler aggregation"
+    rationale: |
+      Platform exports HANDLERS dict. Integration prefixes with platform name.
+      Top-level prefixes with domain. Produces globally unique, human-readable task
+      type strings without coordination (e.g., github.pull_requests.check).
+    match: ["__init__.py", "**/platforms/*/__init__.py"]
+
+  - decision: "Entry tasks per platform"
+    rationale: |
+      Each platform has its own entry_task. The scheduler enqueues entry tasks for
+      all enabled platforms within an integration. github.pull_requests and
+      github.issues share an integration config block but start their own pipelines
+      independently.
+    match: ["**/manifest.yaml", "../scheduler.py"]

@@ -13,3 +13,150 @@ context:
     content: |
       The SDK has no dependency on app.*. If you find yourself importing from app,
       you're going the wrong direction. Run `uv run lint-imports` to verify.
+
+decisions:
+  # Provenance System
+  - decision: "Namespaces as provenance"
+    rationale: |
+      The access path in a when condition IS the provenance. classification.human is
+      always LLM output. authentication.dkim_pass is always deterministic. No
+      annotation needed. Provenance is a property of the data's location, not metadata
+      attached after the fact. Every value has a namespace. The system cannot produce
+      an unprovenanced value.
+    alternatives:
+      - option: "Provenance envelope on tasks"
+        reason_rejected: "A single rule can mix deterministic and non-deterministic conditions — per-task loses granularity"
+      - option: "Per-field provenance metadata"
+        reason_rejected: "Bookkeeping that someone has to remember to do"
+      - option: "HA-style trigger IDs"
+        reason_rejected: "Bundles too much new functionality with provenance tracking"
+      - option: "Sidecar files"
+        reason_rejected: "Two files per entity, orphan risk, mixed file types"
+    match: ["**/provenance.py"]
+
+  - decision: "Non-deterministic component dominates hybrid provenance"
+    rationale: |
+      When an automation has both deterministic and non-deterministic conditions, the
+      provenance is hybrid and treated with the same restrictions as llm. If any part
+      of the decision was made by a non-deterministic system, the whole decision
+      inherits that uncertainty.
+    match: ["**/provenance.py"]
+
+  - decision: "Safety validation at config load time as the primary gate"
+    rationale: |
+      Irreversible actions with llm or hybrid provenance are stripped from the
+      automation list when the config loads. A startup warning explains what was
+      disabled and why. Config-time stripping is the strongest guarantee — the worker
+      physically cannot encounter unsafe automations.
+    match: ["**/provenance.py", "**/models.py"]
+
+  - decision: "Runtime provenance check as defense-in-depth"
+    rationale: |
+      Each platform's act.py also checks provenance before executing irreversible
+      actions. Config-time validation is primary, but manual trigger endpoints bypass
+      policy_enqueue() and config-time validation. The runtime check follows
+      zero-trust: the dispatch layer should not assume its inputs were pre-validated.
+    match: ["**/act.py", "**/provenance.py"]
+
+  - decision: "classified_by separate from classification"
+    rationale: |
+      LLM metadata (model, profile, timestamp) lives in classified_by, not inside
+      classification. The dispatch layer never reads classified_by. Classification
+      values are inputs to dispatch. LLM metadata is audit information. Mixing them
+      means the dispatch function has to know which keys to ignore.
+
+  # !yolo Override
+  - decision: "!yolo is a YAML tag, not a comment or flag"
+    rationale: |
+      !yolo is a custom YAML constructor producing a typed YoloAction object. Safety
+      validation checks isinstance(action, YoloAction). A YAML tag gives type safety
+      in the Python object model and visibility at every layer: visible in YAML,
+      visible in Pydantic model, logged at startup. Every !yolo-tagged automation
+      generates a warning.
+    match: ["**/models.py"]
+
+  # Safety Dispatch Layer
+  - decision: "evaluate_automations is a pure function"
+    rationale: |
+      Takes classification results and automation rules, returns a list of actions.
+      No I/O, no LLM calls, no side effects. Given the same inputs, always returns
+      the same outputs. Purity makes it exhaustively testable with Hypothesis.
+    match: ["**/evaluate.py"]
+
+  - decision: "Missing keys fail safe"
+    rationale: |
+      If a condition key refers to a classification field that doesn't exist, the
+      automation silently doesn't fire. A sentinel _MISSING = object() distinguishes
+      None, 0, False, and "" from "not present." The safe default is inaction.
+    match: ["**/evaluate.py"]
+
+  - decision: "None values fail safe, same as missing keys"
+    rationale: |
+      check_condition returns False for any None value. Previously, None raised
+      TypeError on None >= 0.8, which aborted the entire automation loop. A single
+      broken field could prevent all automations from evaluating. The safe default is
+      per-automation false, not global crash.
+    match: ["**/evaluate.py"]
+
+  - decision: "Boolean conditions use is, not =="
+    rationale: |
+      value is condition means a string "yes" from a confused LLM does not match
+      True. Identity comparison prevents type confusion from broken LLM output from
+      accidentally satisfying boolean conditions.
+    match: ["**/evaluate.py"]
+
+  - decision: "AND semantics only, no OR"
+    rationale: |
+      All conditions in a when block must match. OR would make provenance ambiguous
+      (if one branch is deterministic and the other LLM-based). Multiple automations
+      serve as OR.
+    match: ["**/evaluate.py"]
+
+  - decision: "All matching automations fire"
+    rationale: |
+      Unlike first-match-wins rule engines, Assistant fires every automation whose
+      conditions are satisfied. First-match-wins creates implicit ordering
+      dependencies. Fire-all means each automation is independent and understandable
+      in isolation. Users design non-conflicting rule sets.
+    match: ["**/evaluate.py"]
+
+  - decision: "Action allowlist in each platform's const.py"
+    rationale: |
+      SIMPLE_ACTIONS is a frozen set. Unknown string actions are skipped with a
+      warning, never executed. The allowlist is the last line of defense. The set must
+      not grow without a reversibility review.
+    match: ["**/const.py", "**/act.py"]
+
+  # Reference Validation
+  - decision: "Reference validation warns but does not disable"
+    rationale: |
+      _validate_script_references and _validate_service_references warn about
+      automations referencing nonexistent scripts or services. They do not disable
+      automations (unlike safety validation). A typo is a misconfiguration bug, not a
+      safety violation. The warning is the only signal the user gets. !yolo does not
+      suppress these because yolo overrides provenance safety, not existence.
+    match: ["**/models.py"]
+
+  # Note Store
+  - decision: "Platform-specific stores wrapping a generic NoteStore"
+    rationale: |
+      NoteStore handles generic read/write/move. EmailStore, PullRequestStore, and
+      IssueStore add domain methods. The storage pattern is the same everywhere — only
+      domain logic differs. Wrapping keeps generic code generic and domain code
+      focused.
+    match: ["**/store.py"]
+
+  - decision: "GitHubEntityStore base class for PR and issue stores"
+    rationale: |
+      PullRequestStore and IssueStore share identical logic for find, find_anywhere,
+      active_keys, update, move_to_synced, restore_to_active. The base class lives at
+      the integration level (not SDK) because it's GitHub-specific. The two stores
+      were 106 and 105 lines of nearly identical code — divergence risk was high.
+    match: ["**/entity_store.py"]
+
+  - decision: "synced/ subdirectory for inactive notes"
+    rationale: |
+      Active notes live in the root directory. Notes no longer requiring attention live
+      in synced/. The store knows only "active" or "not active" — no attempt to mirror
+      IMAP folder structure or GitHub states. Mirroring provider structures would
+      create fragile coupling.

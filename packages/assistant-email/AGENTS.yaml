@@ -39,3 +39,63 @@ context:
       3. Deterministic dispatch layer prevents unsafe actions even if prompt barrier fails
       Follow the existing classify.jinja templates as reference. Never remove or weaken
       either barrier. The salt pattern is not optional.
+
+decisions:
+  - decision: "IMAP folder auto-discovery"
+    rationale: |
+      _discover_folders() lists IMAP folders and matches special-use flags (\Archive,
+      \Drafts, \Junk, \Trash). Folder names are not hardcoded. Gmail uses
+      [Gmail]/All Mail, others use Archive, Fastmail uses something else. Special-use
+      flags are standardized; folder names are not.
+    match: ["**/mail.py"]
+
+  - decision: "Received: header for timestamps, not Date:"
+    rationale: |
+      The Date: header is set by the sender and can be forged. The first Received:
+      header is set by the server that accepted the email. Falls back to msg.date if
+      no Received: header exists.
+    match: ["**/mail.py"]
+
+  - decision: "Authentication-based priority tiering"
+    rationale: |
+      Emails where DKIM/DMARC/SPF fail get classified at priority 9 (last).
+      Authenticated emails get priority 6. Prioritizes emails likely more useful for
+      the human over spoofed emails.
+    match: ["**/check.py"]
+
+  - decision: "RFC 8058 one-click unsubscribe only"
+    rationale: |
+      Requires both List-Unsubscribe (HTTP URL) and List-Unsubscribe-Post headers.
+      Uses HTTP POST per the RFC. mailto: links are unreliable and would require
+      sending an email (irreversible, leaks information). Requiring both headers means
+      we only unsubscribe when the sender properly supports it.
+    match: ["**/act.py", "**/mail.py"]
+
+  - decision: "Draft reply preserves threading headers"
+    rationale: |
+      In-Reply-To is set to the original's Message-ID. References is built from the
+      original's References chain plus Message-ID. Without these headers, the draft
+      shows up as a new conversation instead of a reply in the existing thread.
+    match: ["**/act.py"]
+
+  - decision: "tldextract for root domain extraction"
+    rationale: |
+      Uses the tldextract library rather than naive string splitting. tldextract
+      maintains the Mozilla Public Suffix List, which knows that .co.uk is a single
+      suffix. Splitting on . fails for multi-part TLDs.
+    match: ["**/mail.py"]
+
+  - decision: "now() expressions in conditions"
+    rationale: |
+      calendar.end: "<now()" lets you archive past calendar events. The one place
+      where evaluation isn't purely a function of stored data. Time-based rules are
+      a natural fit for calendar events.
+    match: ["**/evaluate.py"]
+
+  - decision: "Email filename: YYYY_MM_DD_HH_MM_SS__{sanitized_message_id}.md"
+    rationale: |
+      Timestamp prefix ensures chronological sort. Sanitized Message-ID suffix enables
+      dedup lookup via rglob. Double underscore separates the two parts because single
+      underscores appear in both timestamps and message IDs. Emails without a
+      Message-ID use imap_{uid} as fallback.
+    match: ["**/store.py"]

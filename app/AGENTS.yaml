@@ -23,3 +23,439 @@ decisions:
       - option: SQLite
         reason_rejected: Not as directly inspectable as plain YAML files on disk
     match: ["queue.py", "queue_policy.py", "worker.py"]
+
+  # Two-Process Architecture
+  - decision: "Server + worker, filesystem coordination"
+    rationale: |
+      The FastAPI server handles the API and cron scheduling. A separate worker
+      process polls the task queue and executes handlers. They share nothing in
+      memory. LLM inference is memory-intensive — separating it into the worker keeps
+      the server lightweight. The worker can be restarted without losing queue state
+      (it's on disk). No shared memory means no locking complexity. The tradeoff is
+      two terminal windows.
+    match: ["main.py", "worker.py"]
+
+  # Filesystem as Database
+  - decision: "YAML task files instead of Redis"
+    rationale: |
+      Tasks are YAML files that move between pending/, active/, done/, failed/
+      directories. Human inspectability is the primary driver — ls and cat show
+      exactly what's happening. RAM is better spent on LLM inference than a queueing
+      system. The tradeoff is the queue can't handle thousands of concurrent tasks,
+      but Assistant processes dozens per run, not millions.
+    alternatives:
+      - option: "Redis or message broker"
+        reason_rejected: "Adds infrastructure dependency, state not human-inspectable"
+    match: ["queue.py", "queue_policy.py"]
+
+  - decision: "Markdown with YAML frontmatter for all persistent state"
+    rationale: |
+      Every piece of state (emails, PRs, issues, classification results) lives in
+      markdown files with YAML frontmatter. Chosen over a database because the data
+      is inherently document-shaped and access patterns are simple (read by key, list
+      directory, move between directories). Human readability is the primary benefit.
+      Notes integrate with tools like Obsidian without any export step.
+    alternatives:
+      - option: "Database (SQLite, Postgres)"
+        reason_rejected: "Data is document-shaped, access patterns are simple, human readability lost"
+
+  # Task Queue Design (new entries, extending existing)
+  - decision: "Priority encoded in filename"
+    rationale: |
+      Task IDs follow {priority}_{timestamp}_{uuid}. sorted() on filenames returns
+      tasks in priority-then-time order. ls pending/ | head shows the next task
+      without parsing.
+    match: ["queue.py"]
+
+  - decision: "Atomic dequeue via os.rename()"
+    rationale: |
+      os.rename() is atomic on POSIX. If two workers race for the same file, one gets
+      FileNotFoundError and returns None. No locks, no transactions. This pattern
+      won't work on NFS or across machines, but Assistant runs on a single host.
+    match: ["queue.py"]
+
+  - decision: "Task conservation invariant"
+    rationale: |
+      A task must exist in exactly one of the four directories at all times. Enforced
+      by Hypothesis RuleBasedStateMachine tests that randomly interleave queue
+      operations and check conservation after every step. The dangerous failure mode
+      is a task in two directories (processed twice) or zero (silently lost).
+    match: ["queue.py"]
+
+  - decision: "Priority levels: 3 discovery, 5 default, 6 classification, 7 actions, 9 low-confidence"
+    rationale: |
+      Priority 9 for unauthenticated emails ensures important messages are processed
+      first. Gaps between levels leave room for future insertions and finer
+      granularity (e.g. 8, 801, 81).
+    match: ["queue.py"]
+
+  - decision: "TypedDicts for task payloads and queue records"
+    rationale: |
+      TaskPayload and TaskRecord define the canonical shape of task dicts. Structural
+      (TypedDict), not runtime-enforced. mypy and IDEs catch key typos. The base
+      TaskPayload only covers shared fields (type, integration). Per-task-type fields
+      are accessed via .get() and intentionally undeclared.
+    alternatives:
+      - option: "Pydantic models"
+        reason_rejected: "Runtime validation overhead for no safety gain — the queue is internal, not a trust boundary"
+      - option: "Per-type dataclasses"
+        reason_rejected: "Would require deserialization at every handler boundary — dict-in, dict-out is simpler"
+    match: ["**/task.py"]
+
+  - decision: "Complete before route: task state is the source of truth"
+    rationale: |
+      The worker completes a task (queue.complete()) before routing its results
+      (route_results()). Handler failure marks the task as failed with no side
+      effects. Routing failure leaves the task completed with its result preserved in
+      done/. The done/ task file is the recovery point — results are never lost.
+    alternatives:
+      - option: "Route before completing"
+        reason_rejected: "Creates partial-state risk — routing partially succeeds then completion fails, violating task conservation"
+    match: ["worker.py", "result_routes.py"]
+
+  # Queue Policy System
+  - decision: "Policy layer above raw enqueue"
+    rationale: |
+      policy_enqueue() wraps queue.enqueue() with config-driven dedup and rate
+      limiting. Raw enqueue() is used directly by manual API triggers. Policies
+      prevent runaway automation, not intentional human actions. The risk is a
+      contributor calling enqueue() directly in automation code — naming convention
+      makes intent clear.
+    match: ["queue_policy.py", "queue.py"]
+
+  - decision: "Policy inheritance via model_fields_set"
+    rationale: |
+      Per-task-type overrides merge with defaults using Pydantic's model_fields_set
+      to distinguish explicitly-set values from Pydantic-filled defaults. Naive
+      dict.update() treats Pydantic defaults as user intent. model_fields_set makes
+      the merge correct regardless of what defaults are.
+    match: ["queue_policy.py"]
+
+  - decision: "Zero-YAML-parsing policy checks"
+    rationale: |
+      Both dedup and rate limiting operate on filenames only, never parsing YAML.
+      Dedup globs for *--{fingerprint}--{task_type}.yaml in pending/. Rate limiting
+      globs across all directories and filters by timestamp. The task ID format with
+      ---separated suffixes was designed for this.
+    match: ["queue_policy.py", "queue.py"]
+
+  - decision: "Early-stop optimization in count_recent()"
+    rationale: |
+      count_recent() sorts files by timestamp descending and stops scanning once a
+      file's timestamp falls before the cutoff. Independent from pruning — either
+      mechanism helps on its own.
+    match: ["queue_policy.py"]
+
+  - decision: "Scheduled pruning of done/failed, not at startup"
+    rationale: |
+      Daily cron job deletes task files older than configurable retention (default
+      7d). Not at startup because old completed tasks don't affect correctness —
+      recover_stale_active() handles the urgent case. Only done/ and failed/ are
+      pruned — pruning pending/ or active/ would discard work.
+    match: ["queue_policy.py", "scheduler.py"]
+
+  # Result Routing
+  - decision: "Route results after completion, not before"
+    rationale: |
+      The worker completes a task before routing its results. The done/ task file
+      with the full result dict is the recovery point if routing fails.
+    match: ["worker.py", "result_routes.py"]
+
+  - decision: "on_result in task payload, not in config"
+    rationale: |
+      Result routing is per-task via on_result in the task payload, set at enqueue
+      time. The same service might be called from different automations with different
+      routing needs. Payload-level routing avoids conditional logic in the router.
+    match: ["result_routes.py", "**/actions.py"]
+
+  - decision: "Default-to-note for service tasks"
+    rationale: |
+      Service tasks without explicit on_result fall back to the note route. Platform
+      tasks with no on_result produce no routing — their results are
+      platform-internal. Service handlers exist to produce output; silently discarding
+      it is always wrong.
+    match: ["result_routes.py"]
+
+  - decision: "Audit metadata wins over result data in note frontmatter"
+    rationale: |
+      When building frontmatter, service result keys are merged first, then audit
+      metadata (service, integration, inputs, completed_at) is set unconditionally.
+      The audit trail must reflect where the result actually came from, not what the
+      handler claims.
+    match: ["result_routes.py"]
+
+  - decision: "Extensibility via route type dispatch"
+    rationale: |
+      New route types are added by implementing a handler and adding a branch to
+      route_results(). Each route type is independent — a single task can have
+      multiple routes. Simple if/elif is easier to audit than dynamic dispatch for a
+      system where routing failures should be obvious.
+    alternatives:
+      - option: "Registry or plugin system"
+        reason_rejected: "Route types will remain small (under 5); simple dispatch is easier to audit"
+    match: ["result_routes.py"]
+
+  # LLM Abstraction
+  - decision: "ChatCompletionsBackend, not OpenAICompatibleBackend"
+    rationale: |
+      Named after the API contract (/v1/chat/completions), not the company. Ollama,
+      vLLM, llama.cpp all implement this endpoint independently. The format is bigger
+      than the brand. Originally named LlamaCppBackend, which implied a specific
+      runtime.
+    alternatives:
+      - option: "OpenAICompatibleBackend"
+        reason_rejected: "Embeds 'OpenAI' in a backend-agnostic codebase"
+      - option: "LlamaCppBackend"
+        reason_rejected: "Implied a specific runtime when the class works with any provider"
+    match: ["llm.py"]
+
+  - decision: "Protocol-based backend, not an ABC"
+    rationale: |
+      LLMBackend is a @runtime_checkable Protocol. Any object with a chat() method
+      works. Structural typing over nominal typing. Makes testing simpler and avoids
+      diamond inheritance.
+    match: ["llm.py"]
+
+  - decision: "One backend per LLM profile, not per conversation"
+    rationale: |
+      A single ChatCompletionsBackend per configured profile shares one httpx.Client.
+      Creating a new client per conversation leaks socket file descriptors under
+      sustained load. The client is thread-safe and the backend has no mutable state.
+    match: ["llm.py", "runtime_init.py"]
+
+  - decision: "Retry with conversation state cleanup"
+    rationale: |
+      _send_structured() retries up to 3 times on schema validation failure. On
+      exhaustion, removes the dangling user message. Without cleanup, the conversation
+      is left in an inconsistent state.
+    match: ["llm.py"]
+
+  - decision: "Named LLM profiles"
+    rationale: |
+      Config defines profiles like default and fast with different backends/models.
+      Integrations reference by name. Use a faster model for high-frequency tasks and
+      a more capable model for deeper analysis. One config change, no code changes.
+    match: ["llm.py", "config.py"]
+
+  - decision: "Two-level schema validation"
+    rationale: |
+      The schema is passed to the API as response_format (grammar-constrained
+      generation) AND validated locally with jsonschema.Draft202012Validator. Not all
+      backends honor response_format. Local validation ensures correctness regardless.
+      Draft 2020-12 chosen for better schema support.
+    match: ["llm.py"]
+
+  # Human Log
+  - decision: "Custom log level 25 for human log"
+    rationale: |
+      log.human() sits between INFO (20) and WARNING (30). A filter ensures only
+      HUMAN-level messages hit the daily markdown file. The human log answers 'what
+      did Assistant do today?' The operational log answers 'why did the connection
+      fail?' Different audiences, different files.
+    match: ["human_log.py", "**/logging.py"]
+
+  - decision: "O_APPEND for concurrent log writes"
+    rationale: |
+      The file handler uses O_APPEND mode. POSIX guarantees atomic appends up to
+      PIPE_BUF (4096 bytes). Both server and worker write to the same daily log file
+      safely without file locking.
+    match: ["human_log.py"]
+
+  - decision: "Human log imported in both processes via noqa: F401"
+    rationale: |
+      Both main.py and worker.py import app.human_log for the side effect of
+      registering the handler. Without the import, whichever process doesn't import it
+      silently drops human log entries.
+    match: ["main.py", "worker.py"]
+
+  # Configuration
+  - decision: "Eager module-level config loading"
+    rationale: |
+      config.py creates the config singleton at import time. Misconfigured YAML fails
+      at startup, not thirty minutes later when the first schedule fires.
+    match: ["config.py"]
+
+  - decision: "!secret YAML constructor"
+    rationale: |
+      Credentials never live in config.yaml. A custom YAML loader resolves !secret
+      key tags from secrets.yaml. Borrowed from Home Assistant. Both files are
+      gitignored. Separation means config structure is shareable without leaking
+      credentials.
+    match: ["config.py"]
+
+  - decision: "Classification shorthand"
+    rationale: |
+      'human: "is this a personal email?"' normalizes to ClassificationConfig with
+      type=confidence. Confidence is the most common type. Shorthand reduces YAML
+      verbosity for the common case while keeping a single internal representation.
+    match: ["config.py"]
+
+  - decision: "Composite IDs: {type}.{name}"
+    rationale: |
+      BaseIntegrationConfig.id returns email.personal or github.my_repos. Computed
+      property, never stored in YAML. Follows HA's entity_id pattern. Allows multiple
+      instances of the same integration type with unique identifiers.
+    match: ["config.py"]
+
+  - decision: "Schedules per integration, applied per platform"
+    rationale: |
+      One schedule block at the integration level applies to all platforms. Keeps
+      config simpler. If different schedules are needed for PRs and issues, create two
+      integration blocks.
+    match: ["config.py", "scheduler.py"]
+
+  # Evaluate as Separate Pipeline Step
+  - decision: "classify -> evaluate -> act, not classify -> act"
+    rationale: |
+      Classification stores results in frontmatter. Evaluation reads from frontmatter,
+      not from IMAP or the GitHub API. Reduces unnecessary external requests. The
+      evaluate step is a pure function from frontmatter data to action list —
+      independently testable without mocking any external service.
+    match: ["**/evaluate.py", "**/classify.py", "**/act.py"]
+
+  # Server Configuration
+  - decision: "Default port 6767, not 8000"
+    rationale: |
+      Port 8000 conflicts with llama.cpp's default server port. Since Assistant works
+      with local LLM inference and llama.cpp is common, making Assistant move is the
+      right call — llama.cpp's port is baked into model server scripts and
+      docker-compose files. 6767 is not claimed by any well-known service.
+    match: ["main.py"]
+
+  # Configuration Updates in UI
+  - decision: "File-level locking via fcntl for RMW cycles"
+    rationale: |
+      All config mutations in yaml_rw.py use an exclusive lock on a separate .lock
+      file during Read-Modify-Write. Without locking, concurrent POSTs could cause
+      one process to overwrite another's changes with stale data.
+    match: ["ui/yaml_rw.py"]
+
+  - decision: "In-memory synchronization via reload_config()"
+    rationale: |
+      The web process calls reload_config() after any successful config write.
+      The module-level config singleton is stale after a disk write. Explicit reload
+      ensures dashboard and navigation reflect changes without a process restart.
+      Worker and scheduler still require restart as separate processes.
+    match: ["ui/*.py", "config.py"]
+
+  - decision: "Broad exception catch around reload_config() in POST handlers"
+    rationale: |
+      reload_config() runs real load_config() after the file is on disk and can raise
+      exceptions not wrapped in ConfigValidationError. Each POST handler catches
+      Exception, logs it, and returns a 422 explaining the file was saved but reload
+      failed. The broad catch is deliberate — enumerating every possible exception
+      would drift as integrations are added.
+    match: ["ui/*.py"]
+
+  # Shared Action Layer
+  - decision: "Scripts as a cross-cutting action type, not per-platform"
+    rationale: |
+      enqueue_actions() is called by each platform's evaluate handler. It splits the
+      action list. Script actions become independent script.run queue tasks. Platform
+      actions go to act.py as before. The evaluate handler doesn't need to know what
+      a script does.
+    alternatives:
+      - option: "Script handling in each platform's act.py"
+        reason_rejected: "Script logic duplicated across every platform"
+      - option: "Intercepting scripts in each platform's evaluate.py"
+        reason_rejected: "Couples evaluation to script execution"
+      - option: "Middleware layer between queue and handlers"
+        reason_rejected: "Adds a new processing stage to understand"
+    match: ["actions/*.py", "**/evaluate.py"]
+
+  - decision: "Scripts are irreversible by default"
+    rationale: |
+      The system can't verify what shell code does. Every script is irreversible
+      unless the author opts in with reversible: true. Script actions from llm/hybrid
+      provenance are blocked at config load time unless wrapped in !yolo or marked
+      reversible.
+    match: ["actions/script.py", "config.py"]
+
+  - decision: "!yolo on YAML mappings"
+    rationale: |
+      The YAML constructor was extended to handle mapping nodes for script/service
+      actions (dicts, not strings). YoloAction.value became str | dict. __hash__ uses
+      repr(self.value) for stable hashing. Keeps existing safety validation working
+      without special cases.
+    match: ["config.py", "**/models.py"]
+
+  - decision: "Input resolution at evaluate time, not execution time"
+    rationale: |
+      Script inputs ($field references) are resolved against the automation context
+      during evaluation. The executor only receives fully resolved strings. The
+      evaluate phase has the snapshot context; the executor runs later, potentially in
+      a different worker process. Resolved values are visible in queue task YAML for
+      debugging.
+    match: ["actions/*.py", "**/evaluate.py"]
+
+  - decision: "Separate queue tasks per script"
+    rationale: |
+      Each script action becomes its own script.run queue task. Scripts can be
+      long-running — a 5-minute research script shouldn't block a 100ms archive.
+      Independent tasks mean independent failure tracking.
+    match: ["actions/*.py"]
+
+  - decision: "Preamble-injected logging helpers"
+    rationale: |
+      Every script gets a bash preamble with log_human, log_info, log_warn functions
+      writing to $ASSISTANT_LOG using \\x1e (ASCII Record Separator) as the record
+      delimiter. Multi-line log messages pass through cleanly since \\x1e never
+      appears in natural text.
+    match: ["actions/script.py"]
+
+  - decision: "Config-only scripts, no scripts/ directory"
+    rationale: |
+      Scripts are defined inline in config.yaml under scripts:. No separate directory
+      with .sh files. A web UI is the eventual goal — keeping scripts in config means
+      the config file is the single source of truth.
+    match: ["config.py", "actions/script.py"]
+
+  # Web UI
+  - decision: "No built-in authentication"
+    rationale: |
+      Assistant is a personal tool running on your own infrastructure. Auth creates
+      disproportionate maintenance burden for the threat model. Users needing access
+      control should use infrastructure-level solutions (reverse proxy, VPN, firewall).
+      UI binds to 127.0.0.1 by default. !secret values are never displayed in
+      plaintext.
+    match: ["main.py", "ui/*.py"]
+
+  - decision: "YAML stays as source of truth, UI is a peer"
+    rationale: |
+      The UI reads and writes config.yaml. A deliberate rejection of HA's Config Flow
+      approach (ADR-0010), which caused community friction by removing version control
+      and diffing. Follows Grafana's model instead. Solved YAML round-tripping with
+      ruamel.yaml.
+    match: ["ui/*.py", "config.py"]
+
+  - decision: "Incremental delivery: viewer first, then editing"
+    rationale: |
+      Built incrementally: config viewer first, then editing for flat sections, then
+      chat and task queue viewer. Starting read-only followed Grafana's pattern and
+      matched trust principles. A viewer carried zero risk of mangling user files.
+    match: ["ui/*.py"]
+
+  - decision: "HTMX + Alpine.js + DaisyUI, not an SPA"
+    rationale: |
+      HTMX for page structure and data loading, Alpine.js for client-side form state
+      in complex sections, DaisyUI for styling. No React, no Vue, no JS build step.
+      HTMX handles navigation and persistence. Alpine handles in-flight form editing
+      without server round-trips.
+    alternatives:
+      - option: "Pure HTMX"
+        reason_rejected: "Requires a server round-trip and partial template for every form interaction in nested structures"
+      - option: "Full SPA (React)"
+        reason_rejected: "Requires Node.js, npm, bundler, two test suites — disproportionate for a config editor"
+    match: ["ui/*.py", "ui/templates/**"]
+
+  - decision: "ruamel.yaml for round-trip editing"
+    rationale: |
+      Preserves comments, key ordering, block style, and quoting when modifying YAML.
+      Must use typ='rt' mode (C extension kills comment preservation). PyYAML strips
+      comments. StrictYAML rejects custom tags (!secret, !yolo) — dealbreaker.
+    alternatives:
+      - option: "PyYAML"
+        reason_rejected: "Strips comments on write"
+      - option: "StrictYAML"
+        reason_rejected: "Rejects custom YAML tags (!secret, !yolo)"
+    match: ["ui/yaml_rw.py"]

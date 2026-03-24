@@ -1,6 +1,6 @@
 # assistant-github
 
-The GitHub integration. Handles pull requests and issues via the `gh` CLI.
+The GitHub integration. Handles pull requests and issues via the GitHub REST API using GitHub App credentials.
 
 Discovered at startup via Python entry points. Can be shadowed by a local override during development.
 
@@ -9,7 +9,7 @@ Discovered at startup via Python entry points. Can be shadowed by a local overri
 ```
 src/assistant_github/
   __init__.py
-  client.py                  # GitHub API client (wraps gh CLI)
+  client.py                  # GitHub API client (httpx + GitHub App auth)
   entity_store.py            # GitHubEntityStore base class for PR and issue stores
   manifest.yaml
   platforms/
@@ -42,13 +42,13 @@ src/assistant_github/
 
 ## Key patterns
 
-**`gh` CLI as API client**: `client.py` shells out to `subprocess.run(["gh", "api", ...])`. The `gh` CLI handles auth (OAuth device flow, SSH keys, token storage), rate limiting, and pagination. Hard dependency on `gh` being installed and authenticated.
+**GitHub App authentication**: `client.py` uses `httpx` to call the GitHub REST API directly. Authentication uses GitHub App credentials: the client generates a JWT (RS256 via PyJWT) from the app's private key, exchanges it for an installation access token, and uses that token for all API requests. The `github_user` config field replaces the `@me` shorthand that the old `gh` CLI approach relied on. Retry with exponential backoff (3 attempts, 1s/2s/4s) is built into the `_request` method.
 
 **GitHubEntityStore**: Base class in `entity_store.py` shared by `PullRequestStore` and `IssueStore`. Provides `find`, `find_anywhere`, `active_keys`, `update`, `move_to_synced`, `restore_to_active` -- all keyed by `(org, repo, number)`. Each subclass overrides only `save()` with entity-specific field mappings.
 
 **Filename convention**: `{org}__{repo}__{number}.md`. Double underscore because org and repo names can contain hyphens.
 
-**Services**: The `create_issue` service is declared in `manifest.yaml` with a `chat` block, which means it's automatically registered as a chat-proposable action at startup. The LLM can propose creating an issue; the user sees a confirmation card and clicks "Post issue" or "Cancel." Approval enqueues a `service.github.create_issue` task through the normal queue. The handler in `services/create_issue.py` calls `GitHubClient.create_issue()`, which hits the GitHub API via `gh api repos/{org}/{repo}/issues --method POST`. Currently uses whatever auth `gh` has configured. Future work: switch to a dedicated GitHub App token so issues appear as the bot, not the logged-in user.
+**Services**: The `create_issue` service is declared in `manifest.yaml` with a `chat` block, which means it's automatically registered as a chat-proposable action at startup. The LLM can propose creating an issue; the user sees a confirmation card and clicks "Post issue" or "Cancel." Approval enqueues a `service.github.create_issue` task through the normal queue. The handler in `services/create_issue.py` calls `GitHubClient.create_issue()`, which POSTs to the GitHub REST API using the App's installation token. Actions taken by the assistant appear under the GitHub App's identity, not the user's.
 
 ## Tests
 

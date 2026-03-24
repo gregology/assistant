@@ -1,12 +1,13 @@
 # assistant-github
 
-Monitors GitHub pull requests and issues using the `gh` CLI. Classifies them with an LLM and tracks them as markdown notes with YAML frontmatter. Currently read-only with no write actions.
+Monitors GitHub pull requests and issues via the GitHub REST API. Authenticates as a GitHub App so actions taken by the assistant (e.g., creating issues) appear under the App's identity, not your personal account. Classifies items with an LLM and tracks them as markdown notes with YAML frontmatter. Currently read-only with no write actions except issue creation.
 
 ## Prerequisites
 
-- The [`gh` CLI](https://cli.github.com/) installed and authenticated (`gh auth login`)
+- A [GitHub App](https://docs.github.com/en/apps/creating-github-apps) installed on the repos/orgs you want to monitor
+- The App's **App ID**, **Installation ID**, and **private key** (`.pem` file)
 
-That's it. The integration shells out to `gh api` for everything, so it inherits whatever GitHub auth you already have set up.
+Run `assistant setup` and follow the prompts to configure credentials, or add them manually to your config and secrets files (see below).
 
 ## Config
 
@@ -14,6 +15,10 @@ That's it. The integration shells out to `gh api` for everything, so it inherits
 integrations:
   - type: github
     name: my_repos
+    github_user: your-github-username
+    app_id: !secret github_app_id
+    installation_id: !secret github_installation_id
+    private_key: !secret github_private_key
     schedule:
       every: 30m
     llm: default
@@ -30,7 +35,20 @@ integrations:
           # ...
 ```
 
+`github_user` is the GitHub username whose activity should be monitored (replaces the `@me` shorthand used internally).
+
 Both `orgs` and `repos` are optional. Leave them out and the integration discovers repos from your GitHub activity. Use `repos` for a specific list in `org/repo` format, or `orgs` to track everything in an organization.
+
+Credentials go in `secrets.yaml`:
+
+```yaml
+github_app_id: "123456"
+github_installation_id: "78901234"
+github_private_key: |
+  -----BEGIN RSA PRIVATE KEY-----
+  ...
+  -----END RSA PRIVATE KEY-----
+```
 
 ## Platforms
 

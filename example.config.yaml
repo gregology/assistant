@@ -62,6 +62,24 @@ integrations:
                     - type: note
                       path: research/privacy_policy_updates/
 
+  # GitHub integration: track PRs and issues via GitHub App credentials
+  - type: github
+    name: personal
+    github_user: your-github-username
+    app_id: !secret github_app_id
+    installation_id: !secret github_installation_id
+    private_key: !secret github_private_key
+    schedule:
+      every: 12h
+    llm: default
+    # orgs: [myorg]                  # Restrict to specific orgs
+    # repos: [myorg/myrepo]          # Restrict to specific repos (org/repo format)
+    platforms:
+      pull_requests:
+        include_mentions: true
+      issues:
+        include_mentions: true
+
   # Gemini web research service used for privacy policy updates
   - type: gemini
     name: default

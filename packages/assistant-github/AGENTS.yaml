@@ -41,15 +41,17 @@ context:
       either barrier. The salt pattern is not optional.
 
 decisions:
-  - decision: "gh CLI as GitHub API client"
+  - decision: "httpx + GitHub App JWT auth as GitHub API client"
     rationale: |
-      GitHub API calls go through subprocess.run(["gh", "api", ...]). The gh CLI
-      handles authentication (OAuth device flow, SSH keys, token storage), rate
-      limiting, and pagination. The cost is a hard dependency on gh being installed
-      and authenticated, but anyone working with GitHub repos almost certainly has it.
+      GitHub API calls use httpx with GitHub App installation tokens. The client
+      generates a JWT (RS256 via PyJWT) from the App's private key, exchanges it
+      for an installation token, and uses that for all requests. This gives the
+      assistant its own identity (actions appear as the App, not the user) and
+      removes the runtime dependency on the gh CLI being installed and authenticated.
+      Retry with exponential backoff (3 attempts, 1s/2s/4s) is handled in _request.
     alternatives:
-      - option: "httpx or PyGithub"
-        reason_rejected: "Would need to reimplement auth, rate limiting, and pagination"
+      - option: "gh CLI subprocess"
+        reason_rejected: "Actions appeared as the user, not the bot; hard runtime dependency on gh being installed and authenticated"
     match: ["**/client.py"]
 
   - decision: "GitHub filename: {org}__{repo}__{number}.md"

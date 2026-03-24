@@ -9,6 +9,7 @@ Usage:
     assistant setup --reconfigure  # Reconfigure an existing installation
 """
 
+import importlib
 import shutil
 import sys
 from datetime import datetime
@@ -204,82 +205,55 @@ def setup_email() -> tuple[list[dict[str, Any]], dict[str, str]]:
     return integrations, secrets
 
 
-def setup_github() -> tuple[list[dict[str, Any]], dict[str, str]]:
-    """Configure GitHub integration. Returns (integrations_list, secrets_section)."""
-    _heading("GitHub Integration")
+class _SetupPrompts:
+    """Adapter that exposes setup prompt helpers to integration setup hooks."""
 
-    if not _prompt_yn("Set up GitHub integration?", default=True):
-        return [], {}
+    prompt = staticmethod(_prompt)
+    prompt_yn = staticmethod(_prompt_yn)
+    prompt_choice = staticmethod(_prompt_choice)
+    info = staticmethod(_info)
+    success = staticmethod(_success)
+    warn = staticmethod(_warn)
+    heading = staticmethod(_heading)
 
-    integrations: list[dict[str, Any]] = []
-    secrets: dict[str, str] = {}
 
-    name = _prompt("Integration name", "my_repos")
-    github_user = _prompt("GitHub username")
-    app_id = _prompt("GitHub App ID")
-    installation_id = _prompt("GitHub App Installation ID")
+def _load_setup_hook(hook_path: str, module_name: str) -> Any:
+    """Load a setup hook function from a dotted path relative to a module."""
+    parts = hook_path[1:].split(".") if hook_path.startswith(".") else hook_path.split(".")
+    func_name = parts.pop()
+    sub_module = ".".join(parts)
+    full_module_path = f"{module_name}.{sub_module}" if sub_module else module_name
+    mod = importlib.import_module(full_module_path)
+    return getattr(mod, func_name)
 
-    _info("Provide the private key for your GitHub App.")
-    _info("You can paste the key directly or provide a path to the .pem file.\n")
-    key_input = _prompt("Private key (path to .pem file or paste key)")
 
-    key_path = Path(key_input)
-    if key_path.is_file():
-        private_key = key_path.read_text()
-        _success(f"Read private key from {key_path}")
-    else:
-        private_key = key_input
+def _run_integration_setup_hooks() -> tuple[list[dict[str, Any]], dict[str, str]]:
+    """Discover integrations with setup hooks and run them."""
+    from app.loader import discover_integrations
 
-    secret_app_id_key = f"{name}_github_app_id"
-    secret_installation_id_key = f"{name}_github_installation_id"
-    secret_private_key_key = f"{name}_github_private_key"
-    secrets[secret_app_id_key] = app_id
-    secrets[secret_installation_id_key] = installation_id
-    secrets[secret_private_key_key] = private_key
+    builtin_dir = PROJECT_ROOT / "app" / "integrations"
+    manifests = discover_integrations(builtin_dir)
 
-    schedule = _prompt("Check frequency", "10m")
+    all_integrations: list[dict[str, Any]] = []
+    all_secrets: dict[str, str] = {}
+    prompts = _SetupPrompts()
 
-    pr_enabled = _prompt_yn("Monitor pull requests?", default=True)
-    issues_enabled = _prompt_yn("Monitor issues?", default=True)
+    for domain, manifest in manifests.items():
+        if not manifest.setup_hook:
+            continue
 
-    platforms: dict[str, Any] = {}
-    if pr_enabled:
-        platforms["pull_requests"] = {
-            "classifications": {
-                "complexity": (
-                    "how complex is this PR to review? 0 = trivial, 1 = major architectural change"
-                ),
-                "risk": "how risky is this change? 0 = no risk, 1 = high risk of breaking things",
-            }
-        }
-    if issues_enabled:
-        platforms["issues"] = {
-            "classifications": {
-                "urgency": "how urgently does this issue need attention?",
-                "actionable": {
-                    "prompt": "can you take a concrete next step on this issue?",
-                    "type": "boolean",
-                },
-            }
-        }
+        module_name = manifest.entry_point_module or f"app.integrations.{domain}"
+        try:
+            hook = _load_setup_hook(manifest.setup_hook, module_name)
+        except (ImportError, AttributeError):
+            _warn(f"Could not load setup hook for {manifest.name} -- skipping")
+            continue
 
-    if not platforms:
-        return [], {}
+        integrations, secrets = hook(prompts)
+        all_integrations.extend(integrations)
+        all_secrets.update(secrets)
 
-    integration: dict[str, Any] = {
-        "type": "github",
-        "name": name,
-        "github_user": github_user,
-        "app_id": f"!secret {secret_app_id_key}",
-        "installation_id": f"!secret {secret_installation_id_key}",
-        "private_key": f"!secret {secret_private_key_key}",
-        "schedule": {"every": schedule},
-        "llm": "default",
-        "platforms": platforms,
-    }
-    integrations.append(integration)
-
-    return integrations, secrets
+    return all_integrations, all_secrets
 
 
 def setup_directories() -> dict[str, str]:
@@ -458,12 +432,12 @@ def run_setup(reconfigure: bool = False) -> int:
     # Run each setup section
     llm_config, llm_secrets = setup_llm()
     email_integrations, email_secrets = setup_email()
-    github_integrations, github_secrets = setup_github()
+    hook_integrations, hook_secrets = _run_integration_setup_hooks()
     directories = setup_directories()
 
     # Merge
-    all_integrations = email_integrations + github_integrations
-    all_secrets = {**llm_secrets, **email_secrets, **github_secrets}
+    all_integrations = email_integrations + hook_integrations
+    all_secrets = {**llm_secrets, **email_secrets, **hook_secrets}
 
     # Generate files
     config_content = _build_config_yaml(llm_config, all_integrations, directories)

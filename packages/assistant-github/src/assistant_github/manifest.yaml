@@ -3,6 +3,7 @@ name: "GitHub"
 version: "1.0.0"
 entry_task: check
 dependencies: []
+setup_hook: ".setup.setup"
 config_schema:
   properties:
     github_user:

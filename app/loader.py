@@ -207,6 +207,7 @@ def _load_manifest(
         path=integration_dir,
         builtin=builtin,
         services=services,
+        setup_hook=raw.get("setup_hook"),
     )
 
 

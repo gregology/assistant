@@ -54,3 +54,4 @@ class IntegrationManifest:
     handlers: dict[str, str] = field(default_factory=dict)
     services: dict[str, ServiceManifest] = field(default_factory=dict)
     entry_point_module: str | None = None
+    setup_hook: str | None = None

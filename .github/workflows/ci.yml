@@ -46,7 +46,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v7
       - run: uv sync
-      - run: uv run pip-audit
+      - run: uv run pip-audit --ignore-vuln CVE-2026-4539  # pygments 2.19.2, no fix available yet
 
   quality:
     runs-on: ubuntu-latest

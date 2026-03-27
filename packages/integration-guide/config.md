@@ -35,6 +35,7 @@ JSON Schema syntax. The system maps types like this:
 | `integer` | `int` |
 | `boolean` | `bool` |
 | `array` (with `items: {type: string}`) | `list[str]` |
+| `array` (with `items: {oneOf: [...]}`) | `list` (unparameterized) |
 | `object` | `dict` |
 
 Fields with a `default` become optional. Fields in `required` are mandatory.

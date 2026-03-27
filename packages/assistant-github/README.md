@@ -24,6 +24,10 @@ integrations:
     llm: default
     # orgs: [myorg]                  # Restrict to specific orgs
     # repos: [myorg/myrepo]          # Restrict to specific repos (org/repo format)
+    # repos:                         # Or use object form to add context for the LLM:
+    #   - repo: myorg/backend
+    #     context: "Python API server. Issues should include endpoint and error details."
+    #   - myorg/docs                 # Plain strings still work alongside object entries
     platforms:
       pull_requests:
         # include_mentions: true     # Also track PRs that mention you (off by default)
@@ -37,7 +41,7 @@ integrations:
 
 `github_user` is the GitHub username whose activity should be monitored (replaces the `@me` shorthand used internally).
 
-Both `orgs` and `repos` are optional. Leave them out and the integration discovers repos from your GitHub activity. Use `repos` for a specific list in `org/repo` format, or `orgs` to track everything in an organization.
+Both `orgs` and `repos` are optional. Leave them out and the integration discovers repos from your GitHub activity. Use `repos` for a specific list in `org/repo` format, or `orgs` to track everything in an organization. Repo entries can be plain strings or objects with `repo` and `context` fields — the `context` is included in the chat system prompt so the LLM knows which repo to target and what details to include when proposing issues.
 
 Credentials go in `secrets.yaml`:
 

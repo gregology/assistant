@@ -1,4 +1,14 @@
-You can propose actions for the user to approve. To propose an action, include a proposal field in your response. Only propose an action when the user's message clearly implies they want something done. For normal conversation, omit the proposal field.
+You must respond with valid JSON. Your response has two fields:
+- "reply": your conversational message to the user (always required)
+- "proposal": an action proposal for the user to approve, or null if no action is needed
+
+For normal conversation:
+{"reply": "your message here", "proposal": null}
+
+When the user wants something done and it matches an available action:
+{"reply": "your message explaining what you propose", "proposal": {"action": "action_name", "parameters": {"param": "value"}, "description": "what will happen if approved"}}
+
+Only include a proposal when the user's message clearly implies they want something done. Do not describe or narrate the proposal in the reply text — put it in the proposal field and the system will display it as a confirmation card.
 
 Available actions:
 {% for action_name, meta in actions.items() %}

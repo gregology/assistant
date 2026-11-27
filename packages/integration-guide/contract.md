@@ -193,11 +193,14 @@ def handle(task: dict):
 
     # do work...
 
-    runtime.enqueue({
-        "type": "{domain}.{platform}.{next_stage}",
-        "integration": integration_id,
-        # stage-specific fields
-    }, priority=5)
+    runtime.enqueue(
+        {
+            "type": "{domain}.{platform}.{next_stage}",
+            "integration": integration_id,
+            # stage-specific fields
+        },
+        priority=5,
+    )
 ```
 
 ### Service handlers
@@ -243,25 +246,31 @@ DEFAULT_CLASSIFICATIONS: dict[str, ClassificationConfig] = {
 # Fields that come from the source directly, not from LLM classification.
 # Used by the provenance system to determine if an automation is
 # deterministic ("rule") or LLM-influenced ("llm"/"hybrid").
-DETERMINISTIC_SOURCES: frozenset[str] = frozenset({
-    "author",
-    "channel",
-    "has_attachments",
-    # ... every field in your snapshot that isn't from the LLM
-})
+DETERMINISTIC_SOURCES: frozenset[str] = frozenset(
+    {
+        "author",
+        "channel",
+        "has_attachments",
+        # ... every field in your snapshot that isn't from the LLM
+    }
+)
 
 # Actions that cannot be undone. These are blocked from LLM/hybrid
 # provenance at config load time unless tagged with !yolo.
-IRREVERSIBLE_ACTIONS: frozenset[str] = frozenset({
-    # "delete",  -- example
-})
+IRREVERSIBLE_ACTIONS: frozenset[str] = frozenset(
+    {
+        # "delete",  -- example
+    }
+)
 
 # Allowlist of string actions your act handler accepts.
 # Unknown strings are silently skipped. This set must not grow
 # without a reversibility review.
-SIMPLE_ACTIONS: frozenset[str] = frozenset({
-    # "archive", "pin", "mute",  -- examples
-})
+SIMPLE_ACTIONS: frozenset[str] = frozenset(
+    {
+        # "archive", "pin", "mute",  -- examples
+    }
+)
 ```
 
 It's fine for `IRREVERSIBLE_ACTIONS` and `SIMPLE_ACTIONS` to start empty. GitHub's are both empty because it's read-only right now. Add actions as you implement them, one at a time, with a reversibility assessment for each.

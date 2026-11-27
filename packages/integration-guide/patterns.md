@@ -53,18 +53,18 @@ def _make_resolver(snapshot: EmailSnapshot):
     def resolve_value(key: str, classification: dict):
         # classification.* keys come from LLM output
         if key.startswith("classification."):
-            cls_key = key[len("classification."):]
+            cls_key = key[len("classification.") :]
             return classification.get(cls_key, MISSING)
 
         # Nested dict access for compound fields
         if key.startswith("authentication."):
-            auth_key = key[len("authentication."):]
+            auth_key = key[len("authentication.") :]
             return snapshot.authentication.get(auth_key, MISSING)
 
         if key.startswith("calendar."):
             if snapshot.calendar is None:
                 return MISSING
-            cal_key = key[len("calendar."):]
+            cal_key = key[len("calendar.") :]
             return snapshot.calendar.get(cal_key, MISSING)
 
         # Everything else: direct attribute lookup
@@ -181,8 +181,14 @@ def handle(task: dict):
 The evaluate handler is the most standardized part of the pipeline. It follows the same pattern everywhere:
 
 ```python
-from assistant_sdk.evaluate import evaluate_automations, resolve_action_provenance, unwrap_actions, MISSING
+from assistant_sdk.evaluate import (
+    evaluate_automations,
+    resolve_action_provenance,
+    unwrap_actions,
+    MISSING,
+)
 from assistant_sdk.actions import enqueue_actions
+
 
 def handle(task: dict):
     # Load note, build snapshot, build resolver
@@ -192,13 +198,19 @@ def handle(task: dict):
 
     classifications = platform.classifications or DEFAULT_CLASSIFICATIONS
     actions = evaluate_automations(
-        platform.automations, resolve_value, classification, classifications,
+        platform.automations,
+        resolve_value,
+        classification,
+        classifications,
     )
 
     if actions:
         provenance = resolve_action_provenance(
-            platform.automations, resolve_value, classification,
-            classifications, DETERMINISTIC_SOURCES,
+            platform.automations,
+            resolve_value,
+            classification,
+            classifications,
+            DETERMINISTIC_SOURCES,
         )
         enqueue_actions(
             actions=actions,
@@ -243,20 +255,23 @@ The `human_log` template (from your manifest or overridden in the automation con
 The check handler typically reconciles remote state with local notes. Email does this:
 
 ```python
-inbox_mids = set(remote_message_ids.keys())    # What's in the inbox now
-note_mids = store.inbox_message_ids()           # What we have notes for
+inbox_mids = set(remote_message_ids.keys())  # What's in the inbox now
+note_mids = store.inbox_message_ids()  # What we have notes for
 
 # Items gone from remote -> move notes to synced/
-for mid in (note_mids - inbox_mids):
+for mid in note_mids - inbox_mids:
     store.move_to_subdir(mid, "synced")
 
 # Items in remote -> enqueue collect (dedup handles re-runs)
 for mid, uid in remote_message_ids.items():
-    runtime.enqueue({
-        "type": "email.inbox.collect",
-        "integration": integration_id,
-        "uid": uid,
-    }, priority=3)
+    runtime.enqueue(
+        {
+            "type": "email.inbox.collect",
+            "integration": integration_id,
+            "uid": uid,
+        },
+        priority=3,
+    )
 ```
 
 GitHub does the same with `active_keys()` vs. remote PR/issue lists.

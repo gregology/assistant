@@ -204,9 +204,11 @@ def test_create_task_returns_result():
     with patch("assistant_todoist.services.create_task.TodoistClient", return_value=mock_client):
         with patch("assistant_todoist.services.create_task.runtime") as mock_runtime:
             mock_runtime.get_integration.return_value = MagicMock(
-                api_token="fake", default_project="Inbox",
+                api_token="fake",
+                default_project="Inbox",
             )
             from assistant_todoist.services.create_task import handle
+
             result = handle(task)
 
     assert result["id"] == "123"
@@ -225,6 +227,7 @@ def test_empty_title_skips():
 
     with patch("assistant_todoist.services.create_task.runtime"):
         from assistant_todoist.services.create_task import handle
+
         result = handle(task)
 
     assert "error" in result

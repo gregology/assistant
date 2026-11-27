@@ -75,11 +75,11 @@ At runtime your handlers access these as attributes on the integration/platform 
 
 ```python
 integration = runtime.get_integration("slack.work")
-url = integration.base_url     # "https://api.example.com"
+url = integration.base_url  # "https://api.example.com"
 
 platform = runtime.get_platform("slack.work", "messages")
-limit = platform.limit         # 100
-channels = platform.channels   # ["general", "random"]
+limit = platform.limit  # 100
+channels = platform.channels  # ["general", "random"]
 ```
 
 ## !secret references

@@ -122,15 +122,17 @@ DEFAULT_CLASSIFICATIONS: dict[str, ClassificationConfig] = {
     ),
 }
 
-DETERMINISTIC_SOURCES: frozenset[str] = frozenset({
-    "channel",
-    "author",
-    "is_thread",
-    "is_bot",
-    "has_reactions",
-    "has_attachments",
-    "message_type",
-})
+DETERMINISTIC_SOURCES: frozenset[str] = frozenset(
+    {
+        "channel",
+        "author",
+        "is_thread",
+        "is_bot",
+        "has_reactions",
+        "has_attachments",
+        "message_type",
+    }
+)
 
 # Nothing irreversible yet. If you add "delete_message" later,
 # put it here and the safety system will block it from LLM provenance
@@ -175,12 +177,14 @@ from .store import SlackMessageStore
 
 log = logging.getLogger(__name__)
 
+
 def handle(task: dict):
     integration_id = task["payload"]["integration"]
     integration = runtime.get_integration(integration_id)
     platform = runtime.get_platform(integration_id, "messages")
 
     from ...client import SlackClient
+
     client = SlackClient(bot_token=integration.bot_token)
 
     channels = platform.channels or []
@@ -196,15 +200,19 @@ def handle(task: dict):
         for msg in messages:
             msg_id = f"{channel}_{msg['ts']}"
             if msg_id not in known_ids:
-                runtime.enqueue({
-                    "type": "slack.messages.collect",
-                    "integration": integration_id,
-                    "channel": channel,
-                    "ts": msg["ts"],
-                }, priority=3)
+                runtime.enqueue(
+                    {
+                        "type": "slack.messages.collect",
+                        "integration": integration_id,
+                        "channel": channel,
+                        "ts": msg["ts"],
+                    },
+                    priority=3,
+                )
 
-    log.info("slack.messages.check: checked %d channels (integration=%s)",
-             len(channels), integration_id)
+    log.info(
+        "slack.messages.check: checked %d channels (integration=%s)", len(channels), integration_id
+    )
 ```
 
 ### collect.py -- fetch full message details
@@ -216,6 +224,7 @@ from .store import SlackMessageStore
 
 log = logging.getLogger(__name__)
 
+
 def handle(task: dict):
     integration_id = task["payload"]["integration"]
     integration = runtime.get_integration(integration_id)
@@ -223,6 +232,7 @@ def handle(task: dict):
     ts = task["payload"]["ts"]
 
     from ...client import SlackClient
+
     client = SlackClient(bot_token=integration.bot_token)
 
     msg = client.get_message(channel, ts)
@@ -234,11 +244,14 @@ def handle(task: dict):
     msg_id = f"{channel}_{ts}"
     store.save(msg, channel=channel, channel_name=channel_name, msg_id=msg_id)
 
-    runtime.enqueue({
-        "type": "slack.messages.classify",
-        "integration": integration_id,
-        "msg_id": msg_id,
-    }, priority=6)
+    runtime.enqueue(
+        {
+            "type": "slack.messages.classify",
+            "integration": integration_id,
+            "msg_id": msg_id,
+        },
+        priority=6,
+    )
 ```
 
 ### classify.py -- LLM classification
@@ -256,6 +269,7 @@ from .const import DEFAULT_CLASSIFICATIONS
 from .store import SlackMessageStore
 
 log = logging.getLogger(__name__)
+
 
 def handle(task: dict):
     integration_id = task["payload"]["integration"]
@@ -278,11 +292,14 @@ def handle(task: dict):
 
     # Skip if already classified
     if all(k in existing_cls for k in classifications):
-        runtime.enqueue({
-            "type": "slack.messages.evaluate",
-            "integration": integration_id,
-            "msg_id": msg_id,
-        }, priority=7)
+        runtime.enqueue(
+            {
+                "type": "slack.messages.evaluate",
+                "integration": integration_id,
+                "msg_id": msg_id,
+            },
+            priority=7,
+        )
         return
 
     schema = build_schema(classifications)
@@ -302,11 +319,14 @@ def handle(task: dict):
 
     store.update(msg_id, classification=result)
 
-    runtime.enqueue({
-        "type": "slack.messages.evaluate",
-        "integration": integration_id,
-        "msg_id": msg_id,
-    }, priority=7)
+    runtime.enqueue(
+        {
+            "type": "slack.messages.evaluate",
+            "integration": integration_id,
+            "msg_id": msg_id,
+        },
+        priority=7,
+    )
 ```
 
 ### evaluate.py -- run automations
@@ -359,9 +379,10 @@ def _snapshot_from_frontmatter(meta: dict) -> MessageSnapshot:
 def _make_resolver(snapshot: MessageSnapshot):
     def resolve_value(key: str, classification: dict):
         if key.startswith("classification."):
-            cls_key = key[len("classification."):]
+            cls_key = key[len("classification.") :]
             return classification.get(cls_key, MISSING)
         return getattr(snapshot, key, MISSING)
+
     return resolve_value
 
 
@@ -388,17 +409,25 @@ def handle(task: dict):
     resolve_value = _make_resolver(snapshot)
 
     actions = evaluate_automations(
-        platform.automations, resolve_value, classification, classifications,
+        platform.automations,
+        resolve_value,
+        classification,
+        classifications,
     )
 
     if actions:
         provenance = resolve_action_provenance(
-            platform.automations, resolve_value, classification,
-            classifications, DETERMINISTIC_SOURCES,
+            platform.automations,
+            resolve_value,
+            classification,
+            classifications,
+            DETERMINISTIC_SOURCES,
         )
         log.info(
             "slack.messages.evaluate: msg_id=%s actions=%s provenance=%s",
-            msg_id, unwrap_actions(actions), provenance,
+            msg_id,
+            unwrap_actions(actions),
+            provenance,
         )
         enqueue_actions(
             actions=actions,
@@ -423,6 +452,7 @@ from .const import SIMPLE_ACTIONS
 
 log = logging.getLogger(__name__)
 
+
 def _execute_action(client, channel, ts, action) -> None:
     if isinstance(action, str):
         if action not in SIMPLE_ACTIONS:
@@ -443,10 +473,14 @@ def handle(task: dict):
 
     log.info(
         "slack.messages.act: msg_id=%s actions=%s provenance=%s (integration=%s)",
-        msg_id, actions, provenance, integration_id,
+        msg_id,
+        actions,
+        provenance,
+        integration_id,
     )
 
     from ...client import SlackClient
+
     client = SlackClient(bot_token=integration.bot_token)
 
     # Parse msg_id back to channel + ts
@@ -461,6 +495,7 @@ def handle(task: dict):
 ```python
 from pathlib import Path
 from assistant_sdk.store import NoteStore
+
 
 class SlackMessageStore:
     def __init__(self, path: Path):
@@ -490,11 +525,7 @@ class SlackMessageStore:
         return self._store.update(f"{msg_id}.md", **fields)
 
     def known_message_ids(self) -> set[str]:
-        return {
-            note.get("msg_id")
-            for note in self._store.all()
-            if note.get("msg_id")
-        }
+        return {note.get("msg_id") for note in self._store.all() if note.get("msg_id")}
 ```
 
 ## Step 8: Write the prompt template
@@ -541,9 +572,10 @@ from assistant_sdk.models import ClassificationConfig, AutomationConfig
 def _make_resolver(**fields):
     def resolve_value(key, classification):
         if key.startswith("classification."):
-            cls_key = key[len("classification."):]
+            cls_key = key[len("classification.") :]
             return classification.get(cls_key, MISSING)
         return fields.get(key, MISSING)
+
     return resolve_value
 
 
@@ -577,7 +609,10 @@ def test_classification_condition():
     ]
     resolver = _make_resolver()
     actions = evaluate_automations(
-        automations, resolver, {"importance": 0.9}, classifications,
+        automations,
+        resolver,
+        {"importance": 0.9},
+        classifications,
     )
     assert actions == ["pin"]
 ```
